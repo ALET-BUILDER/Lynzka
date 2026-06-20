@@ -20,7 +20,7 @@ end
 -- Fungsi load cheat utama (dari GitHub)
 local function loadCheat()
     local success, result = pcall(function()
-        return loadstring(game:HttpGet("https://raw.githubusercontent.com/GALAXY-IP/Cheat/main/AllGame.lua"))()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/ALET-BUILDER/Lynzka/main/AllGame.lua"))()
     end)
     if not success then
         warn(result)
