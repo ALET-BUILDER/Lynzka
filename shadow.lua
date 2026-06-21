@@ -13,6 +13,8 @@ local Lighting = game:GetService("Lighting")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 
 -- HAPUS GUI LAMA
 pcall(function() 
@@ -169,7 +171,8 @@ local toggleStates = {
     ["God Mode"] = false,
     ["Invisible"] = false,
     ["Wallbang"] = false,
-    ["Anti Report"] = false
+    ["Anti Report"] = false,
+    ["Down Server"] = false
 }
 local sliderValues = {
     ["WalkSpeed"] = 16,
@@ -180,7 +183,8 @@ local sliderValues = {
     ["Aimbot FOV"] = 500,
     ["Holo R"] = 0,
     ["Holo G"] = 255,
-    ["Holo B"] = 0
+    ["Holo B"] = 0,
+    ["HealthBar Thickness"] = 10
 }
 local currentTab = nil
 local godModeConnection = nil
@@ -191,6 +195,7 @@ local godModeActive = false
 local invisibleActive = false
 local wallbangActive = false
 local antiReportActive = false
+local downServerActive = false
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -276,7 +281,7 @@ local function CreateESP(player)
         name = NewDrawing("Text", {Size = 13, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
         health = NewDrawing("Text", {Size = 12, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
         distance = NewDrawing("Text", {Size = 11, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
-        healthBar = NewDrawing("Line", {Thickness = 7, ZIndex = 2})
+        healthBar = NewDrawing("Line", {Thickness = 10, ZIndex = 2})
     }
     TracerLines[player] = NewDrawing("Line", {Thickness = 2, Color = Color3.fromRGB(255, 0, 0), ZIndex = 3})
 end
@@ -367,13 +372,11 @@ local function ToggleInvisible()
     end
     
     if invisibleActive then
-        -- Set semua parts menjadi transparan
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.Transparency = 1
             end
         end
-        -- Loop untuk menjaga invisible
         if invisibleConnection then invisibleConnection:Disconnect() end
         invisibleConnection = RunService.Heartbeat:Connect(function()
             if not invisibleActive then
@@ -407,12 +410,24 @@ local function ToggleInvisible()
     end
 end
 
--- ========== WALLBANG (Tembus Benda) ==========
+-- ========== WALLBANG (Tembus Benda) - FIXED ==========
 local wallbangConnection = nil
+local originalCollide = {}
 local function ToggleWallbang()
     wallbangActive = not wallbangActive
     
     if wallbangActive then
+        -- Set semua bagian karakter bisa tembus
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    originalCollide[part] = part.CanCollide
+                    part.CanCollide = false
+                end
+            end
+        end
+        
         if wallbangConnection then wallbangConnection:Disconnect() end
         wallbangConnection = RunService.Heartbeat:Connect(function()
             if not wallbangActive then
@@ -420,9 +435,9 @@ local function ToggleWallbang()
                 wallbangConnection = nil
                 return
             end
-            local char = LocalPlayer.Character
-            if not char then return end
-            for _, part in pairs(char:GetDescendants()) do
+            local char2 = LocalPlayer.Character
+            if not char2 then return end
+            for _, part in pairs(char2:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
                 end
@@ -434,14 +449,15 @@ local function ToggleWallbang()
             wallbangConnection:Disconnect()
             wallbangConnection = nil
         end
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
+        local char2 = LocalPlayer.Character
+        if char2 then
+            for _, part in pairs(char2:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    part.CanCollide = true
+                    part.CanCollide = originalCollide[part] or true
                 end
             end
         end
+        originalCollide = {}
         notify("🧱 WALLBANG OFF", 2)
     end
 end
@@ -453,6 +469,56 @@ local function ToggleAntiReport()
         notify("🛡 ANTI REPORT ON - Players can't report you!", 3)
     else
         notify("🛡 ANTI REPORT OFF", 2)
+    end
+end
+
+-- ========== DOWN SERVER ==========
+local downServerConnection = nil
+local function ToggleDownServer()
+    downServerActive = not downServerActive
+    
+    if downServerActive then
+        notify("🌐 DOWN SERVER ON - Players will be kicked!", 3)
+        
+        -- Kick semua player kecuali diri sendiri
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                pcall(function()
+                    player:Kick("Server is down by Lynzka Hub!")
+                end)
+            end
+        end
+        
+        -- Loop untuk terus kick player yang join
+        if downServerConnection then downServerConnection:Disconnect() end
+        downServerConnection = Players.PlayerAdded:Connect(function(player)
+            if downServerActive and player ~= LocalPlayer then
+                task.wait(0.5)
+                pcall(function()
+                    player:Kick("Server is down by Lynzka Hub!")
+                end)
+            end
+        end)
+        
+        -- Juga kick via teleport ke server lain
+        task.spawn(function()
+            while downServerActive do
+                task.wait(2)
+                for _, player in pairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer then
+                        pcall(function()
+                            player:Kick("Server is down by Lynzka Hub!")
+                        end)
+                    end
+                end
+            end
+        end)
+    else
+        if downServerConnection then
+            downServerConnection:Disconnect()
+            downServerConnection = nil
+        end
+        notify("🌐 DOWN SERVER OFF", 2)
     end
 end
 
@@ -688,12 +754,13 @@ RunService.RenderStepped:Connect(function()
         obj.health.Color = greenHealth
         obj.health.Visible = toggleStates["ESP Health"]
         
-        -- Health Bar di sebelah kanan box (tebal 7)
+        -- Health Bar di sebelah kanan box (tebal sesuai slider)
         if toggleStates["ESP Health"] then
             local barX = bbox.x1 + 3
             local barY = bbox.y0
             local barHeight = bbox.y1 - bbox.y0
             local fillHeight = barHeight * healthPercent
+            local thickness = sliderValues["HealthBar Thickness"] or 10
             obj.healthBar.From = Vector2.new(barX, barY + barHeight - fillHeight)
             obj.healthBar.To = Vector2.new(barX, barY + barHeight)
             obj.healthBar.Color = Color3.fromRGB(
@@ -701,7 +768,7 @@ RunService.RenderStepped:Connect(function()
                 math.floor(255 * healthPercent),
                 50
             )
-            obj.healthBar.Thickness = 7
+            obj.healthBar.Thickness = thickness
             obj.healthBar.Visible = true
         else
             obj.healthBar.Visible = false
@@ -872,15 +939,16 @@ local function createToggle(p, text, def, cb)
             Position = st and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
         }):Play()
         if cb then pcall(cb, st) end
-        -- Notifikasi untuk toggle tertentu
         if text == "God Mode" then
-            if st then notify("🛡 GOD MODE ON", 2) else notify("💀 GOD MODE OFF", 2) end
+            ToggleGodMode()
         elseif text == "Invisible" then
             ToggleInvisible()
         elseif text == "Wallbang" then
             ToggleWallbang()
         elseif text == "Anti Report" then
             ToggleAntiReport()
+        elseif text == "Down Server" then
+            ToggleDownServer()
         end
     end)
 end
@@ -1338,6 +1406,7 @@ createToggle(miscPage, "Anti AFK", false, function(s)
 end)
 createToggle(miscPage, "Show FPS", false)
 createToggle(miscPage, "Anti Report", false)
+createToggle(miscPage, "Down Server", false)
 
 createSection(miscPage, "Server")
 createButton(miscPage, "🔁 Rejoin", function()
@@ -1363,13 +1432,16 @@ local settingsPage = createTab("Settings", "🔧", 6)
 
 createSection(settingsPage, "Hub Settings")
 createToggle(settingsPage, "Rainbow Border", false)
+createSlider(settingsPage, "HealthBar Thickness", 5, 20, 10, function(v)
+    -- Update health bar thickness
+end)
 createButton(settingsPage, "📐 Center GUI", function()
     TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
         Position = UDim2.new(0.5, -280, 0.5, -205)
     }):Play()
 end)
 createButton(settingsPage, "🗑 Close Hub", function()
-    -- Matikan semua fitur saat close
+    -- Matikan semua fitur
     toggleStates["Player ESP"] = false
     toggleStates["Aimbot"] = false
     toggleStates["Speed Hack"] = false
@@ -1379,10 +1451,12 @@ createButton(settingsPage, "🗑 Close Hub", function()
     toggleStates["Invisible"] = false
     toggleStates["Wallbang"] = false
     toggleStates["Anti Report"] = false
+    toggleStates["Down Server"] = false
     if godModeConnection then godModeConnection:Disconnect() end
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
+    if downServerConnection then downServerConnection:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
@@ -1405,10 +1479,12 @@ CloseBtn.MouseButton1Click:Connect(function()
     toggleStates["Invisible"] = false
     toggleStates["Wallbang"] = false
     toggleStates["Anti Report"] = false
+    toggleStates["Down Server"] = false
     if godModeConnection then godModeConnection:Disconnect() end
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
+    if downServerConnection then downServerConnection:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
