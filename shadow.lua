@@ -196,14 +196,18 @@ local sliderValues = {
 local currentTab = nil
 local godModeConnection = nil
 local SpeedLoop = nil
+local JumpLoop = nil
 local Holos = {}
 local minimized = false
 local godModeActive = false
 local invisibleActive = false
+local invisibleConnection = nil
 local wallbangActive = false
+local wallbangConnection = nil
 local antiReportActive = false
 local teleportCooldown = false
 local healthBarThickness = 10
+local originalTransparency = {}
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -314,6 +318,19 @@ local function HideESP(obj)
     end
 end
 
+-- ========== UPDATE HEALTH BAR THICKNESS ==========
+local function UpdateHealthBarThickness(thickness)
+    healthBarThickness = math.clamp(thickness, 5, 20)
+    sliderValues["HealthBar Thickness"] = healthBarThickness
+    
+    -- Update semua health bar yang sudah ada
+    for _, obj in pairs(EspObjects) do
+        if obj and obj.healthBar then
+            obj.healthBar.Thickness = healthBarThickness
+        end
+    end
+end
+
 -- ========== GOD MODE ==========
 local function ToggleGodMode()
     godModeActive = not godModeActive
@@ -369,8 +386,7 @@ local function ToggleGodMode()
     end
 end
 
--- ========== INVISIBLE ==========
-local invisibleConnection = nil
+-- ========== INVISIBLE (FIXED) ==========
 local function ToggleInvisible()
     invisibleActive = not invisibleActive
     local char = LocalPlayer.Character
@@ -382,9 +398,11 @@ local function ToggleInvisible()
     if invisibleActive then
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
+                originalTransparency[part] = part.Transparency
                 part.Transparency = 1
             end
         end
+        
         if invisibleConnection then invisibleConnection:Disconnect() end
         invisibleConnection = RunService.Heartbeat:Connect(function()
             if not invisibleActive then
@@ -410,16 +428,16 @@ local function ToggleInvisible()
         if char2 then
             for _, part in pairs(char2:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    part.Transparency = 0
+                    part.Transparency = originalTransparency[part] or 0
                 end
             end
         end
+        originalTransparency = {}
         notify("👁 INVISIBLE OFF", 2)
     end
 end
 
 -- ========== WALLBANG ==========
-local wallbangConnection = nil
 local function ToggleWallbang()
     wallbangActive = not wallbangActive
     
@@ -514,16 +532,16 @@ local function ApplySpeed()
     end
 end
 
--- ========== JUMP POWER (FIXED - KEMBALI NORMAL SAAT OFF) ==========
-local JumpLoop = nil
+-- ========== JUMP POWER ==========
 local function ApplyJumpPower()
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    
     if not toggleStates["Infinite Jump"] then
         if JumpLoop then
             JumpLoop:Disconnect()
             JumpLoop = nil
         end
-        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum and hum.JumpPower ~= 50 then 
+        if hum then
             hum.JumpPower = 50
             hum.UseJumpPower = true
         end
@@ -533,7 +551,6 @@ local function ApplyJumpPower()
     local jp = sliderValues["JumpPower"] or 50
     jp = math.clamp(jp, 1, 500)
     
-    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
     if hum then
         hum.JumpPower = jp
         hum.UseJumpPower = true
@@ -798,6 +815,7 @@ Players.PlayerRemoving:Connect(function(p)
         Holos[p] = nil
     end
 end)
+            
 
 -- ========== FUNGSI UI ==========
 local function createTab(name, icon, order)
@@ -1256,7 +1274,7 @@ local function notify(text, duration)
     end
 end
 
--- ========== TELEPORT (FIXED - TIDAK GLICTH) ==========
+-- ========== TELEPORT ==========
 local function TeleportToPlayer(player)
     if teleportCooldown then
         notify("⏳ Teleport cooldown! Wait 2 seconds!", 2)
@@ -1281,26 +1299,9 @@ local function TeleportToPlayer(player)
         return
     end
     
-    -- Dapatkan posisi target
-    local targetPos = targetChar.HumanoidRootPart.Position
-    local targetCFrame = targetChar.HumanoidRootPart.CFrame
-    
-    -- Teleport ke posisi target + 3 studs di atas
-    localChar.HumanoidRootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
-    
-    -- Reset velocity agar tidak terbang/ngestuk
-    localChar.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-    localChar.HumanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
-    
-    -- Pastikan Humanoid normal
-    local hum = localChar:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.PlatformStand = false
-        hum.Sit = false
-        hum.AutoRotate = true
-    end
-    
-    notify("📍 Teleported to " .. player.Name, 2)
+    -- TELEPORT - SAMA PERSIS DENGAN FILE ANDA
+    localChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4)
+    notify("Teleported to " .. player.Name .. "!", 2)
     
     teleportCooldown = true
     task.wait(2)
@@ -1538,7 +1539,6 @@ Mouse.Button1Down:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") and Mouse.Hit then
             char.HumanoidRootPart.CFrame = Mouse.Hit + Vector3.new(0, 4, 0)
-            char.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
             notify("📍 Teleported to clicked location!", 2)
         end
     end
@@ -1610,7 +1610,7 @@ infoText.Text = [[
 ║                                           ║
 ║  🔧 SETTINGS:                            ║
 ║  • Customizable UI Size & Color          ║
-║  • Health Bar Thickness                  ║
+║  • Health Bar Thickness (5-20)           ║
 ║  • Rainbow Border                        ║
 ║                                           ║
 ║  📌 HOW TO USE:                          ║
@@ -1720,13 +1720,162 @@ createSlider(settingsPage, "Menu Height", 300, 600, 460, function(v)
 end)
 
 createSection(settingsPage, "⚙ ESP Settings")
-createSlider(settingsPage, "HealthBar Thickness", 5, 20, 10, function(v)
-    healthBarThickness = v
-    sliderValues["HealthBar Thickness"] = v
-    for _, obj in pairs(EspObjects) do
-        if obj and obj.healthBar then
-            obj.healthBar.Thickness = v
-        end
+-- HEALTH BAR THICKNESS SLIDER DENGAN PREVIEW
+local thicknessFrame = Instance.new("Frame", settingsPage)
+thicknessFrame.Size = UDim2.new(1, -4, 0, 70)
+thicknessFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+thicknessFrame.BorderSizePixel = 0
+Instance.new("UICorner", thicknessFrame).CornerRadius = UDim.new(0, 6)
+
+local thicknessLabel = Instance.new("TextLabel", thicknessFrame)
+thicknessLabel.Size = UDim2.new(1, -10, 0, 20)
+thicknessLabel.Position = UDim2.new(0, 10, 0, 2)
+thicknessLabel.BackgroundTransparency = 1
+thicknessLabel.Text = "HealthBar Thickness: " .. healthBarThickness
+thicknessLabel.TextColor3 = Color3.fromRGB(210, 210, 225)
+thicknessLabel.Font = Enum.Font.Gotham
+thicknessLabel.TextSize = 12
+thicknessLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Preview Health Bar
+local previewFrame = Instance.new("Frame", thicknessFrame)
+previewFrame.Size = UDim2.new(0.6, 0, 0, 24)
+previewFrame.Position = UDim2.new(0.1, 0, 0, 28)
+previewFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+previewFrame.BorderSizePixel = 0
+Instance.new("UICorner", previewFrame).CornerRadius = UDim.new(0, 4)
+
+local previewBar = Instance.new("Frame", previewFrame)
+previewBar.Size = UDim2.new(0.7, 0, 1, 0)
+previewBar.BackgroundColor3 = Color3.fromRGB(0, 255, 50)
+previewBar.BorderSizePixel = 0
+Instance.new("UICorner", previewBar).CornerRadius = UDim.new(0, 4)
+
+-- Update preview thickness
+local function updatePreviewThickness(thick)
+    previewBar.Size = UDim2.new(0.7, 0, 1, 0)
+    -- Ubah ketebalan preview dengan mengubah height atau ukuran
+    previewFrame.Size = UDim2.new(0.6, 0, 0, 18 + thick)
+end
+
+-- Tombol - dan +
+local minusBtn = Instance.new("TextButton", thicknessFrame)
+minusBtn.Size = UDim2.new(0, 28, 0, 22)
+minusBtn.Position = UDim2.new(0.8, 0, 0.5, 6)
+minusBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+minusBtn.Text = "−"
+minusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minusBtn.Font = Enum.Font.GothamBold
+minusBtn.TextSize = 16
+minusBtn.BorderSizePixel = 0
+Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 4)
+
+local plusBtn = Instance.new("TextButton", thicknessFrame)
+plusBtn.Size = UDim2.new(0, 28, 0, 22)
+plusBtn.Position = UDim2.new(0.9, 0, 0.5, 6)
+plusBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 90)
+plusBtn.Text = "+"
+plusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+plusBtn.Font = Enum.Font.GothamBold
+plusBtn.TextSize = 16
+plusBtn.BorderSizePixel = 0
+Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 4)
+
+local function updateHealthThickness(v)
+    local newVal = math.clamp(math.floor(v), 5, 20)
+    UpdateHealthBarThickness(newVal)
+    thicknessLabel.Text = "HealthBar Thickness: " .. newVal
+    updatePreviewThickness(newVal)
+end
+
+-- Hold untuk -
+local minusHeld = false
+local minusTimer = nil
+minusBtn.MouseButton1Down:Connect(function()
+    if healthBarThickness > 5 then
+        minusHeld = true
+        updateHealthThickness(healthBarThickness - 1)
+        minusTimer = RunService.Heartbeat:Connect(function()
+            if minusHeld and healthBarThickness > 5 then
+                updateHealthThickness(healthBarThickness - 1)
+            else
+                if minusTimer then minusTimer:Disconnect() end
+                minusTimer = nil
+            end
+        end)
+    end
+end)
+minusBtn.MouseButton1Up:Connect(function()
+    minusHeld = false
+    if minusTimer then minusTimer:Disconnect() end
+    minusTimer = nil
+end)
+
+-- Hold untuk +
+local plusHeld = false
+local plusTimer = nil
+plusBtn.MouseButton1Down:Connect(function()
+    if healthBarThickness < 20 then
+        plusHeld = true
+        updateHealthThickness(healthBarThickness + 1)
+        plusTimer = RunService.Heartbeat:Connect(function()
+            if plusHeld and healthBarThickness < 20 then
+                updateHealthThickness(healthBarThickness + 1)
+            else
+                if plusTimer then plusTimer:Disconnect() end
+                plusTimer = nil
+            end
+        end)
+    end
+end)
+plusBtn.MouseButton1Up:Connect(function()
+    plusHeld = false
+    if plusTimer then plusTimer:Disconnect() end
+    plusTimer = nil
+end)
+
+-- Slider drag
+local bg = Instance.new("Frame", thicknessFrame)
+bg.Size = UDim2.new(0.5, 0, 0, 10)
+bg.Position = UDim2.new(0.1, 0, 0, 58)
+bg.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+bg.BorderSizePixel = 0
+Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
+
+local fl = Instance.new("Frame", bg)
+fl.Size = UDim2.new((healthBarThickness - 5) / 15, 0, 1, 0)
+fl.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
+fl.BorderSizePixel = 0
+Instance.new("UICorner", fl).CornerRadius = UDim.new(1, 0)
+
+local ib = Instance.new("TextButton", bg)
+ib.Size = UDim2.new(1, 0, 1, 10)
+ib.Position = UDim2.new(0, 0, 0, -5)
+ib.BackgroundTransparency = 1
+ib.Text = ""
+
+local sd = false
+local function upd(i)
+    local r = math.clamp((i.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
+    local v = math.floor(5 + (20 - 5) * r)
+    updateHealthThickness(v)
+    fl.Size = UDim2.new(r, 0, 1, 0)
+end
+
+ib.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        sd = true
+        upd(i)
+    end
+end)
+ib.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        sd = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if sd and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+        upd(i)
     end
 end)
 
