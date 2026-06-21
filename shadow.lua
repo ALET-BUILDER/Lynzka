@@ -44,7 +44,7 @@ MainFrame.Visible = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(110, 60, 255)
+MainStroke.Color = Color3.fromRGB(60, 120, 255) -- BIRU
 MainStroke.Thickness = 2
 
 -- ========== DRAG ==========
@@ -86,7 +86,7 @@ TT.Text = "🔥 LYNZKA HUB v3.0"
 TT.Size = UDim2.new(1, -100, 1, 0)
 TT.Position = UDim2.new(0, 14, 0, 0)
 TT.BackgroundTransparency = 1
-TT.TextColor3 = Color3.fromRGB(190, 140, 255)
+TT.TextColor3 = Color3.fromRGB(100, 180, 255)
 TT.Font = Enum.Font.GothamBold
 TT.TextSize = 16
 TT.TextXAlignment = Enum.TextXAlignment.Left
@@ -152,6 +152,7 @@ local toggleStates = {
     ["ESP Names"] = true,
     ["ESP Health"] = true,
     ["ESP Distance"] = true,
+    ["ESP Team Color"] = false,
     ["Hologram"] = false,
     ["Holo Neon"] = false,
     ["Tracer"] = false,
@@ -163,7 +164,8 @@ local toggleStates = {
     ["Show FPS"] = false,
     ["Rainbow Border"] = false,
     ["Click TP"] = false,
-    ["Hitbox Mode"] = "Head"
+    ["Hitbox Mode"] = "Head",
+    ["God Mode"] = false
 }
 local sliderValues = {
     ["WalkSpeed"] = 16,
@@ -177,11 +179,11 @@ local sliderValues = {
     ["Holo B"] = 0
 }
 local currentTab = nil
-local isGodMode = false
 local godModeConnection = nil
 local SpeedLoop = nil
 local Holos = {}
 local minimized = false
+local godModeActive = false
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -267,8 +269,7 @@ local function CreateESP(player)
         name = NewDrawing("Text", {Size = 13, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
         health = NewDrawing("Text", {Size = 12, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
         distance = NewDrawing("Text", {Size = 11, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
-        -- Health Bar di sebelah kanan box
-        healthBar = NewDrawing("Line", {Thickness = 4, ZIndex = 2})
+        healthBar = NewDrawing("Line", {Thickness = 5, ZIndex = 2})
     }
     TracerLines[player] = NewDrawing("Line", {Thickness = 2, Color = Color3.fromRGB(255, 0, 0), ZIndex = 3})
 end
@@ -295,11 +296,14 @@ end
 
 -- ========== GOD MODE ==========
 local function ToggleGodMode()
-    isGodMode = not isGodMode
+    godModeActive = not godModeActive
     local char = LocalPlayer.Character
-    if not char then return end
+    if not char then 
+        notify("❌ Character not found!", 2)
+        return 
+    end
     
-    if isGodMode then
+    if godModeActive then
         local humanoid = char:FindFirstChildOfClass("Humanoid")
         if humanoid then
             humanoid.MaxHealth = 9e9
@@ -310,7 +314,7 @@ local function ToggleGodMode()
         
         if godModeConnection then godModeConnection:Disconnect() end
         godModeConnection = RunService.Heartbeat:Connect(function()
-            if not isGodMode then
+            if not godModeActive then
                 if godModeConnection then godModeConnection:Disconnect() end
                 godModeConnection = nil
                 return
@@ -325,7 +329,7 @@ local function ToggleGodMode()
                 h:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
             end
         end)
-        notify("🛡 God Mode ON", 2)
+        notify("🛡 GOD MODE ON - You are immortal!", 3)
     else
         if godModeConnection then
             godModeConnection:Disconnect()
@@ -341,7 +345,7 @@ local function ToggleGodMode()
                 h:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
             end
         end
-        notify("💀 God Mode OFF", 2)
+        notify("💀 GOD MODE OFF", 2)
     end
 end
 
@@ -577,7 +581,7 @@ RunService.RenderStepped:Connect(function()
         obj.health.Color = greenHealth
         obj.health.Visible = toggleStates["ESP Health"]
         
-        -- Health Bar di sebelah kanan box (tingginya sama dengan box)
+        -- Health Bar di sebelah kanan box (tebal 5)
         if toggleStates["ESP Health"] then
             local barX = bbox.x1 + 3
             local barY = bbox.y0
@@ -590,7 +594,7 @@ RunService.RenderStepped:Connect(function()
                 math.floor(255 * healthPercent),
                 50
             )
-            obj.healthBar.Thickness = 3
+            obj.healthBar.Thickness = 5
             obj.healthBar.Visible = true
         else
             obj.healthBar.Visible = false
@@ -668,7 +672,7 @@ local function createTab(name, icon, order)
     pg.BackgroundTransparency = 1
     pg.BorderSizePixel = 0
     pg.ScrollBarThickness = 3
-    pg.ScrollBarImageColor3 = Color3.fromRGB(110, 60, 255)
+    pg.ScrollBarImageColor3 = Color3.fromRGB(60, 120, 255)
     pg.CanvasSize = UDim2.new(0, 0, 0, 0)
     pg.AutomaticCanvasSize = Enum.AutomaticSize.Y
     pg.Visible = false
@@ -688,7 +692,7 @@ local function createTab(name, icon, order)
             t.label.TextColor3 = Color3.fromRGB(175, 175, 200)
             pages[n].Visible = false
         end
-        btn.BackgroundColor3 = Color3.fromRGB(90, 45, 210)
+        btn.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
         bl.TextColor3 = Color3.fromRGB(255, 255, 255)
         pg.Visible = true
         currentTab = name
@@ -699,11 +703,11 @@ end
 local function createSection(p, text)
     local l = Instance.new("TextLabel")
     l.Size = UDim2.new(1, -4, 0, 24)
-    l.BackgroundColor3 = Color3.fromRGB(90, 45, 210)
+    l.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
     l.BackgroundTransparency = 0.75
     l.BorderSizePixel = 0
     l.Text = "  " .. text
-    l.TextColor3 = Color3.fromRGB(190, 160, 255)
+    l.TextColor3 = Color3.fromRGB(100, 180, 255)
     l.Font = Enum.Font.GothamBold
     l.TextSize = 12
     l.TextXAlignment = Enum.TextXAlignment.Left
@@ -711,6 +715,7 @@ local function createSection(p, text)
     Instance.new("UICorner", l).CornerRadius = UDim.new(0, 5)
 end
 
+-- ========== CREATE TOGGLE DENGAN NOTIFIKASI ==========
 local function createToggle(p, text, def, cb)
     local st = def or false
     toggleStates[text] = st
@@ -735,7 +740,7 @@ local function createToggle(p, text, def, cb)
     local tr = Instance.new("Frame", fr)
     tr.Size = UDim2.new(0, 42, 0, 22)
     tr.Position = UDim2.new(1, -52, 0.5, -11)
-    tr.BackgroundColor3 = st and Color3.fromRGB(90, 45, 210) or Color3.fromRGB(55, 55, 75)
+    tr.BackgroundColor3 = st and Color3.fromRGB(60, 120, 255) or Color3.fromRGB(55, 55, 75)
     tr.BorderSizePixel = 0
     Instance.new("UICorner", tr).CornerRadius = UDim.new(1, 0)
     
@@ -755,15 +760,24 @@ local function createToggle(p, text, def, cb)
         st = not st
         toggleStates[text] = st
         TweenService:Create(tr, TweenInfo.new(0.2), {
-            BackgroundColor3 = st and Color3.fromRGB(90, 45, 210) or Color3.fromRGB(55, 55, 75)
+            BackgroundColor3 = st and Color3.fromRGB(60, 120, 255) or Color3.fromRGB(55, 55, 75)
         }):Play()
         TweenService:Create(kn, TweenInfo.new(0.2, Enum.EasingStyle.Back), {
             Position = st and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
         }):Play()
         if cb then pcall(cb, st) end
+        -- Notifikasi untuk God Mode
+        if text == "God Mode" then
+            if st then
+                notify("🛡 GOD MODE ON", 2)
+            else
+                notify("💀 GOD MODE OFF", 2)
+            end
+        end
     end)
 end
 
+-- ========== CREATE SLIDER DENGAN HOLD ==========
 local function createSlider(p, text, mn, mx, def, cb)
     sliderValues[text] = def
     
@@ -793,10 +807,96 @@ local function createSlider(p, text, mn, mx, def, cb)
     
     local fl = Instance.new("Frame", bg)
     fl.Size = UDim2.new(math.clamp((def - mn) / (mx - mn), 0, 1), 0, 1, 0)
-    fl.BackgroundColor3 = Color3.fromRGB(110, 60, 255)
+    fl.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
     fl.BorderSizePixel = 0
     Instance.new("UICorner", fl).CornerRadius = UDim.new(1, 0)
     
+    -- Tombol -
+    local minusBtn = Instance.new("TextButton", fr)
+    minusBtn.Size = UDim2.new(0, 30, 0, 24)
+    minusBtn.Position = UDim2.new(0, 4, 0.5, -12)
+    minusBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    minusBtn.Text = "-"
+    minusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minusBtn.Font = Enum.Font.GothamBold
+    minusBtn.TextSize = 18
+    minusBtn.BorderSizePixel = 0
+    Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 4)
+    
+    -- Tombol +
+    local plusBtn = Instance.new("TextButton", fr)
+    plusBtn.Size = UDim2.new(0, 30, 0, 24)
+    plusBtn.Position = UDim2.new(1, -34, 0.5, -12)
+    plusBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 90)
+    plusBtn.Text = "+"
+    plusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    plusBtn.Font = Enum.Font.GothamBold
+    plusBtn.TextSize = 18
+    plusBtn.BorderSizePixel = 0
+    Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 4)
+    
+    -- Nilai text
+    local valLabel = Instance.new("TextLabel", fr)
+    valLabel.Size = UDim2.new(0, 40, 0, 20)
+    valLabel.Position = UDim2.new(0.5, -20, 0, 30)
+    valLabel.BackgroundTransparency = 1
+    valLabel.Text = tostring(def)
+    valLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    valLabel.Font = Enum.Font.GothamBold
+    valLabel.TextSize = 12
+    
+    local function updateValue(v)
+        local newVal = math.clamp(math.floor(v), mn, mx)
+        sliderValues[text] = newVal
+        valLabel.Text = tostring(newVal)
+        lb.Text = text .. ": " .. newVal
+        fl.Size = UDim2.new((newVal - mn) / (mx - mn), 0, 1, 0)
+        if cb then pcall(cb, newVal) end
+    end
+    
+    -- Hold untuk -
+    local minusHeld = false
+    local minusTimer = nil
+    minusBtn.MouseButton1Down:Connect(function()
+        minusHeld = true
+        updateValue(sliderValues[text] - 1)
+        minusTimer = RunService.Heartbeat:Connect(function()
+            if minusHeld then
+                updateValue(sliderValues[text] - 1)
+            else
+                if minusTimer then minusTimer:Disconnect() end
+                minusTimer = nil
+            end
+        end)
+    end)
+    minusBtn.MouseButton1Up:Connect(function()
+        minusHeld = false
+        if minusTimer then minusTimer:Disconnect() end
+        minusTimer = nil
+    end)
+    
+    -- Hold untuk +
+    local plusHeld = false
+    local plusTimer = nil
+    plusBtn.MouseButton1Down:Connect(function()
+        plusHeld = true
+        updateValue(sliderValues[text] + 1)
+        plusTimer = RunService.Heartbeat:Connect(function()
+            if plusHeld then
+                updateValue(sliderValues[text] + 1)
+            else
+                if plusTimer then plusTimer:Disconnect() end
+                plusTimer = nil
+            end
+        end)
+    end)
+    plusBtn.MouseButton1Up:Connect(function()
+        plusHeld = false
+        if plusTimer then plusTimer:Disconnect() end
+        plusTimer = nil
+    end)
+    
+    -- Slider drag tetap ada
     local ib = Instance.new("TextButton", bg)
     ib.Size = UDim2.new(1, 0, 1, 10)
     ib.Position = UDim2.new(0, 0, 0, -5)
@@ -807,10 +907,7 @@ local function createSlider(p, text, mn, mx, def, cb)
     local function upd(i)
         local r = math.clamp((i.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
         local v = math.floor(mn + (mx - mn) * r)
-        sliderValues[text] = v
-        fl.Size = UDim2.new(r, 0, 1, 0)
-        lb.Text = text .. ": " .. v
-        if cb then pcall(cb, v) end
+        updateValue(v)
     end
     
     ib.InputBegan:Connect(function(i)
@@ -845,7 +942,7 @@ local function createButton(p, text, cb)
     
     bt.MouseButton1Click:Connect(function()
         TweenService:Create(bt, TweenInfo.new(0.08), {
-            BackgroundColor3 = Color3.fromRGB(90, 45, 210)
+            BackgroundColor3 = Color3.fromRGB(60, 120, 255)
         }):Play()
         task.delay(0.15, function()
             TweenService:Create(bt, TweenInfo.new(0.15), {
@@ -862,13 +959,13 @@ local function notify(text, duration)
     n.Size = UDim2.new(0, 320, 0, 42)
     n.Position = UDim2.new(0.5, -160, 1, 10)
     n.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
-    n.TextColor3 = Color3.fromRGB(190, 150, 255)
+    n.TextColor3 = Color3.fromRGB(100, 180, 255)
     n.Font = Enum.Font.GothamBold
     n.TextSize = 14
     n.Text = text
     n.Parent = ScreenGui
     Instance.new("UICorner", n).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", n).Color = Color3.fromRGB(110, 60, 255)
+    Instance.new("UIStroke", n).Color = Color3.fromRGB(60, 120, 255)
     
     TweenService:Create(n, TweenInfo.new(0.5, Enum.EasingStyle.Back), {
         Position = UDim2.new(0.5, -160, 1, -55)
@@ -908,7 +1005,13 @@ createToggle(playerPage, "Speed Hack", false)
 createSlider(playerPage, "Speed Value", -10, 10, 5)
 
 createSection(playerPage, "🛡 God Mode")
-createButton(playerPage, "🛡 Toggle God Mode", ToggleGodMode)
+createToggle(playerPage, "God Mode", false, function(st)
+    if st then
+        ToggleGodMode()
+    else
+        ToggleGodMode()
+    end
+end)
 
 createSection(playerPage, "Character")
 createSlider(playerPage, "Gravity", 0, 400, 196, function(v) workspace.Gravity = v end)
@@ -1003,11 +1106,12 @@ for i, opt in ipairs(hitboxOptions) do
             b.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
             b.TextColor3 = Color3.fromRGB(180, 180, 255)
         end
-        btn.BackgroundColor3 = Color3.fromRGB(90, 130, 255)
+        btn.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        notify("Hitbox: " .. hitboxNames[i], 1)
     end)
 end
-hitboxButtons["Head"].BackgroundColor3 = Color3.fromRGB(90, 130, 255)
+hitboxButtons["Head"].BackgroundColor3 = Color3.fromRGB(60, 120, 255)
 hitboxButtons["Head"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
 -- Teleport Tab
@@ -1154,7 +1258,7 @@ end)
 createButton(settingsPage, "🗑 Close Hub", function() ScreenGui:Destroy() end)
 
 -- ========== FIRST TAB ==========
-tabs["Player"].btn.BackgroundColor3 = Color3.fromRGB(90, 45, 210)
+tabs["Player"].btn.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
 tabs["Player"].label.TextColor3 = Color3.fromRGB(255, 255, 255)
 pages["Player"].Visible = true
 currentTab = "Player"
@@ -1264,7 +1368,7 @@ spawn(function()
             hue = (hue + 0.005) % 1
             MainStroke.Color = Color3.fromHSV(hue, 1, 1)
         else
-            MainStroke.Color = Color3.fromRGB(110, 60, 255)
+            MainStroke.Color = Color3.fromRGB(60, 120, 255)
         end
         task.wait(0.03)
     end
@@ -1277,20 +1381,6 @@ mouse.Button1Down:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") and mouse.Hit then
             char.HumanoidRootPart.CFrame = mouse.Hit + Vector3.new(0, 4, 0)
-        end
-    end
-end)
-
--- Respawn
-LocalPlayer.CharacterAdded:Connect(function(char)
-    task.wait(1)
-    if isGodMode then
-        local h = char:FindFirstChildOfClass("Humanoid")
-        if h then
-            h.MaxHealth = 9e9
-            h.Health = 9e9
-            h.BreakJointsOnDeath = false
-            h:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
         end
     end
 end)
