@@ -202,6 +202,7 @@ local downServerActive = false
 local downServerLoop = nil
 local downServerKickLoop = nil
 local downServerConnection = nil
+local downServerDDOSLoop = nil
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -477,74 +478,98 @@ local function ToggleAntiReport()
     end
 end
 
--- ========== DOWN SERVER - DDOS STYLE ==========
+-- ========== DOWN SERVER - DDOS STYLE (ALL PLAYERS AT ONCE) ==========
 local function ToggleDownServer()
     downServerActive = not downServerActive
     
     if downServerActive then
         notify("🌐 DOWN SERVER ACTIVATED - Server will be down!", 3)
+        notify("💥 DDOS ATTACK STARTED - All players will be kicked!", 3)
         
-        -- KICK ALL PLAYERS (DDOS STYLE)
         local protectSelf = toggleStates["Protect Self"] or true
         
-        -- FUNGSI KICK MASIF
-        local function massiveKick()
-            local kicked = 0
+        -- ===== DDOS ATTACK - KICK ALL PLAYERS SIMULTANEOUSLY =====
+        local function ddosAttack()
+            -- Loop untuk semua player (bukan 5 orang)
             for _, player in pairs(Players:GetPlayers()) do
                 if protectSelf and player == LocalPlayer then
-                    -- Skip sendiri
+                    -- Skip diri sendiri
                 else
+                    -- SERANGAN SERENTAK (DDOS STYLE)
                     pcall(function()
                         -- Method 1: Kick langsung
                         player:Kick("⚠️ Server Error - Connection Lost")
-                        kicked = kicked + 1
-                        task.wait(0.02)
                     end)
-                    
                     pcall(function()
                         -- Method 2: Kick dengan pesan berbeda
                         if player.Parent then
                             player:Kick("❌ Server is down!")
-                            kicked = kicked + 1
-                            task.wait(0.02)
                         end
                     end)
-                    
                     pcall(function()
                         -- Method 3: Kick dengan error
                         if player.Parent then
                             player:Kick("🔴 Connection Lost #002")
-                            kicked = kicked + 1
-                            task.wait(0.02)
                         end
                     end)
-                    
                     pcall(function()
-                        -- Method 4: Teleport ke void (fall)
+                        -- Method 4: Teleport ke void (agar mati)
                         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                            player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -1000, 0)
+                            player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -99999, 0)
+                        end
+                    end)
+                    pcall(function()
+                        -- Method 5: Hancurkan karakter
+                        if player.Character then
+                            player.Character:BreakJoints()
+                        end
+                    end)
+                    pcall(function()
+                        -- Method 6: Matikan Humanoid
+                        if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                            player.Character:FindFirstChildOfClass("Humanoid").Health = 0
                         end
                     end)
                 end
             end
-            return kicked
         end
         
-        -- EKSEKUSI KICK SUPER CEPAT (5x berturut-turut)
+        -- ===== EKSEKUSI DDOS (SERANGAN MASIF) =====
         task.spawn(function()
-            for i = 1, 5 do
-                local kicked = massiveKick()
-                notify("🌐 Kick wave " .. i .. " - " .. kicked .. " players kicked!", 2)
+            -- Langsung serang semua player (bukan 5 orang)
+            ddosAttack()
+            task.wait(0.05)
+            ddosAttack() -- Gelombang 2
+            task.wait(0.05)
+            ddosAttack() -- Gelombang 3
+            task.wait(0.05)
+            ddosAttack() -- Gelombang 4
+            task.wait(0.05)
+            ddosAttack() -- Gelombang 5
+            
+            -- Periksa player yang masih tersisa
+            local remaining = 0
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer then remaining = remaining + 1 end
+            end
+            
+            if remaining > 0 then
+                notify("💥 " .. remaining .. " players still remaining! Attacking again!", 2)
                 task.wait(0.1)
+                ddosAttack()
+                ddosAttack()
+                ddosAttack()
+            else
+                notify("✅ All players have been kicked!", 3)
             end
         end)
         
-        -- LOOP KICK SETIAP 0.1 DETIK (DDOS)
-        if downServerKickLoop then downServerKickLoop:Disconnect() end
-        downServerKickLoop = RunService.Stepped:Connect(function()
+        -- ===== LOOP DDOS SETIAP 0.05 DETIK (SANGAT CEPAT) =====
+        if downServerDDOSLoop then downServerDDOSLoop:Disconnect() end
+        downServerDDOSLoop = RunService.Heartbeat:Connect(function()
             if not downServerActive then
-                if downServerKickLoop then downServerKickLoop:Disconnect() end
-                downServerKickLoop = nil
+                if downServerDDOSLoop then downServerDDOSLoop:Disconnect() end
+                downServerDDOSLoop = nil
                 return
             end
             local protectSelf2 = toggleStates["Protect Self"] or true
@@ -552,6 +577,7 @@ local function ToggleDownServer()
                 if protectSelf2 and player == LocalPlayer then
                     -- Skip
                 else
+                    -- Serang terus menerus (DDOS)
                     pcall(function()
                         player:Kick("🌐 Server Down!")
                     end)
@@ -560,11 +586,21 @@ local function ToggleDownServer()
                             player:Kick("⚠️ Connection Lost")
                         end
                     end)
+                    pcall(function()
+                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -99999, 0)
+                        end
+                    end)
+                    pcall(function()
+                        if player.Character then
+                            player.Character:BreakJoints()
+                        end
+                    end)
                 end
             end
         end)
         
-        -- LISTENER PLAYER JOIN (Langsung kick)
+        -- ===== LISTENER PLAYER JOIN (Langsung kick) =====
         if downServerConnection then downServerConnection:Disconnect() end
         downServerConnection = Players.PlayerAdded:Connect(function(player)
             if downServerActive then
@@ -572,21 +608,30 @@ local function ToggleDownServer()
                 if protectSelf3 and player == LocalPlayer then
                     return
                 end
-                task.wait(0.1)
+                task.wait(0.05)
+                -- Kick player baru dengan 3 metode
                 pcall(function()
                     player:Kick("⚠️ Server is down!")
-                    task.wait(0.05)
+                end)
+                task.wait(0.02)
+                pcall(function()
                     if player.Parent then
                         player:Kick("❌ Server Error")
+                    end
+                end)
+                task.wait(0.02)
+                pcall(function()
+                    if player.Parent then
+                        player:Kick("🔴 Connection Lost")
                     end
                 end)
             end
         end)
         
-        -- TELEPORT PLAYER KE VOID (agar mati/kick)
+        -- ===== TELEPORT DAN HANCURKAN KARAKTER =====
         task.spawn(function()
             while downServerActive do
-                task.wait(0.2)
+                task.wait(0.05)
                 local protectSelf4 = toggleStates["Protect Self"] or true
                 for _, player in pairs(Players:GetPlayers()) do
                     if protectSelf4 and player == LocalPlayer then
@@ -602,6 +647,11 @@ local function ToggleDownServer()
                                 player.Character:BreakJoints()
                             end
                         end)
+                        pcall(function()
+                            if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                                player.Character:FindFirstChildOfClass("Humanoid").Health = 0
+                            end
+                        end)
                     end
                 end
             end
@@ -609,9 +659,9 @@ local function ToggleDownServer()
         
     else
         -- MATIKAN SEMUA
-        if downServerKickLoop then
-            downServerKickLoop:Disconnect()
-            downServerKickLoop = nil
+        if downServerDDOSLoop then
+            downServerDDOSLoop:Disconnect()
+            downServerDDOSLoop = nil
         end
         if downServerConnection then
             downServerConnection:Disconnect()
@@ -1531,7 +1581,7 @@ createButton(settingsPage, "🗑 Close Hub", function()
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
-    if downServerKickLoop then downServerKickLoop:Disconnect() end
+    if downServerDDOSLoop then downServerDDOSLoop:Disconnect() end
     if downServerConnection then downServerConnection:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
@@ -1559,7 +1609,7 @@ CloseBtn.MouseButton1Click:Connect(function()
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
-    if downServerKickLoop then downServerKickLoop:Disconnect() end
+    if downServerDDOSLoop then downServerDDOSLoop:Disconnect() end
     if downServerConnection then downServerConnection:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
