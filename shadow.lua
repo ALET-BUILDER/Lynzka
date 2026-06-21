@@ -39,14 +39,14 @@ end
 
 -- ========== MAIN FRAME ==========
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 560, 0, 410)
-MainFrame.Position = UDim2.new(0.5, -280, 0.5, -205)
-MainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+MainFrame.Size = UDim2.new(0, 580, 0, 460)
+MainFrame.Position = UDim2.new(0.5, -290, 0.5, -230)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 MainFrame.Visible = true
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 
 local MainStroke = Instance.new("UIStroke", MainFrame)
 MainStroke.Color = Color3.fromRGB(60, 120, 255)
@@ -55,11 +55,11 @@ MainStroke.Thickness = 2
 -- ========== DRAG ==========
 local drag = {dragging = false, start = nil, origin = nil}
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 38)
-TitleBar.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
-Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 12)
 
 TitleBar.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
@@ -88,7 +88,7 @@ end)
 -- ========== TITLE ==========
 local TT = Instance.new("TextLabel")
 TT.Text = "🔥 LYNZKA HUB v3.0"
-TT.Size = UDim2.new(1, -100, 1, 0)
+TT.Size = UDim2.new(1, -120, 1, 0)
 TT.Position = UDim2.new(0, 14, 0, 0)
 TT.BackgroundTransparency = 1
 TT.TextColor3 = Color3.fromRGB(100, 180, 255)
@@ -100,8 +100,8 @@ TT.Parent = TitleBar
 -- ========== BUTTONS ==========
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Text = "✕"
-CloseBtn.Size = UDim2.new(0, 38, 0, 38)
-CloseBtn.Position = UDim2.new(1, -38, 0, 0)
+CloseBtn.Size = UDim2.new(0, 34, 0, 34)
+CloseBtn.Position = UDim2.new(1, -38, 0, 3)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
 CloseBtn.Font = Enum.Font.GothamBold
@@ -110,8 +110,8 @@ CloseBtn.Parent = TitleBar
 
 local MinBtn = Instance.new("TextButton")
 MinBtn.Text = "—"
-MinBtn.Size = UDim2.new(0, 38, 0, 38)
-MinBtn.Position = UDim2.new(1, -76, 0, 0)
+MinBtn.Size = UDim2.new(0, 34, 0, 34)
+MinBtn.Position = UDim2.new(1, -76, 0, 3)
 MinBtn.BackgroundTransparency = 1
 MinBtn.TextColor3 = Color3.fromRGB(255, 210, 60)
 MinBtn.Font = Enum.Font.GothamBold
@@ -120,8 +120,8 @@ MinBtn.Parent = TitleBar
 
 -- ========== TAB PANEL ==========
 local TabPanel = Instance.new("Frame")
-TabPanel.Size = UDim2.new(0, 135, 1, -44)
-TabPanel.Position = UDim2.new(0, 5, 0, 42)
+TabPanel.Size = UDim2.new(0, 130, 1, -48)
+TabPanel.Position = UDim2.new(0, 5, 0, 44)
 TabPanel.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 TabPanel.BorderSizePixel = 0
 TabPanel.Parent = MainFrame
@@ -133,13 +133,13 @@ TL.Padding = UDim.new(0, 3)
 
 local TP2 = Instance.new("UIPadding", TabPanel)
 TP2.PaddingTop = UDim.new(0, 6)
-TP2.PaddingLeft = UDim.new(0, 5)
-TP2.PaddingRight = UDim.new(0, 5)
+TP2.PaddingLeft = UDim.new(0, 4)
+TP2.PaddingRight = UDim.new(0, 4)
 
 -- ========== CONTENT PANEL ==========
 local ContentPanel = Instance.new("Frame")
-ContentPanel.Size = UDim2.new(1, -152, 1, -48)
-ContentPanel.Position = UDim2.new(0, 146, 0, 42)
+ContentPanel.Size = UDim2.new(1, -148, 1, -48)
+ContentPanel.Position = UDim2.new(0, 142, 0, 44)
 ContentPanel.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 ContentPanel.BorderSizePixel = 0
 ContentPanel.ClipsDescendants = true
@@ -186,8 +186,8 @@ local sliderValues = {
     ["Holo G"] = 255,
     ["Holo B"] = 0,
     ["HealthBar Thickness"] = 10,
-    ["Menu Width"] = 560,
-    ["Menu Height"] = 410
+    ["Menu Width"] = 580,
+    ["Menu Height"] = 460
 }
 local currentTab = nil
 local godModeConnection = nil
@@ -763,7 +763,7 @@ local function createTab(name, icon, order)
     local btn = Instance.new("TextButton")
     btn.Name = name
     btn.LayoutOrder = order or 0
-    btn.Size = UDim2.new(1, 0, 0, 33)
+    btn.Size = UDim2.new(1, 0, 0, 34)
     btn.BackgroundColor3 = Color3.fromRGB(32, 32, 48)
     btn.BorderSizePixel = 0
     btn.Text = ""
@@ -774,7 +774,7 @@ local function createTab(name, icon, order)
     local bl = Instance.new("TextLabel", btn)
     bl.Text = icon .. "  " .. name
     bl.Size = UDim2.new(1, 0, 1, 0)
-    bl.Position = UDim2.new(0, 10, 0, 0)
+    bl.Position = UDim2.new(0, 8, 0, 0)
     bl.BackgroundTransparency = 1
     bl.TextColor3 = Color3.fromRGB(175, 175, 200)
     bl.Font = Enum.Font.GothamSemibold
@@ -783,8 +783,8 @@ local function createTab(name, icon, order)
     
     local pg = Instance.new("ScrollingFrame")
     pg.Name = name .. "_Page"
-    pg.Size = UDim2.new(1, -10, 1, -10)
-    pg.Position = UDim2.new(0, 5, 0, 5)
+    pg.Size = UDim2.new(1, -8, 1, -8)
+    pg.Position = UDim2.new(0, 4, 0, 4)
     pg.BackgroundTransparency = 1
     pg.BorderSizePixel = 0
     pg.ScrollBarThickness = 3
@@ -797,7 +797,7 @@ local function createTab(name, icon, order)
     local pl = Instance.new("UIListLayout", pg)
     pl.SortOrder = Enum.SortOrder.LayoutOrder
     pl.Padding = UDim.new(0, 4)
-    Instance.new("UIPadding", pg).PaddingBottom = UDim.new(0, 6)
+    Instance.new("UIPadding", pg).PaddingBottom = UDim.new(0, 8)
     
     tabs[name] = {btn = btn, label = bl}
     pages[name] = pg
@@ -1042,7 +1042,7 @@ local function createSlider(p, text, mn, mx, def, cb)
     end)
 end
 
--- ========== COLOR SLIDER (HUE) ==========
+-- ========== COLOR SLIDER ==========
 local function createColorSlider(p, text, default, cb)
     local hue = default or 0.6
     
@@ -1063,7 +1063,6 @@ local function createColorSlider(p, text, default, cb)
     lb.TextSize = 12
     lb.TextXAlignment = Enum.TextXAlignment.Left
     
-    -- Preview warna
     local preview = Instance.new("Frame", fr)
     preview.Size = UDim2.new(0, 30, 0, 22)
     preview.Position = UDim2.new(1, -40, 0.5, -11)
@@ -1072,7 +1071,6 @@ local function createColorSlider(p, text, default, cb)
     preview.BorderColor3 = Color3.fromRGB(255, 255, 255)
     Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 4)
     
-    -- Background slider dengan gradien warna
     local bg = Instance.new("Frame", fr)
     bg.Size = UDim2.new(1, -80, 0, 10)
     bg.Position = UDim2.new(0, 10, 0, 28)
@@ -1080,14 +1078,12 @@ local function createColorSlider(p, text, default, cb)
     bg.BorderSizePixel = 0
     Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
     
-    -- Fill slider
     local fl = Instance.new("Frame", bg)
     fl.Size = UDim2.new(hue, 0, 1, 0)
     fl.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
     fl.BorderSizePixel = 0
     Instance.new("UICorner", fl).CornerRadius = UDim.new(1, 0)
     
-    -- Nilai text
     local valLabel = Instance.new("TextLabel", fr)
     valLabel.Size = UDim2.new(0, 35, 0, 20)
     valLabel.Position = UDim2.new(0.5, -17, 0, 30)
@@ -1106,7 +1102,6 @@ local function createColorSlider(p, text, default, cb)
         if cb then pcall(cb, newHue, col) end
     end
     
-    -- Slider drag
     local ib = Instance.new("TextButton", bg)
     ib.Size = UDim2.new(1, 0, 1, 10)
     ib.Position = UDim2.new(0, 0, 0, -5)
@@ -1135,8 +1130,6 @@ local function createColorSlider(p, text, default, cb)
             upd(i)
         end
     end)
-    
-    return {update = updateColor}
 end
 
 local function createButton(p, text, cb)
@@ -1165,7 +1158,7 @@ local function createButton(p, text, cb)
     return bt
 end
 
--- ========== NOTIFICATION FIXED ==========
+-- ========== NOTIFICATION ==========
 local notificationQueue = {}
 local isNotifying = false
 
@@ -1209,7 +1202,7 @@ local function notify(text, duration)
     end
 end
 
--- ========== TELEPORT (FIXED) ==========
+-- ========== TELEPORT ==========
 local function TeleportToPlayer(player)
     if teleportCooldown then
         notify("⏳ Teleport cooldown! Wait 2 seconds!", 2)
@@ -1234,11 +1227,9 @@ local function TeleportToPlayer(player)
         return
     end
     
-    -- Teleport
     localChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
     notify("📍 Teleported to " .. player.Name, 2)
     
-    -- Cooldown
     teleportCooldown = true
     task.wait(2)
     teleportCooldown = false
@@ -1379,7 +1370,7 @@ end
 hitboxButtons["Head"].BackgroundColor3 = Color3.fromRGB(60, 120, 255)
 hitboxButtons["Head"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- Teleport Tab (FIXED)
+-- Teleport Tab
 local tpPage = createTab("Teleport", "📍", 4)
 
 createSection(tpPage, "Quick Teleport")
@@ -1481,59 +1472,103 @@ Mouse.Button1Down:Connect(function()
     end
 end)
 
--- Info Tab (Ganti Kick)
+-- ========== INFO TAB (FIXED - SCROLLABLE) ==========
 local infoPage = createTab("Info", "📋", 5)
 
 createSection(infoPage, "📋 Script Information")
 
-local infoText = Instance.new("TextLabel", infoPage)
-infoText.Size = UDim2.new(1, -4, 0, 250)
-infoText.Position = UDim2.new(0, 2, 0, 30)
-infoText.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
-infoText.BackgroundTransparency = 0.5
+-- Frame untuk konten info dengan scrolling
+local infoFrame = Instance.new("Frame", infoPage)
+infoFrame.Size = UDim2.new(1, -4, 0, 280)
+infoFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+infoFrame.BackgroundTransparency = 0.3
+infoFrame.BorderSizePixel = 0
+infoFrame.ClipsDescendants = true
+Instance.new("UICorner", infoFrame).CornerRadius = UDim.new(0, 6)
+
+-- Scrolling frame untuk info
+local infoScroll = Instance.new("ScrollingFrame", infoFrame)
+infoScroll.Size = UDim2.new(1, 0, 1, 0)
+infoScroll.BackgroundTransparency = 1
+infoScroll.BorderSizePixel = 0
+infoScroll.ScrollBarThickness = 3
+infoScroll.ScrollBarImageColor3 = Color3.fromRGB(60, 120, 255)
+infoScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+local infoText = Instance.new("TextLabel", infoScroll)
+infoText.Size = UDim2.new(1, -8, 0, 400)
+infoText.Position = UDim2.new(0, 4, 0, 0)
+infoText.BackgroundTransparency = 1
 infoText.Text = [[
-╔═══════════════════════════════════════╗
-║         🔥 LYNZKA HUB v3.0          ║
-╠═══════════════════════════════════════╣
-║                                       ║
-║  📝 Script Info:                     ║
-║  • Creator: Lynzka                   ║
-║  • Version: 3.0                      ║
-║  • Type: Roblox Executor Script      ║
-║                                       ║
-║  ⚡ Features:                        ║
-║  • ESP (Box, Name, Health, Distance) ║
-║  • Aimbot + Hitbox Selection         ║
-║  • Speed Hack                        ║
-║  • God Mode (Immortal)               ║
-║  • Invisible                         ║
-║  • Wallbang (Tembus Benda)           ║
-║  • Hologram + Neon Effect            ║
-║  • Tracer (Antena)                   ║
-║  • Teleport (Player & Coordinate)    ║
-║  • Fullbright                        ║
-║                                       ║
-║  🔧 Settings:                       ║
-║  • Customizable UI Size & Color      ║
-║  • Health Bar Thickness              ║
-║  • Rainbow Border                    ║
-║                                       ║
-║  📌 How to Use:                     ║
-║  • Press INSERT to toggle menu      ║
-║  • Click - to minimize              ║
-║  • Click ✕ to close                 ║
-║                                       ║
-╚═══════════════════════════════════════╝
+╔═══════════════════════════════════════════╗
+║         🔥 LYNZKA HUB v3.0              ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  📝 Script Info:                         ║
+║  • Creator: Lynzka                       ║
+║  • Version: 3.0                          ║
+║  • Type: Roblox Executor Script          ║
+║  • Status: Stable                        ║
+║                                           ║
+║  ⚡ FEATURES:                            ║
+║  ─────────────────────────────────────    ║
+║  👁 VISUAL:                              ║
+║  • ESP (Box, Name, Health, Distance)     ║
+║  • Health Bar (Customizable thickness)    ║
+║  • Hologram + Neon Effect                ║
+║  • Tracer (Antena)                       ║
+║  • Fullbright                            ║
+║                                           ║
+║  🎯 COMBAT:                              ║
+║  • Aimbot + FOV Circle                   ║
+║  • Hitbox Selection (5 modes)            ║
+║  • Team Check                            ║
+║                                           ║
+║  🏃 PLAYER:                              ║
+║  • Speed Hack (Customizable)             ║
+║  • God Mode (Immortal)                   ║
+║  • Invisible (Full transparency)         ║
+║  • Wallbang (Tembus Benda)               ║
+║  • Infinite Jump                         ║
+║  • Noclip                                ║
+║                                           ║
+║  📍 TELEPORT:                            ║
+║  • TP to Nearest Player                  ║
+║  • TP to Coordinates                     ║
+║  • Click TP (Click location to TP)       ║
+║  • Player List Teleport                  ║
+║                                           ║
+║  🔧 SETTINGS:                            ║
+║  • Customizable UI Size & Color          ║
+║  • Health Bar Thickness                  ║
+║  • Rainbow Border                        ║
+║                                           ║
+║  📌 HOW TO USE:                          ║
+║  ─────────────────────────────────────    ║
+║  • Press INSERT to toggle menu           ║
+║  • Click - to minimize                   ║
+║  • Click ✕ to close                     ║
+║  • Drag title bar to move                ║
+║                                           ║
+║  💡 TIPS:                                ║
+║  • Enable ESP first to see players       ║
+║  • Aimbot works with Hitbox mode         ║
+║  • God Mode makes you immortal           ║
+║  • Use Click TP for quick movement       ║
+║                                           ║
+╚═══════════════════════════════════════════╝
 ]]
 infoText.TextColor3 = Color3.fromRGB(200, 200, 220)
 infoText.Font = Enum.Font.Gotham
 infoText.TextSize = 12
 infoText.TextXAlignment = Enum.TextXAlignment.Left
 infoText.TextYAlignment = Enum.TextYAlignment.Top
-infoText.LineHeight = 1.2
-Instance.new("UICorner", infoText).CornerRadius = UDim.new(0, 6)
+infoText.LineHeight = 1.3
 
--- Misc Tab
+-- Set canvas size sesuai text
+infoScroll.CanvasSize = UDim2.new(0, 0, 0, infoText.Size.Y.Offset + 20)
+
+-- ========== MISC TAB ==========
 local miscPage = createTab("Misc", "⚙", 6)
 
 createSection(miscPage, "Tools")
@@ -1572,15 +1607,13 @@ createButton(miscPage, "🔀 Server Hop", function()
     end)
 end)
 
--- Settings Tab
+-- ========== SETTINGS TAB ==========
 local settingsPage = createTab("Settings", "🔧", 7)
 
 createSection(settingsPage, "🎨 Theme Settings")
 createColorSlider(settingsPage, "Theme Color", 0.6, function(hue, color)
     MainStroke.Color = color
-    -- Update header
     TT.TextColor3 = Color3.fromRGB(100 + color.R * 100, 100 + color.G * 100, 100 + color.B * 100)
-    -- Update section backgrounds
     for _, page in pairs(pages) do
         for _, child in pairs(page:GetChildren()) do
             if child:IsA("TextLabel") and child.BackgroundColor3 and child.BackgroundTransparency ~= 1 then
@@ -1594,7 +1627,6 @@ createColorSlider(settingsPage, "Theme Color", 0.6, function(hue, color)
             end
         end
     end
-    -- Update scrollbar color
     for _, page in pairs(pages) do
         if page:IsA("ScrollingFrame") then
             page.ScrollBarImageColor3 = Color3.fromRGB(
@@ -1607,12 +1639,12 @@ createColorSlider(settingsPage, "Theme Color", 0.6, function(hue, color)
 end)
 
 createSection(settingsPage, "📐 UI Size Settings")
-createSlider(settingsPage, "Menu Width", 400, 800, 560, function(v)
+createSlider(settingsPage, "Menu Width", 400, 800, 580, function(v)
     MainFrame.Size = UDim2.new(0, v, 0, MainFrame.Size.Y.Offset)
     MainFrame.Position = UDim2.new(0.5, -v/2, 0.5, -MainFrame.Size.Y.Offset/2)
     sliderValues["Menu Width"] = v
 end)
-createSlider(settingsPage, "Menu Height", 300, 600, 410, function(v)
+createSlider(settingsPage, "Menu Height", 300, 600, 460, function(v)
     MainFrame.Size = UDim2.new(0, MainFrame.Size.X.Offset, 0, v)
     MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset/2, 0.5, -v/2)
     sliderValues["Menu Height"] = v
@@ -1674,7 +1706,7 @@ end)
 MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-        Size = minimized and UDim2.new(0, MainFrame.Size.X.Offset, 0, 38) or UDim2.new(0, MainFrame.Size.X.Offset, 0, sliderValues["Menu Height"] or 410)
+        Size = minimized and UDim2.new(0, MainFrame.Size.X.Offset, 0, 40) or UDim2.new(0, MainFrame.Size.X.Offset, 0, sliderValues["Menu Height"] or 460)
     }):Play()
 end)
 
