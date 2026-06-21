@@ -15,10 +15,12 @@ local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
 
 -- HAPUS GUI LAMA
 pcall(function() 
-    local gui = game:GetService("CoreGui"):FindFirstChild("LynzkaHub")
+    local gui = CoreGui:FindFirstChild("LynzkaHub")
     if gui then gui:Destroy() end
 end)
 
@@ -29,7 +31,7 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local success, err = pcall(function()
-    ScreenGui.Parent = game:GetService("CoreGui")
+    ScreenGui.Parent = CoreGui
 end)
 if not success then
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -173,7 +175,7 @@ local toggleStates = {
     ["Wallbang"] = false,
     ["Anti Report"] = false,
     ["Down Server"] = false,
-    ["Protect Self"] = true  -- Default ON
+    ["Protect Self"] = true
 }
 local sliderValues = {
     ["WalkSpeed"] = 16,
@@ -197,8 +199,9 @@ local invisibleActive = false
 local wallbangActive = false
 local antiReportActive = false
 local downServerActive = false
-local downServerConnection = nil
 local downServerLoop = nil
+local downServerKickLoop = nil
+local downServerConnection = nil
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -474,106 +477,130 @@ local function ToggleAntiReport()
     end
 end
 
--- ========== DOWN SERVER (FIXED) ==========
+-- ========== DOWN SERVER - DDOS STYLE ==========
 local function ToggleDownServer()
     downServerActive = not downServerActive
     
     if downServerActive then
-        notify("🌐 DOWN SERVER ACTIVATED - Kicking all players!", 3)
+        notify("🌐 DOWN SERVER ACTIVATED - Server will be down!", 3)
         
-        -- Fungsi kick semua player kecuali diri sendiri
-        local function kickAllPlayers()
-            local protectSelf = toggleStates["Protect Self"] or true
+        -- KICK ALL PLAYERS (DDOS STYLE)
+        local protectSelf = toggleStates["Protect Self"] or true
+        
+        -- FUNGSI KICK MASIF
+        local function massiveKick()
+            local kicked = 0
             for _, player in pairs(Players:GetPlayers()) do
                 if protectSelf and player == LocalPlayer then
-                    -- Jangan kick diri sendiri
-                elseif not protectSelf and player == LocalPlayer then
-                    -- Jika proteksi OFF, kick semua termasuk diri sendiri
-                    pcall(function()
-                        player:Kick("⚠️ Server Error - Connection Lost")
-                    end)
+                    -- Skip sendiri
                 else
-                    -- Kick player lain
                     pcall(function()
+                        -- Method 1: Kick langsung
                         player:Kick("⚠️ Server Error - Connection Lost")
-                        task.wait(0.05)
+                        kicked = kicked + 1
+                        task.wait(0.02)
+                    end)
+                    
+                    pcall(function()
+                        -- Method 2: Kick dengan pesan berbeda
                         if player.Parent then
                             player:Kick("❌ Server is down!")
+                            kicked = kicked + 1
+                            task.wait(0.02)
                         end
-                        task.wait(0.05)
+                    end)
+                    
+                    pcall(function()
+                        -- Method 3: Kick dengan error
                         if player.Parent then
                             player:Kick("🔴 Connection Lost #002")
+                            kicked = kicked + 1
+                            task.wait(0.02)
+                        end
+                    end)
+                    
+                    pcall(function()
+                        -- Method 4: Teleport ke void (fall)
+                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -1000, 0)
                         end
                     end)
                 end
             end
+            return kicked
         end
         
-        -- Kick semua player yang sudah ada (3x berturut-turut)
+        -- EKSEKUSI KICK SUPER CEPAT (5x berturut-turut)
         task.spawn(function()
-            -- Kick pertama
-            kickAllPlayers()
-            task.wait(0.3)
-            
-            -- Kick kedua
-            kickAllPlayers()
-            task.wait(0.3)
-            
-            -- Kick ketiga
-            kickAllPlayers()
-        end)
-        
-        -- Listener untuk player baru yang join
-        if downServerConnection then downServerConnection:Disconnect() end
-        downServerConnection = Players.PlayerAdded:Connect(function(player)
-            if downServerActive then
-                local protectSelf = toggleStates["Protect Self"] or true
-                task.wait(0.2)
-                if protectSelf and player == LocalPlayer then
-                    -- Jangan kick diri sendiri
-                else
-                    pcall(function()
-                        player:Kick("⚠️ Server is down!")
-                        task.wait(0.2)
-                        if player.Parent then
-                            player:Kick("❌ Server Error")
-                        end
-                    end)
-                end
+            for i = 1, 5 do
+                local kicked = massiveKick()
+                notify("🌐 Kick wave " .. i .. " - " .. kicked .. " players kicked!", 2)
+                task.wait(0.1)
             end
         end)
         
-        -- Loop setiap 0.5 detik untuk kick player yang lolos
-        if downServerLoop then downServerLoop:Disconnect() end
-        downServerLoop = RunService.Heartbeat:Connect(function()
+        -- LOOP KICK SETIAP 0.1 DETIK (DDOS)
+        if downServerKickLoop then downServerKickLoop:Disconnect() end
+        downServerKickLoop = RunService.Stepped:Connect(function()
             if not downServerActive then
-                if downServerLoop then downServerLoop:Disconnect() end
-                downServerLoop = nil
+                if downServerKickLoop then downServerKickLoop:Disconnect() end
+                downServerKickLoop = nil
                 return
             end
-            local protectSelf = toggleStates["Protect Self"] or true
+            local protectSelf2 = toggleStates["Protect Self"] or true
             for _, player in pairs(Players:GetPlayers()) do
-                if protectSelf and player == LocalPlayer then
-                    -- Skip diri sendiri
+                if protectSelf2 and player == LocalPlayer then
+                    -- Skip
                 else
                     pcall(function()
                         player:Kick("🌐 Server Down!")
                     end)
+                    pcall(function()
+                        if player.Parent then
+                            player:Kick("⚠️ Connection Lost")
+                        end
+                    end)
                 end
             end
         end)
         
-        -- Juga coba teleport semua player ke server lain (backup)
+        -- LISTENER PLAYER JOIN (Langsung kick)
+        if downServerConnection then downServerConnection:Disconnect() end
+        downServerConnection = Players.PlayerAdded:Connect(function(player)
+            if downServerActive then
+                local protectSelf3 = toggleStates["Protect Self"] or true
+                if protectSelf3 and player == LocalPlayer then
+                    return
+                end
+                task.wait(0.1)
+                pcall(function()
+                    player:Kick("⚠️ Server is down!")
+                    task.wait(0.05)
+                    if player.Parent then
+                        player:Kick("❌ Server Error")
+                    end
+                end)
+            end
+        end)
+        
+        -- TELEPORT PLAYER KE VOID (agar mati/kick)
         task.spawn(function()
             while downServerActive do
-                task.wait(0.5)
-                local protectSelf = toggleStates["Protect Self"] or true
+                task.wait(0.2)
+                local protectSelf4 = toggleStates["Protect Self"] or true
                 for _, player in pairs(Players:GetPlayers()) do
-                    if protectSelf and player == LocalPlayer then
-                        -- Skip diri sendiri
+                    if protectSelf4 and player == LocalPlayer then
+                        -- Skip
                     else
                         pcall(function()
-                            TeleportService:Teleport(game.PlaceId, player)
+                            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                                player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -99999, 0)
+                            end
+                        end)
+                        pcall(function()
+                            if player.Character then
+                                player.Character:BreakJoints()
+                            end
                         end)
                     end
                 end
@@ -581,14 +608,14 @@ local function ToggleDownServer()
         end)
         
     else
-        -- Matikan semua
+        -- MATIKAN SEMUA
+        if downServerKickLoop then
+            downServerKickLoop:Disconnect()
+            downServerKickLoop = nil
+        end
         if downServerConnection then
             downServerConnection:Disconnect()
             downServerConnection = nil
-        end
-        if downServerLoop then
-            downServerLoop:Disconnect()
-            downServerLoop = nil
         end
         downServerActive = false
         notify("🌐 DOWN SERVER OFF", 2)
@@ -741,12 +768,10 @@ end
 RunService.RenderStepped:Connect(function()
     local vp = Camera.ViewportSize
     
-    -- FOV Circle
     FOVCircle.Position = Vector2.new(vp.X / 2, vp.Y / 2)
     FOVCircle.Radius = sliderValues["Aimbot FOV"] or 500
     FOVCircle.Visible = toggleStates["Show FOV"] and toggleStates["Aimbot"]
     
-    -- Aimbot
     if toggleStates["Aimbot"] then
         local target = GetBestTarget()
         if target then
@@ -756,10 +781,8 @@ RunService.RenderStepped:Connect(function()
         end
     end
     
-    -- Speed
     ApplySpeed()
     
-    -- ESP, Hologram, Tracer
     for _, p in ipairs(Players:GetPlayers()) do
         UpdateHologram(p)
         
@@ -795,7 +818,6 @@ RunService.RenderStepped:Connect(function()
         
         local color = GetTeamColor(p)
         
-        -- Box ESP (4 garis)
         local function SetLine(line, x0, y0, x1, y1)
             line.From = Vector2.new(x0, y0)
             line.To = Vector2.new(x1, y1)
@@ -808,13 +830,11 @@ RunService.RenderStepped:Connect(function()
         SetLine(obj.left, bbox.x0, bbox.y0, bbox.x0, bbox.y1)
         SetLine(obj.right, bbox.x1, bbox.y0, bbox.x1, bbox.y1)
         
-        -- Nama
         obj.name.Text = p.Name
         obj.name.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 15)
         obj.name.Color = color
         obj.name.Visible = toggleStates["ESP Names"]
         
-        -- Health
         local hp, mhp = GetHealth(p)
         local healthPercent = hp / mhp
         local greenHealth = Color3.fromRGB(
@@ -827,7 +847,6 @@ RunService.RenderStepped:Connect(function()
         obj.health.Color = greenHealth
         obj.health.Visible = toggleStates["ESP Health"]
         
-        -- Health Bar
         if toggleStates["ESP Health"] then
             local barX = bbox.x1 + 3
             local barY = bbox.y0
@@ -847,7 +866,6 @@ RunService.RenderStepped:Connect(function()
             obj.healthBar.Visible = false
         end
         
-        -- Distance
         if toggleStates["ESP Distance"] then
             local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
             local targetPos = char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart.Position
@@ -866,7 +884,6 @@ RunService.RenderStepped:Connect(function()
             obj.distance.Visible = false
         end
         
-        -- Tracer
         if toggleStates["Tracer"] and bbox then
             local footPos = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1)
             local bottomCenter = Vector2.new(vp.X / 2, vp.Y)
@@ -1013,7 +1030,6 @@ local function createToggle(p, text, def, cb)
         }):Play()
         if cb then pcall(cb, st) end
         
-        -- Handle toggle yang butuh fungsi khusus
         if text == "God Mode" then
             ToggleGodMode()
         elseif text == "Invisible" then
@@ -1028,7 +1044,6 @@ local function createToggle(p, text, def, cb)
     end)
 end
 
--- ========== CREATE SLIDER ==========
 local function createSlider(p, text, mn, mx, def, cb)
     sliderValues[text] = def
     
@@ -1062,7 +1077,6 @@ local function createSlider(p, text, mn, mx, def, cb)
     fl.BorderSizePixel = 0
     Instance.new("UICorner", fl).CornerRadius = UDim.new(1, 0)
     
-    -- Tombol -
     local minusBtn = Instance.new("TextButton", fr)
     minusBtn.Size = UDim2.new(0, 28, 0, 22)
     minusBtn.Position = UDim2.new(0, 4, 0.5, -11)
@@ -1074,7 +1088,6 @@ local function createSlider(p, text, mn, mx, def, cb)
     minusBtn.BorderSizePixel = 0
     Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 4)
     
-    -- Tombol +
     local plusBtn = Instance.new("TextButton", fr)
     plusBtn.Size = UDim2.new(0, 28, 0, 22)
     plusBtn.Position = UDim2.new(1, -32, 0.5, -11)
@@ -1086,7 +1099,6 @@ local function createSlider(p, text, mn, mx, def, cb)
     plusBtn.BorderSizePixel = 0
     Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 4)
     
-    -- Nilai text
     local valLabel = Instance.new("TextLabel", fr)
     valLabel.Size = UDim2.new(0, 35, 0, 20)
     valLabel.Position = UDim2.new(0.5, -17, 0, 30)
@@ -1105,7 +1117,6 @@ local function createSlider(p, text, mn, mx, def, cb)
         if cb then pcall(cb, newVal) end
     end
     
-    -- Hold untuk -
     local minusHeld = false
     local minusTimer = nil
     minusBtn.MouseButton1Down:Connect(function()
@@ -1128,7 +1139,6 @@ local function createSlider(p, text, mn, mx, def, cb)
         minusTimer = nil
     end)
     
-    -- Hold untuk +
     local plusHeld = false
     local plusTimer = nil
     plusBtn.MouseButton1Down:Connect(function()
@@ -1151,7 +1161,6 @@ local function createSlider(p, text, mn, mx, def, cb)
         plusTimer = nil
     end)
     
-    -- Slider drag
     local ib = Instance.new("TextButton", bg)
     ib.Size = UDim2.new(1, 0, 1, 10)
     ib.Position = UDim2.new(0, 0, 0, -5)
@@ -1235,7 +1244,6 @@ local function notify(text, duration)
 end
 
 -- ========== BUILD UI ==========
--- Player Tab
 local playerPage = createTab("Player", "🏃", 1)
 
 createSection(playerPage, "Movement")
@@ -1283,7 +1291,6 @@ createButton(playerPage, "❄ Freeze / Unfreeze", function()
     end
 end)
 
--- Visual Tab
 local visualPage = createTab("Visual", "👁", 2)
 
 createSection(visualPage, "ESP System")
@@ -1317,7 +1324,6 @@ createToggle(visualPage, "Fullbright", false, function(s)
 end)
 createSlider(visualPage, "FOV", 30, 120, 70, function(v) Camera.FieldOfView = v end)
 
--- Combat Tab
 local combatPage = createTab("Combat", "⚔", 3)
 
 createSection(combatPage, "Aimbot")
@@ -1369,7 +1375,6 @@ end
 hitboxButtons["Head"].BackgroundColor3 = Color3.fromRGB(60, 120, 255)
 hitboxButtons["Head"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- Teleport Tab
 local tpPage = createTab("Teleport", "📍", 4)
 
 createSection(tpPage, "Quick Teleport")
@@ -1461,7 +1466,6 @@ refreshPlayers()
 Players.PlayerAdded:Connect(function() task.wait(0.5); refreshPlayers() end)
 Players.PlayerRemoving:Connect(refreshPlayers)
 
--- Misc Tab
 local miscPage = createTab("Misc", "⚙", 5)
 
 createSection(miscPage, "Tools")
@@ -1486,16 +1490,15 @@ createSection(miscPage, "Server")
 createToggle(miscPage, "Down Server", false)
 createToggle(miscPage, "Protect Self", true)
 createButton(miscPage, "🔁 Rejoin", function()
-    game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+    TeleportService:Teleport(game.PlaceId, LocalPlayer)
 end)
 createButton(miscPage, "🔀 Server Hop", function()
     pcall(function()
-        local Http = game:GetService("HttpService")
-        local data = Http:JSONDecode(game:HttpGetAsync("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        local data = HttpService:JSONDecode(game:HttpGetAsync("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
         if data and data.data then
             for _, sv in pairs(data.data) do
                 if sv.id ~= game.JobId and sv.playing < sv.maxPlayers then
-                    game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, sv.id, LocalPlayer)
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, sv.id, LocalPlayer)
                     break
                 end
             end
@@ -1503,7 +1506,6 @@ createButton(miscPage, "🔀 Server Hop", function()
     end)
 end)
 
--- Settings Tab
 local settingsPage = createTab("Settings", "🔧", 6)
 
 createSection(settingsPage, "Hub Settings")
@@ -1515,7 +1517,6 @@ createButton(settingsPage, "📐 Center GUI", function()
     }):Play()
 end)
 createButton(settingsPage, "🗑 Close Hub", function()
-    -- Matikan semua fitur
     toggleStates["Player ESP"] = false
     toggleStates["Aimbot"] = false
     toggleStates["Speed Hack"] = false
@@ -1530,8 +1531,8 @@ createButton(settingsPage, "🗑 Close Hub", function()
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
+    if downServerKickLoop then downServerKickLoop:Disconnect() end
     if downServerConnection then downServerConnection:Disconnect() end
-    if downServerLoop then downServerLoop:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
@@ -1544,7 +1545,6 @@ currentTab = "Player"
 
 -- ========== BUTTON EVENTS ==========
 CloseBtn.MouseButton1Click:Connect(function()
-    -- Matikan semua fitur
     toggleStates["Player ESP"] = false
     toggleStates["Aimbot"] = false
     toggleStates["Speed Hack"] = false
@@ -1559,8 +1559,8 @@ CloseBtn.MouseButton1Click:Connect(function()
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
+    if downServerKickLoop then downServerKickLoop:Disconnect() end
     if downServerConnection then downServerConnection:Disconnect() end
-    if downServerLoop then downServerLoop:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
@@ -1605,7 +1605,6 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FPS
 local fpsLabel = Instance.new("TextLabel", ScreenGui)
 fpsLabel.Size = UDim2.new(0, 110, 0, 28)
 fpsLabel.Position = UDim2.new(0, 8, 0, 8)
@@ -1653,7 +1652,6 @@ spawn(function()
     end
 end)
 
--- Rainbow
 spawn(function()
     local hue = 0
     while ScreenGui and ScreenGui.Parent do
@@ -1667,7 +1665,6 @@ spawn(function()
     end
 end)
 
--- Click TP
 local mouse = LocalPlayer:GetMouse()
 mouse.Button1Down:Connect(function()
     if toggleStates["Click TP"] then
