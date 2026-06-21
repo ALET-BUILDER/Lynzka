@@ -16,6 +16,7 @@ local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
+local Mouse = LocalPlayer:GetMouse()
 
 -- HAPUS GUI LAMA
 pcall(function() 
@@ -184,7 +185,9 @@ local sliderValues = {
     ["Holo R"] = 0,
     ["Holo G"] = 255,
     ["Holo B"] = 0,
-    ["HealthBar Thickness"] = 10
+    ["HealthBar Thickness"] = 10,
+    ["Menu Width"] = 560,
+    ["Menu Height"] = 410
 }
 local currentTab = nil
 local godModeConnection = nil
@@ -195,6 +198,7 @@ local godModeActive = false
 local invisibleActive = false
 local wallbangActive = false
 local antiReportActive = false
+local teleportCooldown = false
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -1038,6 +1042,103 @@ local function createSlider(p, text, mn, mx, def, cb)
     end)
 end
 
+-- ========== COLOR SLIDER (HUE) ==========
+local function createColorSlider(p, text, default, cb)
+    local hue = default or 0.6
+    
+    local fr = Instance.new("Frame")
+    fr.Size = UDim2.new(1, -4, 0, 48)
+    fr.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+    fr.BorderSizePixel = 0
+    fr.Parent = p
+    Instance.new("UICorner", fr).CornerRadius = UDim.new(0, 6)
+    
+    local lb = Instance.new("TextLabel", fr)
+    lb.Text = text
+    lb.Size = UDim2.new(1, -10, 0, 20)
+    lb.Position = UDim2.new(0, 10, 0, 2)
+    lb.BackgroundTransparency = 1
+    lb.TextColor3 = Color3.fromRGB(210, 210, 225)
+    lb.Font = Enum.Font.GothamBold
+    lb.TextSize = 12
+    lb.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Preview warna
+    local preview = Instance.new("Frame", fr)
+    preview.Size = UDim2.new(0, 30, 0, 22)
+    preview.Position = UDim2.new(1, -40, 0.5, -11)
+    preview.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+    preview.BorderSizePixel = 1
+    preview.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 4)
+    
+    -- Background slider dengan gradien warna
+    local bg = Instance.new("Frame", fr)
+    bg.Size = UDim2.new(1, -80, 0, 10)
+    bg.Position = UDim2.new(0, 10, 0, 28)
+    bg.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+    bg.BorderSizePixel = 0
+    Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
+    
+    -- Fill slider
+    local fl = Instance.new("Frame", bg)
+    fl.Size = UDim2.new(hue, 0, 1, 0)
+    fl.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+    fl.BorderSizePixel = 0
+    Instance.new("UICorner", fl).CornerRadius = UDim.new(1, 0)
+    
+    -- Nilai text
+    local valLabel = Instance.new("TextLabel", fr)
+    valLabel.Size = UDim2.new(0, 35, 0, 20)
+    valLabel.Position = UDim2.new(0.5, -17, 0, 30)
+    valLabel.BackgroundTransparency = 1
+    valLabel.Text = math.floor(hue * 360)
+    valLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    valLabel.Font = Enum.Font.GothamBold
+    valLabel.TextSize = 12
+    
+    local function updateColor(v)
+        local newHue = math.clamp(v, 0, 1)
+        local col = Color3.fromHSV(newHue, 1, 1)
+        preview.BackgroundColor3 = col
+        fl.BackgroundColor3 = col
+        valLabel.Text = math.floor(newHue * 360)
+        if cb then pcall(cb, newHue, col) end
+    end
+    
+    -- Slider drag
+    local ib = Instance.new("TextButton", bg)
+    ib.Size = UDim2.new(1, 0, 1, 10)
+    ib.Position = UDim2.new(0, 0, 0, -5)
+    ib.BackgroundTransparency = 1
+    ib.Text = ""
+    
+    local sd = false
+    local function upd(i)
+        local r = math.clamp((i.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
+        updateColor(r)
+    end
+    
+    ib.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            sd = true
+            upd(i)
+        end
+    end)
+    ib.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            sd = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if sd and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            upd(i)
+        end
+    end)
+    
+    return {update = updateColor}
+end
+
 local function createButton(p, text, cb)
     local bt = Instance.new("TextButton")
     bt.Size = UDim2.new(1, -4, 0, 32)
@@ -1064,7 +1165,7 @@ local function createButton(p, text, cb)
     return bt
 end
 
--- ========== NOTIFICATION ==========
+-- ========== NOTIFICATION FIXED ==========
 local notificationQueue = {}
 local isNotifying = false
 
@@ -1108,185 +1209,42 @@ local function notify(text, duration)
     end
 end
 
--- ========== KICK PLAYER TAB ==========
-local kickPage = createTab("Kick", "👢", 4)
-
--- Section Player List
-createSection(kickPage, "👢 Player List - Click to Kick")
-
--- Frame untuk list player dengan ukuran tetap
-local kickFrame = Instance.new("Frame", kickPage)
-kickFrame.Size = UDim2.new(1, -4, 0, 280)
-kickFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
-kickFrame.BorderSizePixel = 0
-kickFrame.ClipsDescendants = true
-Instance.new("UICorner", kickFrame).CornerRadius = UDim.new(0, 6)
-
--- Title bar
-local kickTitle = Instance.new("TextLabel", kickFrame)
-kickTitle.Size = UDim2.new(1, 0, 0, 28)
-kickTitle.Position = UDim2.new(0, 0, 0, 0)
-kickTitle.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
-kickTitle.BackgroundTransparency = 0.3
-kickTitle.Text = "👢 Click player name to kick (Error 291)"
-kickTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-kickTitle.Font = Enum.Font.GothamBold
-kickTitle.TextSize = 12
-Instance.new("UICorner", kickTitle).CornerRadius = UDim.new(0, 6)
-
--- Scrolling frame untuk list
-local kickList = Instance.new("ScrollingFrame", kickFrame)
-kickList.Size = UDim2.new(1, 0, 1, -32)
-kickList.Position = UDim2.new(0, 0, 0, 30)
-kickList.BackgroundTransparency = 1
-kickList.BorderSizePixel = 0
-kickList.ScrollBarThickness = 3
-kickList.ScrollBarImageColor3 = Color3.fromRGB(60, 120, 255)
-kickList.CanvasSize = UDim2.new(0, 0, 0, 0)
-kickList.AutomaticCanvasSize = Enum.AutomaticSize.Y
-
-local kickLayout = Instance.new("UIListLayout", kickList)
-kickLayout.Padding = UDim.new(0, 3)
-kickLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
--- ========== KICK PLAYER FUNCTION ==========
-local function KickPlayer(player)
-    if not player then return end
-    
-    notify("👢 Kicking " .. player.Name .. "... (Error 291)", 2)
-    task.wait(3)
-    
-    -- Method 1: Kick langsung
-    pcall(function()
-        player:Kick("Error Code: 291 - Connection Lost")
-    end)
-    task.wait(0.1)
-    
-    -- Method 2: Kick backup
-    if player.Parent then
-        pcall(function()
-            player:Kick("⚠️ Connection Lost - Error 291")
-        end)
-    end
-    task.wait(0.1)
-    
-    -- Method 3: Hancurkan karakter
-    pcall(function()
-        if player.Character then
-            player.Character:BreakJoints()
-        end
-    end)
-    task.wait(0.1)
-    
-    -- Method 4: Matikan humanoid
-    pcall(function()
-        if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-            player.Character:FindFirstChildOfClass("Humanoid").Health = 0
-        end
-    end)
-    task.wait(0.1)
-    
-    -- Method 5: Teleport ke void
-    pcall(function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -99999, 0)
-        end
-    end)
-    
-    -- Method 6: Kick paksa
-    task.wait(0.2)
-    if player.Parent then
-        pcall(function()
-            player:Kick("Connection Lost - Error 291")
-        end)
-    end
-    
-    notify("✅ " .. player.Name .. " has been kicked! (Error 291)", 3)
-end
-
--- ========== REFRESH KICK LIST ==========
-local function refreshKickList()
-    if not kickList then return end
-    
-    -- Hapus semua tombol
-    for _, child in pairs(kickList:GetChildren()) do
-        if child:IsA("TextButton") then
-            child:Destroy()
-        end
-    end
-    
-    -- Jika tidak ada player
-    local playerCount = 0
-    for _ in pairs(Players:GetPlayers()) do
-        playerCount = playerCount + 1
-    end
-    
-    if playerCount <= 1 then
-        local empty = Instance.new("TextLabel", kickList)
-        empty.Size = UDim2.new(1, 0, 0, 30)
-        empty.BackgroundTransparency = 1
-        empty.Text = "⚠️ No other players in server"
-        empty.TextColor3 = Color3.fromRGB(255, 200, 100)
-        empty.Font = Enum.Font.Gotham
-        empty.TextSize = 13
+-- ========== TELEPORT (FIXED) ==========
+local function TeleportToPlayer(player)
+    if teleportCooldown then
+        notify("⏳ Teleport cooldown! Wait 2 seconds!", 2)
         return
     end
     
-    -- Buat tombol untuk setiap player
-    for _, player in pairs(Players:GetPlayers()) do
-        local btn = Instance.new("TextButton", kickList)
-        btn.Size = UDim2.new(1, -4, 0, 30)
-        btn.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
-        btn.TextColor3 = Color3.fromRGB(210, 210, 255)
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 12
-        btn.TextXAlignment = Enum.TextXAlignment.Left
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-        
-        if player == LocalPlayer then
-            btn.Text = "⭐ " .. player.Name .. " (YOU)"
-            btn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
-        else
-            btn.Text = "👤 " .. player.Name .. " (" .. player.DisplayName .. ")"
-        end
-        
-        btn.MouseButton1Click:Connect(function()
-            -- Animasi klik
-            TweenService:Create(btn, TweenInfo.new(0.1), {
-                BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-            }):Play()
-            task.delay(0.1, function()
-                TweenService:Create(btn, TweenInfo.new(0.1), {
-                    BackgroundColor3 = player == LocalPlayer and Color3.fromRGB(80, 40, 40) or Color3.fromRGB(45, 45, 70)
-                }):Play()
-            end)
-            
-            -- Kick player
-            KickPlayer(player)
-        end)
+    if not player or player == LocalPlayer then
+        notify("❌ Invalid target!", 2)
+        return
     end
+    
+    local targetChar = player.Character
+    local localChar = LocalPlayer.Character
+    
+    if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") then
+        notify("❌ Target not found!", 2)
+        return
+    end
+    
+    if not localChar or not localChar:FindFirstChild("HumanoidRootPart") then
+        notify("❌ Your character not ready!", 2)
+        return
+    end
+    
+    -- Teleport
+    localChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+    notify("📍 Teleported to " .. player.Name, 2)
+    
+    -- Cooldown
+    teleportCooldown = true
+    task.wait(2)
+    teleportCooldown = false
 end
 
--- Refresh pertama
-refreshKickList()
-
--- Auto refresh setiap 1 detik
-local kickRefreshConnection = RunService.Heartbeat:Connect(function()
-    refreshKickList()
-end)
-
--- Refresh saat player join/leave
-local kickPlayerAdded = Players.PlayerAdded:Connect(function()
-    task.wait(0.5)
-    refreshKickList()
-end)
-
-local kickPlayerRemoving = Players.PlayerRemoving:Connect(function()
-    task.wait(0.5)
-    refreshKickList()
-end)
-
--- ========== BUILD OTHER TABS ==========
+-- ========== BUILD UI ==========
 -- Player Tab
 local playerPage = createTab("Player", "🏃", 1)
 
@@ -1421,8 +1379,8 @@ end
 hitboxButtons["Head"].BackgroundColor3 = Color3.fromRGB(60, 120, 255)
 hitboxButtons["Head"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- Teleport Tab
-local tpPage = createTab("Teleport", "📍", 5)
+-- Teleport Tab (FIXED)
+local tpPage = createTab("Teleport", "📍", 4)
 
 createSection(tpPage, "Quick Teleport")
 createButton(tpPage, "⚡ TP to Nearest Player", function()
@@ -1436,8 +1394,9 @@ createButton(tpPage, "⚡ TP to Nearest Player", function()
         end
     end
     if best then
-        char.HumanoidRootPart.CFrame = best.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4)
-        notify("Teleported to " .. best.Name, 2)
+        TeleportToPlayer(best)
+    else
+        notify("❌ No players found!", 2)
     end
 end)
 createToggle(tpPage, "Click TP", false)
@@ -1447,12 +1406,14 @@ createButton(tpPage, "📌 Map Center (0, 150, 0)", function()
     local char = LocalPlayer.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
         char.HumanoidRootPart.CFrame = CFrame.new(0, 150, 0)
+        notify("📍 Teleported to center!", 2)
     end
 end)
 createButton(tpPage, "📌 Highest Point (0, 1000, 0)", function()
     local char = LocalPlayer.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
         char.HumanoidRootPart.CFrame = CFrame.new(0, 1000, 0)
+        notify("📍 Teleported to highest point!", 2)
     end
 end)
 createButton(tpPage, "🏠 Spawn Point", function()
@@ -1467,6 +1428,110 @@ createButton(tpPage, "🏠 Spawn Point", function()
         notify("🏠 Teleported to spawn!", 2)
     end
 end)
+
+createSection(tpPage, "Player List")
+local plCount = Instance.new("TextLabel", tpPage)
+plCount.Size = UDim2.new(1, -4, 0, 22)
+plCount.BackgroundColor3 = Color3.fromRGB(22, 22, 34)
+plCount.BackgroundTransparency = 0.5
+plCount.BorderSizePixel = 0
+plCount.TextColor3 = Color3.fromRGB(140, 140, 170)
+plCount.Font = Enum.Font.Gotham
+plCount.TextSize = 11
+plCount.TextXAlignment = Enum.TextXAlignment.Left
+Instance.new("UICorner", plCount).CornerRadius = UDim.new(0, 5)
+
+local plBox = Instance.new("Frame", tpPage)
+plBox.Size = UDim2.new(1, -4, 0, 0)
+plBox.BackgroundTransparency = 1
+plBox.AutomaticSize = Enum.AutomaticSize.Y
+local plL = Instance.new("UIListLayout", plBox)
+plL.SortOrder = Enum.SortOrder.LayoutOrder
+plL.Padding = UDim.new(0, 3)
+
+local function refreshPlayers()
+    for _, c in pairs(plBox:GetChildren()) do
+        if c:IsA("TextButton") then c:Destroy() end
+    end
+    local count = 0
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then count = count + 1 end
+    end
+    plCount.Text = "  Players: " .. count .. " / " .. Players.MaxPlayers
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            createButton(plBox, "→ " .. p.DisplayName, function()
+                TeleportToPlayer(p)
+            end)
+        end
+    end
+end
+refreshPlayers()
+Players.PlayerAdded:Connect(function() task.wait(0.5); refreshPlayers() end)
+Players.PlayerRemoving:Connect(refreshPlayers)
+
+-- Click TP
+Mouse.Button1Down:Connect(function()
+    if toggleStates["Click TP"] then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and Mouse.Hit then
+            char.HumanoidRootPart.CFrame = Mouse.Hit + Vector3.new(0, 4, 0)
+            notify("📍 Teleported to clicked location!", 2)
+        end
+    end
+end)
+
+-- Info Tab (Ganti Kick)
+local infoPage = createTab("Info", "📋", 5)
+
+createSection(infoPage, "📋 Script Information")
+
+local infoText = Instance.new("TextLabel", infoPage)
+infoText.Size = UDim2.new(1, -4, 0, 250)
+infoText.Position = UDim2.new(0, 2, 0, 30)
+infoText.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+infoText.BackgroundTransparency = 0.5
+infoText.Text = [[
+╔═══════════════════════════════════════╗
+║         🔥 LYNZKA HUB v3.0          ║
+╠═══════════════════════════════════════╣
+║                                       ║
+║  📝 Script Info:                     ║
+║  • Creator: Lynzka                   ║
+║  • Version: 3.0                      ║
+║  • Type: Roblox Executor Script      ║
+║                                       ║
+║  ⚡ Features:                        ║
+║  • ESP (Box, Name, Health, Distance) ║
+║  • Aimbot + Hitbox Selection         ║
+║  • Speed Hack                        ║
+║  • God Mode (Immortal)               ║
+║  • Invisible                         ║
+║  • Wallbang (Tembus Benda)           ║
+║  • Hologram + Neon Effect            ║
+║  • Tracer (Antena)                   ║
+║  • Teleport (Player & Coordinate)    ║
+║  • Fullbright                        ║
+║                                       ║
+║  🔧 Settings:                       ║
+║  • Customizable UI Size & Color      ║
+║  • Health Bar Thickness              ║
+║  • Rainbow Border                    ║
+║                                       ║
+║  📌 How to Use:                     ║
+║  • Press INSERT to toggle menu      ║
+║  • Click - to minimize              ║
+║  • Click ✕ to close                 ║
+║                                       ║
+╚═══════════════════════════════════════╝
+]]
+infoText.TextColor3 = Color3.fromRGB(200, 200, 220)
+infoText.Font = Enum.Font.Gotham
+infoText.TextSize = 12
+infoText.TextXAlignment = Enum.TextXAlignment.Left
+infoText.TextYAlignment = Enum.TextYAlignment.Top
+infoText.LineHeight = 1.2
+Instance.new("UICorner", infoText).CornerRadius = UDim.new(0, 6)
 
 -- Misc Tab
 local miscPage = createTab("Misc", "⚙", 6)
@@ -1510,12 +1575,57 @@ end)
 -- Settings Tab
 local settingsPage = createTab("Settings", "🔧", 7)
 
+createSection(settingsPage, "🎨 Theme Settings")
+createColorSlider(settingsPage, "Theme Color", 0.6, function(hue, color)
+    MainStroke.Color = color
+    -- Update header
+    TT.TextColor3 = Color3.fromRGB(100 + color.R * 100, 100 + color.G * 100, 100 + color.B * 100)
+    -- Update section backgrounds
+    for _, page in pairs(pages) do
+        for _, child in pairs(page:GetChildren()) do
+            if child:IsA("TextLabel") and child.BackgroundColor3 and child.BackgroundTransparency ~= 1 then
+                if child.BackgroundColor3.R == 60 and child.BackgroundColor3.G == 120 and child.BackgroundColor3.B == 255 then
+                    child.BackgroundColor3 = Color3.fromRGB(
+                        math.floor(60 + color.R * 60),
+                        math.floor(120 + color.G * 60),
+                        math.floor(255 - (1 - color.B) * 60)
+                    )
+                end
+            end
+        end
+    end
+    -- Update scrollbar color
+    for _, page in pairs(pages) do
+        if page:IsA("ScrollingFrame") then
+            page.ScrollBarImageColor3 = Color3.fromRGB(
+                math.floor(60 + color.R * 60),
+                math.floor(120 + color.G * 60),
+                math.floor(255 - (1 - color.B) * 60)
+            )
+        end
+    end
+end)
+
+createSection(settingsPage, "📐 UI Size Settings")
+createSlider(settingsPage, "Menu Width", 400, 800, 560, function(v)
+    MainFrame.Size = UDim2.new(0, v, 0, MainFrame.Size.Y.Offset)
+    MainFrame.Position = UDim2.new(0.5, -v/2, 0.5, -MainFrame.Size.Y.Offset/2)
+    sliderValues["Menu Width"] = v
+end)
+createSlider(settingsPage, "Menu Height", 300, 600, 410, function(v)
+    MainFrame.Size = UDim2.new(0, MainFrame.Size.X.Offset, 0, v)
+    MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset/2, 0.5, -v/2)
+    sliderValues["Menu Height"] = v
+end)
+
+createSection(settingsPage, "⚙ Feature Settings")
+createSlider(settingsPage, "HealthBar Thickness", 5, 20, 10)
+
 createSection(settingsPage, "Hub Settings")
 createToggle(settingsPage, "Rainbow Border", false)
-createSlider(settingsPage, "HealthBar Thickness", 5, 20, 10)
 createButton(settingsPage, "📐 Center GUI", function()
     TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, -280, 0.5, -205)
+        Position = UDim2.new(0.5, -MainFrame.Size.X.Offset/2, 0.5, -MainFrame.Size.Y.Offset/2)
     }):Play()
 end)
 createButton(settingsPage, "🗑 Close Hub", function()
@@ -1532,9 +1642,6 @@ createButton(settingsPage, "🗑 Close Hub", function()
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
-    if kickRefreshConnection then kickRefreshConnection:Disconnect() end
-    if kickPlayerAdded then kickPlayerAdded:Disconnect() end
-    if kickPlayerRemoving then kickPlayerRemoving:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
@@ -1560,9 +1667,6 @@ CloseBtn.MouseButton1Click:Connect(function()
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
-    if kickRefreshConnection then kickRefreshConnection:Disconnect() end
-    if kickPlayerAdded then kickPlayerAdded:Disconnect() end
-    if kickPlayerRemoving then kickPlayerRemoving:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
@@ -1570,7 +1674,7 @@ end)
 MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-        Size = minimized and UDim2.new(0, 560, 0, 38) or UDim2.new(0, 560, 0, 410)
+        Size = minimized and UDim2.new(0, MainFrame.Size.X.Offset, 0, 38) or UDim2.new(0, MainFrame.Size.X.Offset, 0, sliderValues["Menu Height"] or 410)
     }):Play()
 end)
 
@@ -1662,21 +1766,8 @@ spawn(function()
         if toggleStates["Rainbow Border"] then
             hue = (hue + 0.005) % 1
             MainStroke.Color = Color3.fromHSV(hue, 1, 1)
-        else
-            MainStroke.Color = Color3.fromRGB(60, 120, 255)
         end
         task.wait(0.03)
-    end
-end)
-
--- Click TP
-local mouse = LocalPlayer:GetMouse()
-mouse.Button1Down:Connect(function()
-    if toggleStates["Click TP"] then
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") and mouse.Hit then
-            char.HumanoidRootPart.CFrame = mouse.Hit + Vector3.new(0, 4, 0)
-        end
     end
 end)
 
