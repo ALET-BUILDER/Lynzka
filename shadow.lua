@@ -145,25 +145,20 @@ Instance.new("UICorner", ContentPanel).CornerRadius = UDim.new(0, 8)
 local tabs = {}
 local pages = {}
 local toggleStates = {
-    -- Player
     ["Infinite Jump"] = false,
     ["Noclip"] = false,
     ["Speed Hack"] = false,
-    -- Visual
     ["Player ESP"] = false,
     ["ESP Names"] = true,
     ["ESP Health"] = true,
-    ["ESP Health Bar"] = true,
     ["ESP Distance"] = true,
     ["Hologram"] = false,
     ["Holo Neon"] = false,
     ["Tracer"] = false,
     ["Fullbright"] = false,
-    -- Combat
     ["Aimbot"] = false,
     ["Show FOV"] = false,
     ["Team Check"] = true,
-    -- Misc
     ["Anti AFK"] = false,
     ["Show FPS"] = false,
     ["Rainbow Border"] = false,
@@ -186,11 +181,462 @@ local isGodMode = false
 local godModeConnection = nil
 local SpeedLoop = nil
 local Holos = {}
-local Tracers = {}
-local espCache = {}
 local minimized = false
-local espHolder = Instance.new("Folder", ScreenGui)
-espHolder.Name = "ESP"
+
+-- ========== DRAWING OBJECTS UNTUK ESP ==========
+local EspObjects = {}
+local TracerLines = {}
+local DrawingPool = {}
+
+local function NewDrawing(type, props)
+    local d = Drawing.new(type)
+    for k, v in pairs(props) do
+        d[k] = v
+    end
+    d.Visible = false
+    table.insert(DrawingPool, d)
+    return d
+end
+
+local function ClearDrawings()
+    for _, d in pairs(DrawingPool) do
+        pcall(d.Remove, d)
+    end
+    DrawingPool = {}
+    EspObjects = {}
+    TracerLines = {}
+end
+
+-- ========== FUNGSI DASAR ==========
+local function IsAlive(p)
+    local c = p.Character
+    if not c then return false end
+    local h = c:FindFirstChildOfClass("Humanoid")
+    return h and h.Health > 0
+end
+
+local function GetHealth(p)
+    local c = p.Character
+    if not c then return 0, 100 end
+    local h = c:FindFirstChildOfClass("Humanoid")
+    if not h then return 0, 100 end
+    return math.floor(h.Health), math.floor(h.MaxHealth)
+end
+
+local function GetTeamColor(p)
+    if toggleStates["ESP Team Color"] and p.Team then
+        return p.Team.TeamColor.Color
+    end
+    return Color3.fromRGB(255, 255, 255)
+end
+
+local function SameTeam(p)
+    return LocalPlayer.Team and p.Team and LocalPlayer.Team == p.Team
+end
+
+local function WorldToScreen(pos)
+    local s, on = Camera:WorldToViewportPoint(pos)
+    return Vector2.new(s.X, s.Y), on
+end
+
+local function GetBBox(char)
+    local head = char:FindFirstChild("Head")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not head and not hrp then return nil end
+    local topPart = head or hrp
+    local bottomPart = hrp or head
+    local topPos, topOn = WorldToScreen(topPart.Position + Vector3.new(0, 1.2, 0))
+    local bottomPos, bottomOn = WorldToScreen(bottomPart.Position - Vector3.new(0, 2, 0))
+    if not topOn and not bottomOn then return nil end
+    local left = math.min(topPos.X, bottomPos.X)
+    local right = math.max(topPos.X, bottomPos.X)
+    local top = math.min(topPos.Y, bottomPos.Y)
+    local bottom = math.max(topPos.Y, bottomPos.Y)
+    local width = math.max(right - left, 30)
+    local height = math.max(bottom - top, 40)
+    return {x0 = left, y0 = top, x1 = left + width, y1 = top + height}
+end
+
+-- ========== ESP FUNCTIONS ==========
+local function CreateESP(player)
+    EspObjects[player] = {
+        top = NewDrawing("Line", {Thickness = 1, ZIndex = 1}),
+        bottom = NewDrawing("Line", {Thickness = 1, ZIndex = 1}),
+        left = NewDrawing("Line", {Thickness = 1, ZIndex = 1}),
+        right = NewDrawing("Line", {Thickness = 1, ZIndex = 1}),
+        name = NewDrawing("Text", {Size = 13, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
+        health = NewDrawing("Text", {Size = 12, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
+        distance = NewDrawing("Text", {Size = 11, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
+        -- Health Bar di sebelah kanan box
+        healthBar = NewDrawing("Line", {Thickness = 4, ZIndex = 2})
+    }
+    TracerLines[player] = NewDrawing("Line", {Thickness = 2, Color = Color3.fromRGB(255, 0, 0), ZIndex = 3})
+end
+
+local function RemoveESP(player)
+    local obj = EspObjects[player]
+    if obj then
+        for _, d in pairs(obj) do
+            pcall(d.Remove, d)
+        end
+    end
+    EspObjects[player] = nil
+    if TracerLines[player] then
+        pcall(TracerLines[player].Remove, TracerLines[player])
+        TracerLines[player] = nil
+    end
+end
+
+local function HideESP(obj)
+    for _, d in pairs(obj) do
+        d.Visible = false
+    end
+end
+
+-- ========== GOD MODE ==========
+local function ToggleGodMode()
+    isGodMode = not isGodMode
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    if isGodMode then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.MaxHealth = 9e9
+            humanoid.Health = 9e9
+            humanoid.BreakJointsOnDeath = false
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+        end
+        
+        if godModeConnection then godModeConnection:Disconnect() end
+        godModeConnection = RunService.Heartbeat:Connect(function()
+            if not isGodMode then
+                if godModeConnection then godModeConnection:Disconnect() end
+                godModeConnection = nil
+                return
+            end
+            local char2 = LocalPlayer.Character
+            if not char2 then return end
+            local h = char2:FindFirstChildOfClass("Humanoid")
+            if h then
+                h.MaxHealth = 9e9
+                h.Health = 9e9
+                h.BreakJointsOnDeath = false
+                h:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+            end
+        end)
+        notify("🛡 God Mode ON", 2)
+    else
+        if godModeConnection then
+            godModeConnection:Disconnect()
+            godModeConnection = nil
+        end
+        local char2 = LocalPlayer.Character
+        if char2 then
+            local h = char2:FindFirstChildOfClass("Humanoid")
+            if h then
+                h.MaxHealth = 100
+                h.Health = 100
+                h.BreakJointsOnDeath = true
+                h:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+            end
+        end
+        notify("💀 God Mode OFF", 2)
+    end
+end
+
+-- ========== SPEED HACK ==========
+local function ApplySpeed()
+    if not toggleStates["Speed Hack"] then
+        if SpeedLoop then
+            SpeedLoop:Disconnect()
+            SpeedLoop = nil
+        end
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.WalkSpeed ~= 16 then hum.WalkSpeed = 16 end
+        return
+    end
+    
+    local ws = 16
+    local val = sliderValues["Speed Value"] or 0
+    if val > 0 then
+        ws = 16 + (val * 6)
+    elseif val < 0 then
+        ws = 16 + (val * 2.5)
+    end
+    ws = math.clamp(ws, 8, 120)
+    
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.WalkSpeed = ws
+        if SpeedLoop then SpeedLoop:Disconnect() end
+        SpeedLoop = RunService.Heartbeat:Connect(function()
+            if toggleStates["Speed Hack"] and hum and hum.Parent then
+                if hum.WalkSpeed ~= ws then
+                    hum.WalkSpeed = ws
+                end
+            else
+                if SpeedLoop then SpeedLoop:Disconnect() end
+                SpeedLoop = nil
+            end
+        end)
+    end
+end
+
+-- ========== AIMBOT ==========
+local FOVCircle = NewDrawing("Circle", {
+    Thickness = 1,
+    Filled = false,
+    Color = Color3.fromRGB(255, 255, 255),
+    NumSides = 64,
+    ZIndex = 10
+})
+
+local function GetBestTarget()
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local best, bestDist = nil, sliderValues["Aimbot FOV"] or 500
+    local hitboxMode = toggleStates["Hitbox Mode"] or "Head"
+    
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LocalPlayer then continue end
+        local char = p.Character
+        if not char then continue end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then continue end
+        if toggleStates["Team Check"] and LocalPlayer.Team and p.Team and LocalPlayer.Team == p.Team then continue end
+        
+        local targetParts = {}
+        if hitboxMode == "Head" then
+            targetParts = {char:FindFirstChild("Head")}
+        elseif hitboxMode == "Neck" then
+            targetParts = {char:FindFirstChild("Neck") or char:FindFirstChild("UpperTorso")}
+        elseif hitboxMode == "UpperTorso" then
+            targetParts = {char:FindFirstChild("UpperTorso") or char:FindFirstChild("HumanoidRootPart")}
+        elseif hitboxMode == "LowerTorso" then
+            targetParts = {char:FindFirstChild("LowerTorso") or char:FindFirstChild("HumanoidRootPart")}
+        elseif hitboxMode == "All" then
+            targetParts = {
+                char:FindFirstChild("Head"),
+                char:FindFirstChild("Neck"),
+                char:FindFirstChild("UpperTorso"),
+                char:FindFirstChild("LowerTorso"),
+                char:FindFirstChild("HumanoidRootPart")
+            }
+        else
+            targetParts = {char:FindFirstChild("Head")}
+        end
+        
+        local bestPart = nil
+        local bestPartDist = sliderValues["Aimbot FOV"] or 500
+        for _, pt in ipairs(targetParts) do
+            if pt then
+                local s, on = Camera:WorldToViewportPoint(pt.Position)
+                if on then
+                    local d = (Vector2.new(s.X, s.Y) - center).Magnitude
+                    if d < bestPartDist then
+                        bestPartDist = d
+                        bestPart = pt
+                    end
+                end
+            end
+        end
+        if bestPart and bestPartDist < bestDist then
+            bestDist = bestPartDist
+            best = bestPart
+        end
+    end
+    return best
+end
+
+-- ========== HOLOGRAM ==========
+local function UpdateHologram(player)
+    if not toggleStates["Hologram"] then
+        if Holos[player] then
+            Holos[player]:Destroy()
+            Holos[player] = nil
+        end
+        return
+    end
+    local char = player.Character
+    if not char then
+        if Holos[player] then
+            Holos[player]:Destroy()
+            Holos[player] = nil
+        end
+        return
+    end
+    if not Holos[player] then
+        local hl = Instance.new("Highlight")
+        hl.Name = "LYNZKA_HOLO"
+        hl.Parent = char
+        hl.Adornee = char
+        hl.FillTransparency = 0.6
+        hl.OutlineTransparency = 0.2
+        Holos[player] = hl
+    end
+    local col = Color3.fromRGB(
+        sliderValues["Holo R"] or 0,
+        sliderValues["Holo G"] or 255,
+        sliderValues["Holo B"] or 0
+    )
+    if toggleStates["Holo Neon"] then
+        local hue = (tick() * 0.5) % 1
+        col = Color3.fromHSV(hue, 1, 1)
+    end
+    Holos[player].FillColor = col
+    Holos[player].OutlineColor = col
+end
+
+-- ========== RENDER LOOP ==========
+RunService.RenderStepped:Connect(function()
+    local vp = Camera.ViewportSize
+    
+    -- FOV Circle
+    FOVCircle.Position = Vector2.new(vp.X / 2, vp.Y / 2)
+    FOVCircle.Radius = sliderValues["Aimbot FOV"] or 500
+    FOVCircle.Visible = toggleStates["Show FOV"] and toggleStates["Aimbot"]
+    
+    -- Aimbot
+    if toggleStates["Aimbot"] then
+        local target = GetBestTarget()
+        if target then
+            local cp = Camera.CFrame.Position
+            local dir = (target.Position - cp).Unit
+            Camera.CFrame = CFrame.new(cp, cp + dir)
+        end
+    end
+    
+    -- Speed
+    ApplySpeed()
+    
+    -- ESP, Hologram, Tracer
+    for _, p in ipairs(Players:GetPlayers()) do
+        UpdateHologram(p)
+        
+        if p == LocalPlayer then
+            if EspObjects[p] then HideESP(EspObjects[p]) end
+            if TracerLines[p] then TracerLines[p].Visible = false end
+            continue
+        end
+        
+        if not EspObjects[p] then CreateESP(p) end
+        local obj = EspObjects[p]
+        local tracer = TracerLines[p]
+        
+        if not toggleStates["Player ESP"] or not IsAlive(p) then
+            HideESP(obj)
+            if tracer then tracer.Visible = false end
+            continue
+        end
+        
+        local char = p.Character
+        if not char then
+            HideESP(obj)
+            if tracer then tracer.Visible = false end
+            continue
+        end
+        
+        local bbox = GetBBox(char)
+        if not bbox then
+            HideESP(obj)
+            if tracer then tracer.Visible = false end
+            continue
+        end
+        
+        local color = GetTeamColor(p)
+        
+        -- Box ESP (4 garis)
+        local function SetLine(line, x0, y0, x1, y1)
+            line.From = Vector2.new(x0, y0)
+            line.To = Vector2.new(x1, y1)
+            line.Color = color
+            line.Visible = true
+        end
+        
+        SetLine(obj.top, bbox.x0, bbox.y0, bbox.x1, bbox.y0)
+        SetLine(obj.bottom, bbox.x0, bbox.y1, bbox.x1, bbox.y1)
+        SetLine(obj.left, bbox.x0, bbox.y0, bbox.x0, bbox.y1)
+        SetLine(obj.right, bbox.x1, bbox.y0, bbox.x1, bbox.y1)
+        
+        -- Nama
+        obj.name.Text = p.Name
+        obj.name.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 15)
+        obj.name.Color = color
+        obj.name.Visible = toggleStates["ESP Names"]
+        
+        -- Health (di dalam box, di bawah nama)
+        local hp, mhp = GetHealth(p)
+        local healthPercent = hp / mhp
+        local greenHealth = Color3.fromRGB(
+            math.floor(255 * (1 - healthPercent * 0.3)),
+            math.floor(255 * (0.6 + healthPercent * 0.4)),
+            math.floor(100 * healthPercent + 50)
+        )
+        obj.health.Text = hp .. "/" .. mhp
+        obj.health.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 27)
+        obj.health.Color = greenHealth
+        obj.health.Visible = toggleStates["ESP Health"]
+        
+        -- Health Bar di sebelah kanan box (tingginya sama dengan box)
+        if toggleStates["ESP Health"] then
+            local barX = bbox.x1 + 3
+            local barY = bbox.y0
+            local barHeight = bbox.y1 - bbox.y0
+            local fillHeight = barHeight * healthPercent
+            obj.healthBar.From = Vector2.new(barX, barY + barHeight - fillHeight)
+            obj.healthBar.To = Vector2.new(barX, barY + barHeight)
+            obj.healthBar.Color = Color3.fromRGB(
+                math.floor(255 * (1 - healthPercent)),
+                math.floor(255 * healthPercent),
+                50
+            )
+            obj.healthBar.Thickness = 3
+            obj.healthBar.Visible = true
+        else
+            obj.healthBar.Visible = false
+        end
+        
+        -- Distance
+        if toggleStates["ESP Distance"] then
+            local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
+            local targetPos = char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart.Position
+            if myPos and targetPos then
+                local distStuds = (myPos - targetPos).Magnitude
+                local distMeters = distStuds * 0.28
+                obj.distance.Text = string.format("%.1f m", distMeters)
+                obj.distance.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1 + 12)
+                obj.distance.Color = Color3.fromRGB(255, 255, 0)
+                obj.distance.Size = 11
+                obj.distance.Visible = true
+            else
+                obj.distance.Visible = false
+            end
+        else
+            obj.distance.Visible = false
+        end
+        
+        -- Tracer (Antena)
+        if toggleStates["Tracer"] and bbox then
+            local footPos = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1)
+            local bottomCenter = Vector2.new(vp.X / 2, vp.Y)
+            tracer.From = footPos
+            tracer.To = bottomCenter
+            tracer.Color = color
+            tracer.Visible = true
+        elseif tracer then
+            tracer.Visible = false
+        end
+    end
+end)
+
+-- ========== CLEANUP ==========
+Players.PlayerRemoving:Connect(function(p)
+    RemoveESP(p)
+    if Holos[p] then
+        Holos[p]:Destroy()
+        Holos[p] = nil
+    end
+end)
 
 -- ========== FUNGSI UI ==========
 local function createTab(name, icon, order)
@@ -436,440 +882,6 @@ local function notify(text, duration)
     end)
 end
 
--- ========== GOD MODE ==========
-local function ToggleGodMode()
-    isGodMode = not isGodMode
-    local char = LocalPlayer.Character
-    if not char then return end
-    
-    if isGodMode then
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.MaxHealth = 9e9
-            humanoid.Health = 9e9
-            humanoid.BreakJointsOnDeath = false
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-        end
-        
-        if godModeConnection then godModeConnection:Disconnect() end
-        godModeConnection = RunService.Heartbeat:Connect(function()
-            if not isGodMode then
-                if godModeConnection then godModeConnection:Disconnect() end
-                godModeConnection = nil
-                return
-            end
-            local char2 = LocalPlayer.Character
-            if not char2 then return end
-            local h = char2:FindFirstChildOfClass("Humanoid")
-            if h then
-                h.MaxHealth = 9e9
-                h.Health = 9e9
-                h.BreakJointsOnDeath = false
-                h:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-            end
-        end)
-        notify("🛡 God Mode ON", 2)
-    else
-        if godModeConnection then
-            godModeConnection:Disconnect()
-            godModeConnection = nil
-        end
-        local char2 = LocalPlayer.Character
-        if char2 then
-            local h = char2:FindFirstChildOfClass("Humanoid")
-            if h then
-                h.MaxHealth = 100
-                h.Health = 100
-                h.BreakJointsOnDeath = true
-                h:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
-            end
-        end
-        notify("💀 God Mode OFF", 2)
-    end
-end
-
--- ========== SPEED HACK ==========
-local function ApplySpeed()
-    if not toggleStates["Speed Hack"] then
-        if SpeedLoop then
-            SpeedLoop:Disconnect()
-            SpeedLoop = nil
-        end
-        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum and hum.WalkSpeed ~= 16 then hum.WalkSpeed = 16 end
-        return
-    end
-    
-    local ws = 16
-    local val = sliderValues["Speed Value"] or 0
-    if val > 0 then
-        ws = 16 + (val * 6)
-    elseif val < 0 then
-        ws = 16 + (val * 2.5)
-    end
-    ws = math.clamp(ws, 8, 120)
-    
-    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.WalkSpeed = ws
-        if SpeedLoop then SpeedLoop:Disconnect() end
-        SpeedLoop = RunService.Heartbeat:Connect(function()
-            if toggleStates["Speed Hack"] and hum and hum.Parent then
-                if hum.WalkSpeed ~= ws then
-                    hum.WalkSpeed = ws
-                end
-            else
-                if SpeedLoop then SpeedLoop:Disconnect() end
-                SpeedLoop = nil
-            end
-        end)
-    end
-end
-
--- ========== AIMBOT ==========
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 1
-FOVCircle.Filled = false
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
-FOVCircle.NumSides = 64
-FOVCircle.Visible = false
-FOVCircle.ZIndex = 10
-
-local function GetBestTarget()
-    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    local best, bestDist = nil, sliderValues["Aimbot FOV"] or 500
-    local hitboxMode = toggleStates["Hitbox Mode"] or "Head"
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p == LocalPlayer then continue end
-        local char = p.Character
-        if not char then continue end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hum or hum.Health <= 0 then continue end
-        if toggleStates["Team Check"] and LocalPlayer.Team and p.Team and LocalPlayer.Team == p.Team then continue end
-        
-        local targetParts = {}
-        if hitboxMode == "Head" then
-            targetParts = {char:FindFirstChild("Head")}
-        elseif hitboxMode == "Neck" then
-            targetParts = {char:FindFirstChild("Neck") or char:FindFirstChild("UpperTorso")}
-        elseif hitboxMode == "UpperTorso" then
-            targetParts = {char:FindFirstChild("UpperTorso") or char:FindFirstChild("HumanoidRootPart")}
-        elseif hitboxMode == "LowerTorso" then
-            targetParts = {char:FindFirstChild("LowerTorso") or char:FindFirstChild("HumanoidRootPart")}
-        elseif hitboxMode == "All" then
-            targetParts = {
-                char:FindFirstChild("Head"),
-                char:FindFirstChild("Neck"),
-                char:FindFirstChild("UpperTorso"),
-                char:FindFirstChild("LowerTorso"),
-                char:FindFirstChild("HumanoidRootPart")
-            }
-        else
-            targetParts = {char:FindFirstChild("Head")}
-        end
-        
-        local bestPart = nil
-        local bestPartDist = sliderValues["Aimbot FOV"] or 500
-        for _, pt in ipairs(targetParts) do
-            if pt then
-                local s, on = Camera:WorldToViewportPoint(pt.Position)
-                if on then
-                    local d = (Vector2.new(s.X, s.Y) - center).Magnitude
-                    if d < bestPartDist then
-                        bestPartDist = d
-                        bestPart = pt
-                    end
-                end
-            end
-        end
-        if bestPart and bestPartDist < bestDist then
-            bestDist = bestPartDist
-            best = bestPart
-        end
-    end
-    return best
-end
-
--- ========== RENDER LOOP ==========
-RunService.RenderStepped:Connect(function()
-    local vp = Camera.ViewportSize
-    
-    -- FOV Circle
-    FOVCircle.Position = Vector2.new(vp.X / 2, vp.Y / 2)
-    FOVCircle.Radius = sliderValues["Aimbot FOV"] or 500
-    FOVCircle.Visible = toggleStates["Show FOV"] and toggleStates["Aimbot"]
-    
-    -- Aimbot
-    if toggleStates["Aimbot"] then
-        local target = GetBestTarget()
-        if target then
-            local cp = Camera.CFrame.Position
-            local dir = (target.Position - cp).Unit
-            Camera.CFrame = CFrame.new(cp, cp + dir)
-        end
-    end
-    
-    -- Speed
-    ApplySpeed()
-    
-    -- ESP, Hologram, Tracer untuk semua player
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player == LocalPlayer then
-            if espCache[player] then
-                espCache[player].bb.Enabled = false
-                espCache[player].hl.Enabled = false
-            end
-            continue
-        end
-        
-        local char = player.Character
-        if not char then
-            if Holos[player] then
-                Holos[player]:Destroy()
-                Holos[player] = nil
-            end
-            if espCache[player] then
-                espCache[player].bb.Enabled = false
-                espCache[player].hl.Enabled = false
-            end
-            if Tracers[player] then
-                Tracers[player].Visible = false
-            end
-            continue
-        end
-        
-        -- Cek apakah player masih alive
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hum or hum.Health <= 0 then
-            if Holos[player] then
-                Holos[player]:Destroy()
-                Holos[player] = nil
-            end
-            if espCache[player] then
-                espCache[player].bb.Enabled = false
-                espCache[player].hl.Enabled = false
-            end
-            if Tracers[player] then
-                Tracers[player].Visible = false
-            end
-            continue
-        end
-        
-        -- ===== HOLOGRAM =====
-        if toggleStates["Hologram"] then
-            if not Holos[player] then
-                local hl = Instance.new("Highlight")
-                hl.Name = "LYNZKA_HOLO"
-                hl.Parent = char
-                hl.Adornee = char
-                hl.FillTransparency = 0.6
-                hl.OutlineTransparency = 0.2
-                Holos[player] = hl
-            end
-            local col = Color3.fromRGB(
-                sliderValues["Holo R"] or 0,
-                sliderValues["Holo G"] or 255,
-                sliderValues["Holo B"] or 0
-            )
-            if toggleStates["Holo Neon"] then
-                local hue = (tick() * 0.5) % 1
-                col = Color3.fromHSV(hue, 1, 1)
-            end
-            Holos[player].FillColor = col
-            Holos[player].OutlineColor = col
-        else
-            if Holos[player] then
-                Holos[player]:Destroy()
-                Holos[player] = nil
-            end
-        end
-        
-        -- ===== ESP =====
-        if not espCache[player] then
-            local folder = Instance.new("Folder", espHolder)
-            folder.Name = player.Name
-            
-            local bb = Instance.new("BillboardGui", folder)
-            bb.Size = UDim2.new(0, 220, 0, 100)
-            bb.StudsOffset = Vector3.new(0, 3.5, 0)
-            bb.AlwaysOnTop = true
-            bb.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-            
-            -- Nama
-            local nameL = Instance.new("TextLabel", bb)
-            nameL.Size = UDim2.new(1, 0, 0, 20)
-            nameL.Position = UDim2.new(0, 0, 0, 0)
-            nameL.BackgroundTransparency = 1
-            nameL.TextColor3 = Color3.fromRGB(255, 120, 255)
-            nameL.Font = Enum.Font.GothamBold
-            nameL.TextSize = 14
-            nameL.TextStrokeTransparency = 0.3
-            nameL.Text = player.DisplayName
-            
-            -- Health Text
-            local healthL = Instance.new("TextLabel", bb)
-            healthL.Size = UDim2.new(1, 0, 0, 16)
-            healthL.Position = UDim2.new(0, 0, 0, 22)
-            healthL.BackgroundTransparency = 1
-            healthL.TextColor3 = Color3.fromRGB(0, 255, 100)
-            healthL.Font = Enum.Font.Gotham
-            healthL.TextSize = 11
-            healthL.TextStrokeTransparency = 0.3
-            
-            -- Health Bar Background
-            local barBg = Instance.new("Frame", bb)
-            barBg.Size = UDim2.new(0.8, 0, 0, 8)
-            barBg.Position = UDim2.new(0.1, 0, 0, 40)
-            barBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-            barBg.BorderSizePixel = 0
-            Instance.new("UICorner", barBg).CornerRadius = UDim.new(0, 4)
-            
-            -- Health Bar Fill
-            local barFill = Instance.new("Frame", barBg)
-            barFill.Size = UDim2.new(1, 0, 1, 0)
-            barFill.BackgroundColor3 = Color3.fromRGB(0, 255, 50)
-            barFill.BorderSizePixel = 0
-            Instance.new("UICorner", barFill).CornerRadius = UDim.new(0, 4)
-            
-            -- Distance
-            local distL = Instance.new("TextLabel", bb)
-            distL.Size = UDim2.new(1, 0, 0, 16)
-            distL.Position = UDim2.new(0, 0, 0, 50)
-            distL.BackgroundTransparency = 1
-            distL.TextColor3 = Color3.fromRGB(255, 255, 100)
-            distL.Font = Enum.Font.Gotham
-            distL.TextSize = 11
-            distL.TextStrokeTransparency = 0.3
-            
-            -- Highlight
-            local hl = Instance.new("Highlight", folder)
-            hl.FillTransparency = 0.7
-            hl.OutlineTransparency = 0.1
-            hl.OutlineColor = Color3.fromRGB(180, 100, 255)
-            hl.FillColor = Color3.fromRGB(130, 60, 255)
-            
-            espCache[player] = {
-                folder = folder,
-                bb = bb,
-                nameL = nameL,
-                healthL = healthL,
-                barBg = barBg,
-                barFill = barFill,
-                distL = distL,
-                hl = hl
-            }
-        end
-        
-        local e = espCache[player]
-        if not e then continue end
-        
-        local showESP = toggleStates["Player ESP"]
-        
-        -- ===== TRACER =====
-        if toggleStates["Tracer"] and showESP and char and char:FindFirstChild("HumanoidRootPart") then
-            if not Tracers[player] then
-                local tracer = Drawing.new("Line")
-                tracer.Thickness = 2
-                tracer.Color = Color3.fromRGB(255, 0, 0)
-                tracer.Visible = false
-                tracer.ZIndex = 3
-                Tracers[player] = tracer
-            end
-            local tracer = Tracers[player]
-            if tracer then
-                local root = char:FindFirstChild("HumanoidRootPart")
-                if root then
-                    local pos, on = Camera:WorldToViewportPoint(root.Position)
-                    if on then
-                        tracer.From = Vector2.new(pos.X, pos.Y)
-                        tracer.To = Vector2.new(vp.X / 2, vp.Y)
-                        tracer.Visible = true
-                    else
-                        tracer.Visible = false
-                    end
-                end
-            end
-        else
-            if Tracers[player] then
-                Tracers[player].Visible = false
-            end
-        end
-        
-        -- ===== SHOW ESP =====
-        if showESP and char and char:FindFirstChild("HumanoidRootPart") then
-            e.bb.Adornee = char:FindFirstChild("Head") or char.HumanoidRootPart
-            e.bb.Enabled = true
-            e.hl.Adornee = char
-            e.hl.Enabled = true
-            
-            -- Names
-            e.nameL.Visible = toggleStates["ESP Names"] ~= false
-            e.nameL.Text = player.DisplayName
-            
-            -- Health dengan Progress Bar
-            if toggleStates["ESP Health"] then
-                local hp = hum.Health
-                local mhp = hum.MaxHealth
-                local pct = math.clamp(hp / mhp, 0, 1)
-                
-                -- Health Text
-                e.healthL.Visible = true
-                e.healthL.Text = math.floor(hp) .. "/" .. math.floor(mhp)
-                
-                -- Health Bar Color (Hijau -> Kuning -> Merah)
-                local r = math.floor(255 * (1 - pct))
-                local g = math.floor(255 * pct)
-                e.barFill.BackgroundColor3 = Color3.fromRGB(r, g, 50)
-                
-                -- Health Bar Fill
-                e.barBg.Visible = toggleStates["ESP Health Bar"] ~= false
-                e.barFill.Size = UDim2.new(pct, 0, 1, 0)
-                
-                -- Highlight Color sesuai health
-                e.hl.FillColor = Color3.fromRGB(255 * (1 - pct), 255 * pct, 50)
-                e.hl.OutlineColor = Color3.fromRGB(255 * (1 - pct), 255 * pct, 80)
-            else
-                e.healthL.Visible = false
-                e.barBg.Visible = false
-            end
-            
-            -- Distance
-            if toggleStates["ESP Distance"] then
-                local myC = LocalPlayer.Character
-                if myC and myC:FindFirstChild("HumanoidRootPart") then
-                    local dist = (myC.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
-                    e.distL.Text = math.floor(dist * 0.28) .. " m"
-                    e.distL.Visible = true
-                else
-                    e.distL.Visible = false
-                end
-            else
-                e.distL.Visible = false
-            end
-        else
-            e.bb.Enabled = false
-            e.hl.Enabled = false
-        end
-    end
-end)
-
--- ========== CLEANUP ==========
-Players.PlayerRemoving:Connect(function(p)
-    if espCache[p] then
-        espCache[p].folder:Destroy()
-        espCache[p] = nil
-    end
-    if Holos[p] then
-        Holos[p]:Destroy()
-        Holos[p] = nil
-    end
-    if Tracers[p] then
-        Tracers[p].Visible = false
-        Tracers[p] = nil
-    end
-end)
-
 -- ========== BUILD UI ==========
 -- Player Tab
 local playerPage = createTab("Player", "🏃", 1)
@@ -920,8 +932,8 @@ createSection(visualPage, "ESP System")
 createToggle(visualPage, "Player ESP", false)
 createToggle(visualPage, "ESP Names", true)
 createToggle(visualPage, "ESP Health", true)
-createToggle(visualPage, "ESP Health Bar", true)
 createToggle(visualPage, "ESP Distance", true)
+createToggle(visualPage, "ESP Team Color", false)
 
 createSection(visualPage, "Hologram")
 createToggle(visualPage, "Hologram", false)
