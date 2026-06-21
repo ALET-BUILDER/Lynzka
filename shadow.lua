@@ -323,7 +323,6 @@ local function UpdateHealthBarThickness(thickness)
     healthBarThickness = math.clamp(thickness, 5, 20)
     sliderValues["HealthBar Thickness"] = healthBarThickness
     
-    -- Update semua health bar yang sudah ada
     for _, obj in pairs(EspObjects) do
         if obj and obj.healthBar then
             obj.healthBar.Thickness = healthBarThickness
@@ -386,7 +385,7 @@ local function ToggleGodMode()
     end
 end
 
--- ========== INVISIBLE (FIXED) ==========
+-- ========== INVISIBLE ==========
 local function ToggleInvisible()
     invisibleActive = not invisibleActive
     local char = LocalPlayer.Character
@@ -532,22 +531,24 @@ local function ApplySpeed()
     end
 end
 
--- ========== JUMP POWER ==========
+-- ========== JUMP POWER (NORMAL 50) ==========
 local function ApplyJumpPower()
     local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
     
     if not toggleStates["Infinite Jump"] then
+        -- MATI: KEMBALI KE NORMAL 50
         if JumpLoop then
             JumpLoop:Disconnect()
             JumpLoop = nil
         end
         if hum then
-            hum.JumpPower = 50
+            hum.JumpPower = 25  -- NORMAL 50, BUKAN 25!
             hum.UseJumpPower = true
         end
         return
     end
     
+    -- HIDUP: PAKAI NILAI DARI SLIDER
     local jp = sliderValues["JumpPower"] or 50
     jp = math.clamp(jp, 1, 500)
     
@@ -569,7 +570,7 @@ local function ApplyJumpPower()
     end
 end
 
--- ========== AIMBOT ==========
+-- ========== AIMBOT (FIXED - LENGKET) ==========
 local FOVCircle = NewDrawing("Circle", {
     Thickness = 1,
     Filled = false,
@@ -614,6 +615,7 @@ local function GetBestTarget()
         
         local bestPart = nil
         local bestPartDist = sliderValues["Aimbot FOV"] or 500
+        
         for _, pt in ipairs(targetParts) do
             if pt then
                 local s, on = Camera:WorldToViewportPoint(pt.Position)
@@ -626,6 +628,7 @@ local function GetBestTarget()
                 end
             end
         end
+        
         if bestPart and bestPartDist < bestDist then
             bestDist = bestPartDist
             best = bestPart
@@ -757,7 +760,6 @@ RunService.RenderStepped:Connect(function()
         obj.health.Color = greenHealth
         obj.health.Visible = toggleStates["ESP Health"]
         
-        -- Health Bar dengan thickness yang bisa diatur
         if toggleStates["ESP Health"] then
             local barX = bbox.x1 + 3
             local barY = bbox.y0
@@ -815,7 +817,6 @@ Players.PlayerRemoving:Connect(function(p)
         Holos[p] = nil
     end
 end)
-            
 
 -- ========== FUNGSI UI ==========
 local function createTab(name, icon, order)
@@ -956,6 +957,7 @@ local function createToggle(p, text, def, cb)
     end)
 end
 
+-- ========== CREATE SLIDER (FIXED - TOMBOL BERHENTI SAAT DILEPAS) ==========
 local function createSlider(p, text, mn, mx, def, cb)
     sliderValues[text] = def
     
@@ -1033,50 +1035,81 @@ local function createSlider(p, text, mn, mx, def, cb)
         if cb then pcall(cb, newVal) end
     end
     
+    -- === FIXED: TOMBOL - BERHENTI SAAT DILEPAS ===
     local minusHeld = false
     local minusTimer = nil
     minusBtn.MouseButton1Down:Connect(function()
         if sliderValues[text] > mn then
             minusHeld = true
             updateValue(sliderValues[text] - 1)
-            minusTimer = RunService.Heartbeat:Connect(function()
-                if minusHeld and sliderValues[text] > mn then
-                    updateValue(sliderValues[text] - 1)
-                else
-                    if minusTimer then minusTimer:Disconnect() end
-                    minusTimer = nil
-                end
-            end)
+            task.wait(0.2)
+            if minusHeld and sliderValues[text] > mn then
+                minusTimer = RunService.Heartbeat:Connect(function()
+                    if minusHeld and sliderValues[text] > mn then
+                        updateValue(sliderValues[text] - 1)
+                    else
+                        if minusTimer then 
+                            minusTimer:Disconnect() 
+                            minusTimer = nil
+                        end
+                    end
+                end)
+            end
         end
     end)
     minusBtn.MouseButton1Up:Connect(function()
         minusHeld = false
-        if minusTimer then minusTimer:Disconnect() end
-        minusTimer = nil
+        if minusTimer then 
+            minusTimer:Disconnect() 
+            minusTimer = nil
+        end
+    end)
+    minusBtn.MouseLeave:Connect(function()
+        minusHeld = false
+        if minusTimer then 
+            minusTimer:Disconnect() 
+            minusTimer = nil
+        end
     end)
     
+    -- === FIXED: TOMBOL + BERHENTI SAAT DILEPAS ===
     local plusHeld = false
     local plusTimer = nil
     plusBtn.MouseButton1Down:Connect(function()
         if sliderValues[text] < mx then
             plusHeld = true
             updateValue(sliderValues[text] + 1)
-            plusTimer = RunService.Heartbeat:Connect(function()
-                if plusHeld and sliderValues[text] < mx then
-                    updateValue(sliderValues[text] + 1)
-                else
-                    if plusTimer then plusTimer:Disconnect() end
-                    plusTimer = nil
-                end
-            end)
+            task.wait(0.2)
+            if plusHeld and sliderValues[text] < mx then
+                plusTimer = RunService.Heartbeat:Connect(function()
+                    if plusHeld and sliderValues[text] < mx then
+                        updateValue(sliderValues[text] + 1)
+                    else
+                        if plusTimer then 
+                            plusTimer:Disconnect() 
+                            plusTimer = nil
+                        end
+                    end
+                end)
+            end
         end
     end)
     plusBtn.MouseButton1Up:Connect(function()
         plusHeld = false
-        if plusTimer then plusTimer:Disconnect() end
-        plusTimer = nil
+        if plusTimer then 
+            plusTimer:Disconnect() 
+            plusTimer = nil
+        end
+    end)
+    plusBtn.MouseLeave:Connect(function()
+        plusHeld = false
+        if plusTimer then 
+            plusTimer:Disconnect() 
+            plusTimer = nil
+        end
     end)
     
+    -- Slider drag
     local ib = Instance.new("TextButton", bg)
     ib.Size = UDim2.new(1, 0, 1, 10)
     ib.Position = UDim2.new(0, 0, 0, -5)
@@ -1299,7 +1332,6 @@ local function TeleportToPlayer(player)
         return
     end
     
-    -- TELEPORT - SAMA PERSIS DENGAN FILE ANDA
     localChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4)
     notify("Teleported to " .. player.Name .. "!", 2)
     
@@ -1751,10 +1783,7 @@ previewBar.BackgroundColor3 = Color3.fromRGB(0, 255, 50)
 previewBar.BorderSizePixel = 0
 Instance.new("UICorner", previewBar).CornerRadius = UDim.new(0, 4)
 
--- Update preview thickness
 local function updatePreviewThickness(thick)
-    previewBar.Size = UDim2.new(0.7, 0, 1, 0)
-    -- Ubah ketebalan preview dengan mengubah height atau ukuran
     previewFrame.Size = UDim2.new(0.6, 0, 0, 18 + thick)
 end
 
@@ -1795,20 +1824,34 @@ minusBtn.MouseButton1Down:Connect(function()
     if healthBarThickness > 5 then
         minusHeld = true
         updateHealthThickness(healthBarThickness - 1)
-        minusTimer = RunService.Heartbeat:Connect(function()
-            if minusHeld and healthBarThickness > 5 then
-                updateHealthThickness(healthBarThickness - 1)
-            else
-                if minusTimer then minusTimer:Disconnect() end
-                minusTimer = nil
-            end
-        end)
+        task.wait(0.2)
+        if minusHeld and healthBarThickness > 5 then
+            minusTimer = RunService.Heartbeat:Connect(function()
+                if minusHeld and healthBarThickness > 5 then
+                    updateHealthThickness(healthBarThickness - 1)
+                else
+                    if minusTimer then 
+                        minusTimer:Disconnect() 
+                        minusTimer = nil
+                    end
+                end
+            end)
+        end
     end
 end)
 minusBtn.MouseButton1Up:Connect(function()
     minusHeld = false
-    if minusTimer then minusTimer:Disconnect() end
-    minusTimer = nil
+    if minusTimer then 
+        minusTimer:Disconnect() 
+        minusTimer = nil
+    end
+end)
+minusBtn.MouseLeave:Connect(function()
+    minusHeld = false
+    if minusTimer then 
+        minusTimer:Disconnect() 
+        minusTimer = nil
+    end
 end)
 
 -- Hold untuk +
@@ -1818,20 +1861,34 @@ plusBtn.MouseButton1Down:Connect(function()
     if healthBarThickness < 20 then
         plusHeld = true
         updateHealthThickness(healthBarThickness + 1)
-        plusTimer = RunService.Heartbeat:Connect(function()
-            if plusHeld and healthBarThickness < 20 then
-                updateHealthThickness(healthBarThickness + 1)
-            else
-                if plusTimer then plusTimer:Disconnect() end
-                plusTimer = nil
-            end
-        end)
+        task.wait(0.2)
+        if plusHeld and healthBarThickness < 20 then
+            plusTimer = RunService.Heartbeat:Connect(function()
+                if plusHeld and healthBarThickness < 20 then
+                    updateHealthThickness(healthBarThickness + 1)
+                else
+                    if plusTimer then 
+                        plusTimer:Disconnect() 
+                        plusTimer = nil
+                    end
+                end
+            end)
+        end
     end
 end)
 plusBtn.MouseButton1Up:Connect(function()
     plusHeld = false
-    if plusTimer then plusTimer:Disconnect() end
-    plusTimer = nil
+    if plusTimer then 
+        plusTimer:Disconnect() 
+        plusTimer = nil
+    end
+end)
+plusBtn.MouseLeave:Connect(function()
+    plusHeld = false
+    if plusTimer then 
+        plusTimer:Disconnect() 
+        plusTimer = nil
+    end
 end)
 
 -- Slider drag
