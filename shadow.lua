@@ -172,8 +172,7 @@ local toggleStates = {
     ["God Mode"] = false,
     ["Invisible"] = false,
     ["Wallbang"] = false,
-    ["Anti Report"] = false,
-    ["Kick Player"] = false
+    ["Anti Report"] = false
 }
 local sliderValues = {
     ["WalkSpeed"] = 16,
@@ -196,12 +195,6 @@ local godModeActive = false
 local invisibleActive = false
 local wallbangActive = false
 local antiReportActive = false
-local kickActive = false
-local kickFrame = nil
-local kickList = nil
-local kickRefreshConnection = nil
-local kickPlayerAddedConnection = nil
-local kickPlayerRemovingConnection = nil
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -474,216 +467,6 @@ local function ToggleAntiReport()
         notify("🛡 ANTI REPORT ON - Players can't report you!", 3)
     else
         notify("🛡 ANTI REPORT OFF", 2)
-    end
-end
-
--- ========== KICK PLAYER - 100% MEMUTUSKAN KONEKSI ==========
-local function KickPlayer(player)
-    if not player then return end
-    
-    notify("👢 Kicking " .. player.Name .. "... (Error 291)", 2)
-    task.wait(3)
-    
-    -- ===== METHOD 1: KICK LANGSUNG =====
-    local success1 = pcall(function()
-        player:Kick("Error Code: 291 - Connection Lost")
-    end)
-    
-    task.wait(0.1)
-    
-    -- ===== METHOD 2: KICK DENGAN PESAN LAIN =====
-    if player.Parent then
-        pcall(function()
-            player:Kick("⚠️ Connection Lost - Error 291")
-        end)
-    end
-    
-    task.wait(0.1)
-    
-    -- ===== METHOD 3: HANCURKAN KARAKTER =====
-    pcall(function()
-        if player.Character then
-            player.Character:BreakJoints()
-        end
-    end)
-    
-    task.wait(0.1)
-    
-    -- ===== METHOD 4: MATIKAN HUMANOID =====
-    pcall(function()
-        if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-            player.Character:FindFirstChildOfClass("Humanoid").Health = 0
-        end
-    end)
-    
-    task.wait(0.1)
-    
-    -- ===== METHOD 5: TELEPORT KE VOID =====
-    pcall(function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -99999, 0)
-        end
-    end)
-    
-    -- Cek apakah masih ada
-    task.wait(0.2)
-    if player.Parent then
-        -- ===== METHOD 6: KICK PAKSA =====
-        pcall(function()
-            player:Kick("Connection Lost - Error 291")
-        end)
-    end
-    
-    notify("✅ " .. player.Name .. " has been kicked! (Error 291)", 3)
-end
-
--- ========== TOGGLE KICK MODE ==========
-local function ToggleKickMode()
-    kickActive = not kickActive
-    
-    if kickActive then
-        toggleStates["Kick Player"] = true
-        notify("👢 KICK MODE ON - Click player to kick!", 3)
-        
-        -- Buat frame list player di ContentPanel
-        if kickFrame then kickFrame:Destroy() end
-        
-        kickFrame = Instance.new("Frame")
-        kickFrame.Size = UDim2.new(1, -4, 0, 250)
-        kickFrame.Position = UDim2.new(0, 2, 0, 0)
-        kickFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
-        kickFrame.BorderSizePixel = 0
-        kickFrame.ClipsDescendants = true
-        kickFrame.Parent = ContentPanel
-        Instance.new("UICorner", kickFrame).CornerRadius = UDim.new(0, 6)
-        
-        -- Title
-        local kickTitle = Instance.new("TextLabel", kickFrame)
-        kickTitle.Size = UDim2.new(1, 0, 0, 28)
-        kickTitle.Position = UDim2.new(0, 0, 0, 0)
-        kickTitle.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
-        kickTitle.BackgroundTransparency = 0.3
-        kickTitle.Text = "👢 PLAYER LIST - Click to Kick (Error 291)"
-        kickTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-        kickTitle.Font = Enum.Font.GothamBold
-        kickTitle.TextSize = 12
-        Instance.new("UICorner", kickTitle).CornerRadius = UDim.new(0, 6)
-        
-        -- Scrolling Frame untuk list
-        kickList = Instance.new("ScrollingFrame", kickFrame)
-        kickList.Size = UDim2.new(1, 0, 1, -32)
-        kickList.Position = UDim2.new(0, 0, 0, 30)
-        kickList.BackgroundTransparency = 1
-        kickList.BorderSizePixel = 0
-        kickList.ScrollBarThickness = 3
-        kickList.ScrollBarImageColor3 = Color3.fromRGB(60, 120, 255)
-        kickList.CanvasSize = UDim2.new(0, 0, 0, 0)
-        kickList.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        
-        local kickLayout = Instance.new("UIListLayout", kickList)
-        kickLayout.Padding = UDim.new(0, 3)
-        kickLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        
-        -- Fungsi refresh list
-        local function refreshKickList()
-            if not kickList then return end
-            
-            -- Hapus semua tombol
-            for _, child in pairs(kickList:GetChildren()) do
-                if child:IsA("TextButton") then
-                    child:Destroy()
-                end
-            end
-            
-            for _, player in pairs(Players:GetPlayers()) do
-                local btn = Instance.new("TextButton", kickList)
-                btn.Size = UDim2.new(1, -4, 0, 30)
-                btn.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
-                btn.TextColor3 = Color3.fromRGB(210, 210, 255)
-                btn.Font = Enum.Font.Gotham
-                btn.TextSize = 12
-                btn.TextXAlignment = Enum.TextXAlignment.Left
-                Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-                
-                -- Tampilkan nama player
-                if player == LocalPlayer then
-                    btn.Text = "⭐ " .. player.Name .. " (YOU)"
-                    btn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
-                else
-                    btn.Text = "👤 " .. player.Name .. " (" .. player.DisplayName .. ")"
-                end
-                
-                btn.MouseButton1Click:Connect(function()
-                    if not kickActive then return end
-                    
-                    -- Animasi klik merah
-                    TweenService:Create(btn, TweenInfo.new(0.1), {
-                        BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-                    }):Play()
-                    task.delay(0.1, function()
-                        TweenService:Create(btn, TweenInfo.new(0.1), {
-                            BackgroundColor3 = player == LocalPlayer and Color3.fromRGB(80, 40, 40) or Color3.fromRGB(45, 45, 70)
-                        }):Play()
-                    end)
-                    
-                    -- Kick player
-                    KickPlayer(player)
-                end)
-            end
-        end
-        
-        -- Refresh pertama
-        refreshKickList()
-        
-        -- Auto refresh setiap 1 detik
-        if kickRefreshConnection then kickRefreshConnection:Disconnect() end
-        kickRefreshConnection = RunService.Heartbeat:Connect(function()
-            if kickActive and kickList then
-                refreshKickList()
-            end
-        end)
-        
-        -- Update saat player join
-        if kickPlayerAddedConnection then kickPlayerAddedConnection:Disconnect() end
-        kickPlayerAddedConnection = Players.PlayerAdded:Connect(function()
-            task.wait(0.5)
-            if kickActive and kickList then
-                refreshKickList()
-            end
-        end)
-        
-        -- Update saat player leave
-        if kickPlayerRemovingConnection then kickPlayerRemovingConnection:Disconnect() end
-        kickPlayerRemovingConnection = Players.PlayerRemoving:Connect(function()
-            task.wait(0.5)
-            if kickActive and kickList then
-                refreshKickList()
-            end
-        end)
-        
-    else
-        toggleStates["Kick Player"] = false
-        notify("👢 KICK MODE OFF", 2)
-        
-        -- Bersihkan semua
-        if kickRefreshConnection then
-            kickRefreshConnection:Disconnect()
-            kickRefreshConnection = nil
-        end
-        if kickPlayerAddedConnection then
-            kickPlayerAddedConnection:Disconnect()
-            kickPlayerAddedConnection = nil
-        end
-        if kickPlayerRemovingConnection then
-            kickPlayerRemovingConnection:Disconnect()
-            kickPlayerRemovingConnection = nil
-        end
-        
-        if kickFrame then
-            kickFrame:Destroy()
-            kickFrame = nil
-            kickList = nil
-        end
     end
 end
 
@@ -1103,8 +886,6 @@ local function createToggle(p, text, def, cb)
             ToggleWallbang()
         elseif text == "Anti Report" then
             ToggleAntiReport()
-        elseif text == "Kick Player" then
-            ToggleKickMode()
         end
     end)
 end
@@ -1283,7 +1064,7 @@ local function createButton(p, text, cb)
     return bt
 end
 
--- ========== NOTIFICATION FIXED ==========
+-- ========== NOTIFICATION ==========
 local notificationQueue = {}
 local isNotifying = false
 
@@ -1327,7 +1108,186 @@ local function notify(text, duration)
     end
 end
 
--- ========== BUILD UI ==========
+-- ========== KICK PLAYER TAB ==========
+local kickPage = createTab("Kick", "👢", 4)
+
+-- Section Player List
+createSection(kickPage, "👢 Player List - Click to Kick")
+
+-- Frame untuk list player dengan ukuran tetap
+local kickFrame = Instance.new("Frame", kickPage)
+kickFrame.Size = UDim2.new(1, -4, 0, 280)
+kickFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+kickFrame.BorderSizePixel = 0
+kickFrame.ClipsDescendants = true
+Instance.new("UICorner", kickFrame).CornerRadius = UDim.new(0, 6)
+
+-- Title bar
+local kickTitle = Instance.new("TextLabel", kickFrame)
+kickTitle.Size = UDim2.new(1, 0, 0, 28)
+kickTitle.Position = UDim2.new(0, 0, 0, 0)
+kickTitle.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
+kickTitle.BackgroundTransparency = 0.3
+kickTitle.Text = "👢 Click player name to kick (Error 291)"
+kickTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+kickTitle.Font = Enum.Font.GothamBold
+kickTitle.TextSize = 12
+Instance.new("UICorner", kickTitle).CornerRadius = UDim.new(0, 6)
+
+-- Scrolling frame untuk list
+local kickList = Instance.new("ScrollingFrame", kickFrame)
+kickList.Size = UDim2.new(1, 0, 1, -32)
+kickList.Position = UDim2.new(0, 0, 0, 30)
+kickList.BackgroundTransparency = 1
+kickList.BorderSizePixel = 0
+kickList.ScrollBarThickness = 3
+kickList.ScrollBarImageColor3 = Color3.fromRGB(60, 120, 255)
+kickList.CanvasSize = UDim2.new(0, 0, 0, 0)
+kickList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+local kickLayout = Instance.new("UIListLayout", kickList)
+kickLayout.Padding = UDim.new(0, 3)
+kickLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- ========== KICK PLAYER FUNCTION ==========
+local function KickPlayer(player)
+    if not player then return end
+    
+    notify("👢 Kicking " .. player.Name .. "... (Error 291)", 2)
+    task.wait(3)
+    
+    -- Method 1: Kick langsung
+    pcall(function()
+        player:Kick("Error Code: 291 - Connection Lost")
+    end)
+    task.wait(0.1)
+    
+    -- Method 2: Kick backup
+    if player.Parent then
+        pcall(function()
+            player:Kick("⚠️ Connection Lost - Error 291")
+        end)
+    end
+    task.wait(0.1)
+    
+    -- Method 3: Hancurkan karakter
+    pcall(function()
+        if player.Character then
+            player.Character:BreakJoints()
+        end
+    end)
+    task.wait(0.1)
+    
+    -- Method 4: Matikan humanoid
+    pcall(function()
+        if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+            player.Character:FindFirstChildOfClass("Humanoid").Health = 0
+        end
+    end)
+    task.wait(0.1)
+    
+    -- Method 5: Teleport ke void
+    pcall(function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -99999, 0)
+        end
+    end)
+    
+    -- Method 6: Kick paksa
+    task.wait(0.2)
+    if player.Parent then
+        pcall(function()
+            player:Kick("Connection Lost - Error 291")
+        end)
+    end
+    
+    notify("✅ " .. player.Name .. " has been kicked! (Error 291)", 3)
+end
+
+-- ========== REFRESH KICK LIST ==========
+local function refreshKickList()
+    if not kickList then return end
+    
+    -- Hapus semua tombol
+    for _, child in pairs(kickList:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+    
+    -- Jika tidak ada player
+    local playerCount = 0
+    for _ in pairs(Players:GetPlayers()) do
+        playerCount = playerCount + 1
+    end
+    
+    if playerCount <= 1 then
+        local empty = Instance.new("TextLabel", kickList)
+        empty.Size = UDim2.new(1, 0, 0, 30)
+        empty.BackgroundTransparency = 1
+        empty.Text = "⚠️ No other players in server"
+        empty.TextColor3 = Color3.fromRGB(255, 200, 100)
+        empty.Font = Enum.Font.Gotham
+        empty.TextSize = 13
+        return
+    end
+    
+    -- Buat tombol untuk setiap player
+    for _, player in pairs(Players:GetPlayers()) do
+        local btn = Instance.new("TextButton", kickList)
+        btn.Size = UDim2.new(1, -4, 0, 30)
+        btn.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+        btn.TextColor3 = Color3.fromRGB(210, 210, 255)
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 12
+        btn.TextXAlignment = Enum.TextXAlignment.Left
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+        
+        if player == LocalPlayer then
+            btn.Text = "⭐ " .. player.Name .. " (YOU)"
+            btn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+        else
+            btn.Text = "👤 " .. player.Name .. " (" .. player.DisplayName .. ")"
+        end
+        
+        btn.MouseButton1Click:Connect(function()
+            -- Animasi klik
+            TweenService:Create(btn, TweenInfo.new(0.1), {
+                BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            }):Play()
+            task.delay(0.1, function()
+                TweenService:Create(btn, TweenInfo.new(0.1), {
+                    BackgroundColor3 = player == LocalPlayer and Color3.fromRGB(80, 40, 40) or Color3.fromRGB(45, 45, 70)
+                }):Play()
+            end)
+            
+            -- Kick player
+            KickPlayer(player)
+        end)
+    end
+end
+
+-- Refresh pertama
+refreshKickList()
+
+-- Auto refresh setiap 1 detik
+local kickRefreshConnection = RunService.Heartbeat:Connect(function()
+    refreshKickList()
+end)
+
+-- Refresh saat player join/leave
+local kickPlayerAdded = Players.PlayerAdded:Connect(function()
+    task.wait(0.5)
+    refreshKickList()
+end)
+
+local kickPlayerRemoving = Players.PlayerRemoving:Connect(function()
+    task.wait(0.5)
+    refreshKickList()
+end)
+
+-- ========== BUILD OTHER TABS ==========
+-- Player Tab
 local playerPage = createTab("Player", "🏃", 1)
 
 createSection(playerPage, "Movement")
@@ -1375,6 +1335,7 @@ createButton(playerPage, "❄ Freeze / Unfreeze", function()
     end
 end)
 
+-- Visual Tab
 local visualPage = createTab("Visual", "👁", 2)
 
 createSection(visualPage, "ESP System")
@@ -1408,6 +1369,7 @@ createToggle(visualPage, "Fullbright", false, function(s)
 end)
 createSlider(visualPage, "FOV", 30, 120, 70, function(v) Camera.FieldOfView = v end)
 
+-- Combat Tab
 local combatPage = createTab("Combat", "⚔", 3)
 
 createSection(combatPage, "Aimbot")
@@ -1459,7 +1421,8 @@ end
 hitboxButtons["Head"].BackgroundColor3 = Color3.fromRGB(60, 120, 255)
 hitboxButtons["Head"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
-local tpPage = createTab("Teleport", "📍", 4)
+-- Teleport Tab
+local tpPage = createTab("Teleport", "📍", 5)
 
 createSection(tpPage, "Quick Teleport")
 createButton(tpPage, "⚡ TP to Nearest Player", function()
@@ -1505,53 +1468,8 @@ createButton(tpPage, "🏠 Spawn Point", function()
     end
 end)
 
-createSection(tpPage, "Player List")
-local plCount = Instance.new("TextLabel", tpPage)
-plCount.Size = UDim2.new(1, -4, 0, 22)
-plCount.BackgroundColor3 = Color3.fromRGB(22, 22, 34)
-plCount.BackgroundTransparency = 0.5
-plCount.BorderSizePixel = 0
-plCount.TextColor3 = Color3.fromRGB(140, 140, 170)
-plCount.Font = Enum.Font.Gotham
-plCount.TextSize = 11
-plCount.TextXAlignment = Enum.TextXAlignment.Left
-Instance.new("UICorner", plCount).CornerRadius = UDim.new(0, 5)
-
-local plBox = Instance.new("Frame", tpPage)
-plBox.Size = UDim2.new(1, -4, 0, 0)
-plBox.BackgroundTransparency = 1
-plBox.AutomaticSize = Enum.AutomaticSize.Y
-local plL = Instance.new("UIListLayout", plBox)
-plL.SortOrder = Enum.SortOrder.LayoutOrder
-plL.Padding = UDim.new(0, 3)
-
-local function refreshPlayers()
-    for _, c in pairs(plBox:GetChildren()) do
-        if c:IsA("TextButton") then c:Destroy() end
-    end
-    local count = 0
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then count = count + 1 end
-    end
-    plCount.Text = "  Players: " .. count .. " / " .. Players.MaxPlayers
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            createButton(plBox, "→ " .. p.DisplayName, function()
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("HumanoidRootPart") and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                    char.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4)
-                    notify("Teleported to " .. p.Name, 2)
-                end
-            end)
-        end
-    end
-end
-refreshPlayers()
-Players.PlayerAdded:Connect(function() task.wait(0.5); refreshPlayers() end)
-Players.PlayerRemoving:Connect(refreshPlayers)
-
--- ========== MISC TAB ==========
-local miscPage = createTab("Misc", "⚙", 5)
+-- Misc Tab
+local miscPage = createTab("Misc", "⚙", 6)
 
 createSection(miscPage, "Tools")
 createToggle(miscPage, "Anti AFK", false, function(s)
@@ -1571,9 +1489,6 @@ end)
 createToggle(miscPage, "Show FPS", false)
 createToggle(miscPage, "Anti Report", false)
 
-createSection(miscPage, "👢 Kick Player")
-createToggle(miscPage, "Kick Player", false)
-
 createSection(miscPage, "Server")
 createButton(miscPage, "🔁 Rejoin", function()
     TeleportService:Teleport(game.PlaceId, LocalPlayer)
@@ -1592,7 +1507,8 @@ createButton(miscPage, "🔀 Server Hop", function()
     end)
 end)
 
-local settingsPage = createTab("Settings", "🔧", 6)
+-- Settings Tab
+local settingsPage = createTab("Settings", "🔧", 7)
 
 createSection(settingsPage, "Hub Settings")
 createToggle(settingsPage, "Rainbow Border", false)
@@ -1612,15 +1528,13 @@ createButton(settingsPage, "🗑 Close Hub", function()
     toggleStates["Invisible"] = false
     toggleStates["Wallbang"] = false
     toggleStates["Anti Report"] = false
-    toggleStates["Kick Player"] = false
     if godModeConnection then godModeConnection:Disconnect() end
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
     if kickRefreshConnection then kickRefreshConnection:Disconnect() end
-    if kickPlayerAddedConnection then kickPlayerAddedConnection:Disconnect() end
-    if kickPlayerRemovingConnection then kickPlayerRemovingConnection:Disconnect() end
-    if kickFrame then kickFrame:Destroy() end
+    if kickPlayerAdded then kickPlayerAdded:Disconnect() end
+    if kickPlayerRemoving then kickPlayerRemoving:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
@@ -1642,15 +1556,13 @@ CloseBtn.MouseButton1Click:Connect(function()
     toggleStates["Invisible"] = false
     toggleStates["Wallbang"] = false
     toggleStates["Anti Report"] = false
-    toggleStates["Kick Player"] = false
     if godModeConnection then godModeConnection:Disconnect() end
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
     if kickRefreshConnection then kickRefreshConnection:Disconnect() end
-    if kickPlayerAddedConnection then kickPlayerAddedConnection:Disconnect() end
-    if kickPlayerRemovingConnection then kickPlayerRemovingConnection:Disconnect() end
-    if kickFrame then kickFrame:Destroy() end
+    if kickPlayerAdded then kickPlayerAdded:Disconnect() end
+    if kickPlayerRemoving then kickPlayerRemoving:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
@@ -1695,6 +1607,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
+-- FPS
 local fpsLabel = Instance.new("TextLabel", ScreenGui)
 fpsLabel.Size = UDim2.new(0, 110, 0, 28)
 fpsLabel.Position = UDim2.new(0, 8, 0, 8)
@@ -1742,6 +1655,7 @@ spawn(function()
     end
 end)
 
+-- Rainbow Border
 spawn(function()
     local hue = 0
     while ScreenGui and ScreenGui.Parent do
@@ -1755,6 +1669,7 @@ spawn(function()
     end
 end)
 
+-- Click TP
 local mouse = LocalPlayer:GetMouse()
 mouse.Button1Down:Connect(function()
     if toggleStates["Click TP"] then
