@@ -202,8 +202,11 @@ local minimized = false
 local godModeActive = false
 local invisibleActive = false
 local wallbangActive = false
+local wallbangConnection = nil
+local originalCollide = {}
 local antiReportActive = false
 local teleportCooldown = false
+local noclipActive = false
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -418,13 +421,12 @@ local function ToggleInvisible()
     end
 end
 
--- ========== WALLBANG ==========
-local wallbangConnection = nil
-local originalCollide = {}
+-- ========== WALLBANG (FIXED - HANYA AKTIF SAAT TOGGLE ON) ==========
 local function ToggleWallbang()
     wallbangActive = not wallbangActive
     
     if wallbangActive then
+        -- Aktifkan tembus benda
         local char = LocalPlayer.Character
         if char then
             for _, part in pairs(char:GetDescendants()) do
@@ -452,6 +454,7 @@ local function ToggleWallbang()
         end)
         notify("🧱 WALLBANG ON - Can pass through walls!", 3)
     else
+        -- Matikan tembus benda (kembalikan ke normal)
         if wallbangConnection then
             wallbangConnection:Disconnect()
             wallbangConnection = nil
@@ -460,7 +463,7 @@ local function ToggleWallbang()
         if char2 then
             for _, part in pairs(char2:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    part.CanCollide = originalCollide[part] or true
+                    part.CanCollide = true
                 end
             end
         end
@@ -517,7 +520,7 @@ local function ApplySpeed()
     end
 end
 
--- ========== JUMP POWER (FIXED - STABLE) ==========
+-- ========== JUMP POWER (FIXED) ==========
 local function ApplyJumpPower()
     if not toggleStates["Infinite Jump"] then
         if JumpLoop then
@@ -742,7 +745,6 @@ RunService.RenderStepped:Connect(function()
         obj.health.Color = greenHealth
         obj.health.Visible = toggleStates["ESP Health"]
         
-        -- Health Bar (hanya ketebalan yang diatur)
         if toggleStates["ESP Health"] then
             local barX = bbox.x1 + 3
             local barY = bbox.y0
@@ -1259,7 +1261,7 @@ local function notify(text, duration)
     end
 end
 
--- ========== TELEPORT ==========
+-- ========== TELEPORT (FIXED) ==========
 local function TeleportToPlayer(player)
     if teleportCooldown then
         notify("⏳ Teleport cooldown! Wait 2 seconds!", 2)
@@ -1284,7 +1286,23 @@ local function TeleportToPlayer(player)
         return
     end
     
-    localChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+    -- Dapatkan posisi target
+    local targetPos = targetChar.HumanoidRootPart.Position
+    local targetCFrame = targetChar.HumanoidRootPart.CFrame
+    
+    -- Teleport ke posisi target + sedikit di atas
+    localChar.HumanoidRootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+    
+    -- Reset velocity agar tidak ngestuk
+    localChar.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+    
+    -- Pastikan Humanoid tetap aktif
+    local hum = localChar:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.PlatformStand = false
+        hum.Sit = false
+    end
+    
     notify("📍 Teleported to " .. player.Name, 2)
     
     teleportCooldown = true
@@ -1523,12 +1541,13 @@ Mouse.Button1Down:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") and Mouse.Hit then
             char.HumanoidRootPart.CFrame = Mouse.Hit + Vector3.new(0, 4, 0)
+            char.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
             notify("📍 Teleported to clicked location!", 2)
         end
     end
 end)
 
--- ========== INFO TAB (FIXED - SCROLLABLE) ==========
+-- ========== INFO TAB ==========
 local infoPage = createTab("Info", "📋", 5)
 
 createSection(infoPage, "📋 Script Information")
@@ -1601,7 +1620,8 @@ infoText.Text = [[
 ║  ─────────────────────────────────────    ║
 ║  • Press INSERT to toggle menu           ║
 ║  • Click - to minimize                   ║
-║  • Click ✕ to close                     ║║  • Drag title bar to move                ║
+║  • Click ✕ to close                     ║
+║  • Drag title bar to move                ║
 ║                                           ║
 ║  💡 TIPS:                                ║
 ║  • Enable ESP first to see players       ║
