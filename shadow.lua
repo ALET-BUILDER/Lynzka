@@ -172,7 +172,8 @@ local toggleStates = {
     ["Invisible"] = false,
     ["Wallbang"] = false,
     ["Anti Report"] = false,
-    ["Down Server"] = false
+    ["Down Server"] = false,
+    ["Protect Self"] = true  -- Default ON
 }
 local sliderValues = {
     ["WalkSpeed"] = 16,
@@ -196,6 +197,8 @@ local invisibleActive = false
 local wallbangActive = false
 local antiReportActive = false
 local downServerActive = false
+local downServerConnection = nil
+local downServerLoop = nil
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -410,14 +413,13 @@ local function ToggleInvisible()
     end
 end
 
--- ========== WALLBANG (Tembus Benda) - FIXED ==========
+-- ========== WALLBANG ==========
 local wallbangConnection = nil
 local originalCollide = {}
 local function ToggleWallbang()
     wallbangActive = not wallbangActive
     
     if wallbangActive then
-        -- Set semua bagian karakter bisa tembus
         local char = LocalPlayer.Character
         if char then
             for _, part in pairs(char:GetDescendants()) do
@@ -472,52 +474,123 @@ local function ToggleAntiReport()
     end
 end
 
--- ========== DOWN SERVER ==========
-local downServerConnection = nil
+-- ========== DOWN SERVER (FIXED) ==========
 local function ToggleDownServer()
     downServerActive = not downServerActive
     
     if downServerActive then
-        notify("🌐 DOWN SERVER ON - Players will be kicked!", 3)
+        notify("🌐 DOWN SERVER ACTIVATED - Kicking all players!", 3)
         
-        -- Kick semua player kecuali diri sendiri
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                pcall(function()
-                    player:Kick("Server is down by Lynzka Hub!")
-                end)
+        -- Fungsi kick semua player kecuali diri sendiri
+        local function kickAllPlayers()
+            local protectSelf = toggleStates["Protect Self"] or true
+            for _, player in pairs(Players:GetPlayers()) do
+                if protectSelf and player == LocalPlayer then
+                    -- Jangan kick diri sendiri
+                elseif not protectSelf and player == LocalPlayer then
+                    -- Jika proteksi OFF, kick semua termasuk diri sendiri
+                    pcall(function()
+                        player:Kick("⚠️ Server Error - Connection Lost")
+                    end)
+                else
+                    -- Kick player lain
+                    pcall(function()
+                        player:Kick("⚠️ Server Error - Connection Lost")
+                        task.wait(0.05)
+                        if player.Parent then
+                            player:Kick("❌ Server is down!")
+                        end
+                        task.wait(0.05)
+                        if player.Parent then
+                            player:Kick("🔴 Connection Lost #002")
+                        end
+                    end)
+                end
             end
         end
         
-        -- Loop untuk terus kick player yang join
+        -- Kick semua player yang sudah ada (3x berturut-turut)
+        task.spawn(function()
+            -- Kick pertama
+            kickAllPlayers()
+            task.wait(0.3)
+            
+            -- Kick kedua
+            kickAllPlayers()
+            task.wait(0.3)
+            
+            -- Kick ketiga
+            kickAllPlayers()
+        end)
+        
+        -- Listener untuk player baru yang join
         if downServerConnection then downServerConnection:Disconnect() end
         downServerConnection = Players.PlayerAdded:Connect(function(player)
-            if downServerActive and player ~= LocalPlayer then
-                task.wait(0.5)
-                pcall(function()
-                    player:Kick("Server is down by Lynzka Hub!")
-                end)
+            if downServerActive then
+                local protectSelf = toggleStates["Protect Self"] or true
+                task.wait(0.2)
+                if protectSelf and player == LocalPlayer then
+                    -- Jangan kick diri sendiri
+                else
+                    pcall(function()
+                        player:Kick("⚠️ Server is down!")
+                        task.wait(0.2)
+                        if player.Parent then
+                            player:Kick("❌ Server Error")
+                        end
+                    end)
+                end
             end
         end)
         
-        -- Juga kick via teleport ke server lain
+        -- Loop setiap 0.5 detik untuk kick player yang lolos
+        if downServerLoop then downServerLoop:Disconnect() end
+        downServerLoop = RunService.Heartbeat:Connect(function()
+            if not downServerActive then
+                if downServerLoop then downServerLoop:Disconnect() end
+                downServerLoop = nil
+                return
+            end
+            local protectSelf = toggleStates["Protect Self"] or true
+            for _, player in pairs(Players:GetPlayers()) do
+                if protectSelf and player == LocalPlayer then
+                    -- Skip diri sendiri
+                else
+                    pcall(function()
+                        player:Kick("🌐 Server Down!")
+                    end)
+                end
+            end
+        end)
+        
+        -- Juga coba teleport semua player ke server lain (backup)
         task.spawn(function()
             while downServerActive do
-                task.wait(2)
+                task.wait(0.5)
+                local protectSelf = toggleStates["Protect Self"] or true
                 for _, player in pairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer then
+                    if protectSelf and player == LocalPlayer then
+                        -- Skip diri sendiri
+                    else
                         pcall(function()
-                            player:Kick("Server is down by Lynzka Hub!")
+                            TeleportService:Teleport(game.PlaceId, player)
                         end)
                     end
                 end
             end
         end)
+        
     else
+        -- Matikan semua
         if downServerConnection then
             downServerConnection:Disconnect()
             downServerConnection = nil
         end
+        if downServerLoop then
+            downServerLoop:Disconnect()
+            downServerLoop = nil
+        end
+        downServerActive = false
         notify("🌐 DOWN SERVER OFF", 2)
     end
 end
@@ -741,7 +814,7 @@ RunService.RenderStepped:Connect(function()
         obj.name.Color = color
         obj.name.Visible = toggleStates["ESP Names"]
         
-        -- Health (di dalam box, di bawah nama)
+        -- Health
         local hp, mhp = GetHealth(p)
         local healthPercent = hp / mhp
         local greenHealth = Color3.fromRGB(
@@ -754,7 +827,7 @@ RunService.RenderStepped:Connect(function()
         obj.health.Color = greenHealth
         obj.health.Visible = toggleStates["ESP Health"]
         
-        -- Health Bar di sebelah kanan box (tebal sesuai slider)
+        -- Health Bar
         if toggleStates["ESP Health"] then
             local barX = bbox.x1 + 3
             local barY = bbox.y0
@@ -793,7 +866,7 @@ RunService.RenderStepped:Connect(function()
             obj.distance.Visible = false
         end
         
-        -- Tracer (Antena)
+        -- Tracer
         if toggleStates["Tracer"] and bbox then
             local footPos = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1)
             local bottomCenter = Vector2.new(vp.X / 2, vp.Y)
@@ -939,6 +1012,8 @@ local function createToggle(p, text, def, cb)
             Position = st and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
         }):Play()
         if cb then pcall(cb, st) end
+        
+        -- Handle toggle yang butuh fungsi khusus
         if text == "God Mode" then
             ToggleGodMode()
         elseif text == "Invisible" then
@@ -953,7 +1028,7 @@ local function createToggle(p, text, def, cb)
     end)
 end
 
--- ========== CREATE SLIDER DENGAN HOLD ==========
+-- ========== CREATE SLIDER ==========
 local function createSlider(p, text, mn, mx, def, cb)
     sliderValues[text] = def
     
@@ -1406,9 +1481,10 @@ createToggle(miscPage, "Anti AFK", false, function(s)
 end)
 createToggle(miscPage, "Show FPS", false)
 createToggle(miscPage, "Anti Report", false)
-createToggle(miscPage, "Down Server", false)
 
 createSection(miscPage, "Server")
+createToggle(miscPage, "Down Server", false)
+createToggle(miscPage, "Protect Self", true)
 createButton(miscPage, "🔁 Rejoin", function()
     game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
 end)
@@ -1432,9 +1508,7 @@ local settingsPage = createTab("Settings", "🔧", 6)
 
 createSection(settingsPage, "Hub Settings")
 createToggle(settingsPage, "Rainbow Border", false)
-createSlider(settingsPage, "HealthBar Thickness", 5, 20, 10, function(v)
-    -- Update health bar thickness
-end)
+createSlider(settingsPage, "HealthBar Thickness", 5, 20, 10)
 createButton(settingsPage, "📐 Center GUI", function()
     TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
         Position = UDim2.new(0.5, -280, 0.5, -205)
@@ -1457,6 +1531,7 @@ createButton(settingsPage, "🗑 Close Hub", function()
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
     if downServerConnection then downServerConnection:Disconnect() end
+    if downServerLoop then downServerLoop:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
@@ -1469,7 +1544,7 @@ currentTab = "Player"
 
 -- ========== BUTTON EVENTS ==========
 CloseBtn.MouseButton1Click:Connect(function()
-    -- Matikan semua fitur saat close
+    -- Matikan semua fitur
     toggleStates["Player ESP"] = false
     toggleStates["Aimbot"] = false
     toggleStates["Speed Hack"] = false
@@ -1485,6 +1560,7 @@ CloseBtn.MouseButton1Click:Connect(function()
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
     if downServerConnection then downServerConnection:Disconnect() end
+    if downServerLoop then downServerLoop:Disconnect() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
