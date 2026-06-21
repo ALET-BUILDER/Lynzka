@@ -196,17 +196,13 @@ local sliderValues = {
 local currentTab = nil
 local godModeConnection = nil
 local SpeedLoop = nil
-local JumpLoop = nil
 local Holos = {}
 local minimized = false
 local godModeActive = false
 local invisibleActive = false
 local wallbangActive = false
-local wallbangConnection = nil
-local originalCollide = {}
 local antiReportActive = false
 local teleportCooldown = false
-local noclipActive = false
 local healthBarThickness = 10
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
@@ -422,40 +418,26 @@ local function ToggleInvisible()
     end
 end
 
--- ========== WALLBANG (FIXED - BENAR-BENAR MATI SAAT OFF) ==========
+-- ========== WALLBANG ==========
+local wallbangConnection = nil
 local function ToggleWallbang()
     wallbangActive = not wallbangActive
     
     if wallbangActive then
-        -- AKTIFKAN TEMBUS BENDA
         local char = LocalPlayer.Character
         if char then
             for _, part in pairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    originalCollide[part] = part.CanCollide
                     part.CanCollide = false
                 end
             end
         end
         
         if wallbangConnection then wallbangConnection:Disconnect() end
-        wallbangConnection = RunService.Stepped:Connect(function()
+        wallbangConnection = RunService.Heartbeat:Connect(function()
             if not wallbangActive then
-                -- MATIKAN TEMBUS BENDA
-                if wallbangConnection then
-                    wallbangConnection:Disconnect()
-                    wallbangConnection = nil
-                end
-                -- KEMBALIKAN KE NORMAL
-                local char2 = LocalPlayer.Character
-                if char2 then
-                    for _, part in pairs(char2:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = true
-                        end
-                    end
-                end
-                originalCollide = {}
+                if wallbangConnection then wallbangConnection:Disconnect() end
+                wallbangConnection = nil
                 return
             end
             local char2 = LocalPlayer.Character
@@ -468,7 +450,6 @@ local function ToggleWallbang()
         end)
         notify("🧱 WALLBANG ON - Can pass through walls!", 3)
     else
-        -- MATIKAN TEMBUS BENDA (LANGSUNG)
         if wallbangConnection then
             wallbangConnection:Disconnect()
             wallbangConnection = nil
@@ -481,7 +462,6 @@ local function ToggleWallbang()
                 end
             end
         end
-        originalCollide = {}
         notify("🧱 WALLBANG OFF", 2)
     end
 end
@@ -521,7 +501,7 @@ local function ApplySpeed()
     if hum then
         hum.WalkSpeed = ws
         if SpeedLoop then SpeedLoop:Disconnect() end
-        SpeedLoop = RunService.Stepped:Connect(function()
+        SpeedLoop = RunService.Heartbeat:Connect(function()
             if toggleStates["Speed Hack"] and hum and hum.Parent then
                 if hum.WalkSpeed ~= ws then
                     hum.WalkSpeed = ws
@@ -534,7 +514,8 @@ local function ApplySpeed()
     end
 end
 
--- ========== JUMP POWER ==========
+-- ========== JUMP POWER (FIXED - KEMBALI NORMAL SAAT OFF) ==========
+local JumpLoop = nil
 local function ApplyJumpPower()
     if not toggleStates["Infinite Jump"] then
         if JumpLoop then
@@ -557,7 +538,7 @@ local function ApplyJumpPower()
         hum.JumpPower = jp
         hum.UseJumpPower = true
         if JumpLoop then JumpLoop:Disconnect() end
-        JumpLoop = RunService.Stepped:Connect(function()
+        JumpLoop = RunService.Heartbeat:Connect(function()
             if toggleStates["Infinite Jump"] and hum and hum.Parent then
                 if hum.JumpPower ~= jp then
                     hum.JumpPower = jp
@@ -759,7 +740,7 @@ RunService.RenderStepped:Connect(function()
         obj.health.Color = greenHealth
         obj.health.Visible = toggleStates["ESP Health"]
         
-        -- Health Bar - Menggunakan healthBarThickness
+        -- Health Bar dengan thickness yang bisa diatur
         if toggleStates["ESP Health"] then
             local barX = bbox.x1 + 3
             local barY = bbox.y0
@@ -1275,7 +1256,7 @@ local function notify(text, duration)
     end
 end
 
--- ========== TELEPORT ==========
+-- ========== TELEPORT (FIXED - TIDAK GLICTH) ==========
 local function TeleportToPlayer(player)
     if teleportCooldown then
         notify("⏳ Teleport cooldown! Wait 2 seconds!", 2)
@@ -1300,14 +1281,23 @@ local function TeleportToPlayer(player)
         return
     end
     
+    -- Dapatkan posisi target
     local targetPos = targetChar.HumanoidRootPart.Position
-    localChar.HumanoidRootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
-    localChar.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+    local targetCFrame = targetChar.HumanoidRootPart.CFrame
     
+    -- Teleport ke posisi target + 3 studs di atas
+    localChar.HumanoidRootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+    
+    -- Reset velocity agar tidak terbang/ngestuk
+    localChar.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+    localChar.HumanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
+    
+    -- Pastikan Humanoid normal
     local hum = localChar:FindFirstChildOfClass("Humanoid")
     if hum then
         hum.PlatformStand = false
         hum.Sit = false
+        hum.AutoRotate = true
     end
     
     notify("📍 Teleported to " .. player.Name, 2)
@@ -1733,7 +1723,6 @@ createSection(settingsPage, "⚙ ESP Settings")
 createSlider(settingsPage, "HealthBar Thickness", 5, 20, 10, function(v)
     healthBarThickness = v
     sliderValues["HealthBar Thickness"] = v
-    -- Update langsung ke ESP
     for _, obj in pairs(EspObjects) do
         if obj and obj.healthBar then
             obj.healthBar.Thickness = v
