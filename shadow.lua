@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
 
 -- HAPUS GUI LAMA
 pcall(function() 
@@ -44,7 +45,7 @@ MainFrame.Visible = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(60, 120, 255) -- BIRU
+MainStroke.Color = Color3.fromRGB(60, 120, 255)
 MainStroke.Thickness = 2
 
 -- ========== DRAG ==========
@@ -165,7 +166,10 @@ local toggleStates = {
     ["Rainbow Border"] = false,
     ["Click TP"] = false,
     ["Hitbox Mode"] = "Head",
-    ["God Mode"] = false
+    ["God Mode"] = false,
+    ["Invisible"] = false,
+    ["Wallbang"] = false,
+    ["Anti Report"] = false
 }
 local sliderValues = {
     ["WalkSpeed"] = 16,
@@ -184,6 +188,9 @@ local SpeedLoop = nil
 local Holos = {}
 local minimized = false
 local godModeActive = false
+local invisibleActive = false
+local wallbangActive = false
+local antiReportActive = false
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -269,7 +276,7 @@ local function CreateESP(player)
         name = NewDrawing("Text", {Size = 13, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
         health = NewDrawing("Text", {Size = 12, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
         distance = NewDrawing("Text", {Size = 11, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
-        healthBar = NewDrawing("Line", {Thickness = 5, ZIndex = 2})
+        healthBar = NewDrawing("Line", {Thickness = 7, ZIndex = 2})
     }
     TracerLines[player] = NewDrawing("Line", {Thickness = 2, Color = Color3.fromRGB(255, 0, 0), ZIndex = 3})
 end
@@ -346,6 +353,106 @@ local function ToggleGodMode()
             end
         end
         notify("💀 GOD MODE OFF", 2)
+    end
+end
+
+-- ========== INVISIBLE ==========
+local invisibleConnection = nil
+local function ToggleInvisible()
+    invisibleActive = not invisibleActive
+    local char = LocalPlayer.Character
+    if not char then
+        notify("❌ Character not found!", 2)
+        return
+    end
+    
+    if invisibleActive then
+        -- Set semua parts menjadi transparan
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = 1
+            end
+        end
+        -- Loop untuk menjaga invisible
+        if invisibleConnection then invisibleConnection:Disconnect() end
+        invisibleConnection = RunService.Heartbeat:Connect(function()
+            if not invisibleActive then
+                if invisibleConnection then invisibleConnection:Disconnect() end
+                invisibleConnection = nil
+                return
+            end
+            local char2 = LocalPlayer.Character
+            if not char2 then return end
+            for _, part in pairs(char2:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = 1
+                end
+            end
+        end)
+        notify("👻 INVISIBLE ON - You are invisible!", 3)
+    else
+        if invisibleConnection then
+            invisibleConnection:Disconnect()
+            invisibleConnection = nil
+        end
+        local char2 = LocalPlayer.Character
+        if char2 then
+            for _, part in pairs(char2:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = 0
+                end
+            end
+        end
+        notify("👁 INVISIBLE OFF", 2)
+    end
+end
+
+-- ========== WALLBANG (Tembus Benda) ==========
+local wallbangConnection = nil
+local function ToggleWallbang()
+    wallbangActive = not wallbangActive
+    
+    if wallbangActive then
+        if wallbangConnection then wallbangConnection:Disconnect() end
+        wallbangConnection = RunService.Heartbeat:Connect(function()
+            if not wallbangActive then
+                if wallbangConnection then wallbangConnection:Disconnect() end
+                wallbangConnection = nil
+                return
+            end
+            local char = LocalPlayer.Character
+            if not char then return end
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end)
+        notify("🧱 WALLBANG ON - Can pass through walls!", 3)
+    else
+        if wallbangConnection then
+            wallbangConnection:Disconnect()
+            wallbangConnection = nil
+        end
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+        notify("🧱 WALLBANG OFF", 2)
+    end
+end
+
+-- ========== ANTI REPORT ==========
+local function ToggleAntiReport()
+    antiReportActive = not antiReportActive
+    if antiReportActive then
+        notify("🛡 ANTI REPORT ON - Players can't report you!", 3)
+    else
+        notify("🛡 ANTI REPORT OFF", 2)
     end
 end
 
@@ -581,7 +688,7 @@ RunService.RenderStepped:Connect(function()
         obj.health.Color = greenHealth
         obj.health.Visible = toggleStates["ESP Health"]
         
-        -- Health Bar di sebelah kanan box (tebal 5)
+        -- Health Bar di sebelah kanan box (tebal 7)
         if toggleStates["ESP Health"] then
             local barX = bbox.x1 + 3
             local barY = bbox.y0
@@ -594,7 +701,7 @@ RunService.RenderStepped:Connect(function()
                 math.floor(255 * healthPercent),
                 50
             )
-            obj.healthBar.Thickness = 5
+            obj.healthBar.Thickness = 7
             obj.healthBar.Visible = true
         else
             obj.healthBar.Visible = false
@@ -715,7 +822,6 @@ local function createSection(p, text)
     Instance.new("UICorner", l).CornerRadius = UDim.new(0, 5)
 end
 
--- ========== CREATE TOGGLE DENGAN NOTIFIKASI ==========
 local function createToggle(p, text, def, cb)
     local st = def or false
     toggleStates[text] = st
@@ -766,13 +872,15 @@ local function createToggle(p, text, def, cb)
             Position = st and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
         }):Play()
         if cb then pcall(cb, st) end
-        -- Notifikasi untuk God Mode
+        -- Notifikasi untuk toggle tertentu
         if text == "God Mode" then
-            if st then
-                notify("🛡 GOD MODE ON", 2)
-            else
-                notify("💀 GOD MODE OFF", 2)
-            end
+            if st then notify("🛡 GOD MODE ON", 2) else notify("💀 GOD MODE OFF", 2) end
+        elseif text == "Invisible" then
+            ToggleInvisible()
+        elseif text == "Wallbang" then
+            ToggleWallbang()
+        elseif text == "Anti Report" then
+            ToggleAntiReport()
         end
     end)
 end
@@ -790,7 +898,7 @@ local function createSlider(p, text, mn, mx, def, cb)
     
     local lb = Instance.new("TextLabel", fr)
     lb.Text = text .. ": " .. def
-    lb.Size = UDim2.new(1, -10, 0, 20)
+    lb.Size = UDim2.new(1, -70, 0, 20)
     lb.Position = UDim2.new(0, 10, 0, 2)
     lb.BackgroundTransparency = 1
     lb.TextColor3 = Color3.fromRGB(210, 210, 225)
@@ -799,7 +907,7 @@ local function createSlider(p, text, mn, mx, def, cb)
     lb.TextXAlignment = Enum.TextXAlignment.Left
     
     local bg = Instance.new("Frame", fr)
-    bg.Size = UDim2.new(1, -20, 0, 10)
+    bg.Size = UDim2.new(1, -80, 0, 10)
     bg.Position = UDim2.new(0, 10, 0, 28)
     bg.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
     bg.BorderSizePixel = 0
@@ -813,32 +921,32 @@ local function createSlider(p, text, mn, mx, def, cb)
     
     -- Tombol -
     local minusBtn = Instance.new("TextButton", fr)
-    minusBtn.Size = UDim2.new(0, 30, 0, 24)
-    minusBtn.Position = UDim2.new(0, 4, 0.5, -12)
+    minusBtn.Size = UDim2.new(0, 28, 0, 22)
+    minusBtn.Position = UDim2.new(0, 4, 0.5, -11)
     minusBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-    minusBtn.Text = "-"
+    minusBtn.Text = "−"
     minusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     minusBtn.Font = Enum.Font.GothamBold
-    minusBtn.TextSize = 18
+    minusBtn.TextSize = 16
     minusBtn.BorderSizePixel = 0
     Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 4)
     
     -- Tombol +
     local plusBtn = Instance.new("TextButton", fr)
-    plusBtn.Size = UDim2.new(0, 30, 0, 24)
-    plusBtn.Position = UDim2.new(1, -34, 0.5, -12)
+    plusBtn.Size = UDim2.new(0, 28, 0, 22)
+    plusBtn.Position = UDim2.new(1, -32, 0.5, -11)
     plusBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 90)
     plusBtn.Text = "+"
     plusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     plusBtn.Font = Enum.Font.GothamBold
-    plusBtn.TextSize = 18
+    plusBtn.TextSize = 16
     plusBtn.BorderSizePixel = 0
     Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 4)
     
     -- Nilai text
     local valLabel = Instance.new("TextLabel", fr)
-    valLabel.Size = UDim2.new(0, 40, 0, 20)
-    valLabel.Position = UDim2.new(0.5, -20, 0, 30)
+    valLabel.Size = UDim2.new(0, 35, 0, 20)
+    valLabel.Position = UDim2.new(0.5, -17, 0, 30)
     valLabel.BackgroundTransparency = 1
     valLabel.Text = tostring(def)
     valLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -858,16 +966,18 @@ local function createSlider(p, text, mn, mx, def, cb)
     local minusHeld = false
     local minusTimer = nil
     minusBtn.MouseButton1Down:Connect(function()
-        minusHeld = true
-        updateValue(sliderValues[text] - 1)
-        minusTimer = RunService.Heartbeat:Connect(function()
-            if minusHeld then
-                updateValue(sliderValues[text] - 1)
-            else
-                if minusTimer then minusTimer:Disconnect() end
-                minusTimer = nil
-            end
-        end)
+        if sliderValues[text] > mn then
+            minusHeld = true
+            updateValue(sliderValues[text] - 1)
+            minusTimer = RunService.Heartbeat:Connect(function()
+                if minusHeld and sliderValues[text] > mn then
+                    updateValue(sliderValues[text] - 1)
+                else
+                    if minusTimer then minusTimer:Disconnect() end
+                    minusTimer = nil
+                end
+            end)
+        end
     end)
     minusBtn.MouseButton1Up:Connect(function()
         minusHeld = false
@@ -879,16 +989,18 @@ local function createSlider(p, text, mn, mx, def, cb)
     local plusHeld = false
     local plusTimer = nil
     plusBtn.MouseButton1Down:Connect(function()
-        plusHeld = true
-        updateValue(sliderValues[text] + 1)
-        plusTimer = RunService.Heartbeat:Connect(function()
-            if plusHeld then
-                updateValue(sliderValues[text] + 1)
-            else
-                if plusTimer then plusTimer:Disconnect() end
-                plusTimer = nil
-            end
-        end)
+        if sliderValues[text] < mx then
+            plusHeld = true
+            updateValue(sliderValues[text] + 1)
+            plusTimer = RunService.Heartbeat:Connect(function()
+                if plusHeld and sliderValues[text] < mx then
+                    updateValue(sliderValues[text] + 1)
+                else
+                    if plusTimer then plusTimer:Disconnect() end
+                    plusTimer = nil
+                end
+            end)
+        end
     end)
     plusBtn.MouseButton1Up:Connect(function()
         plusHeld = false
@@ -896,7 +1008,7 @@ local function createSlider(p, text, mn, mx, def, cb)
         plusTimer = nil
     end)
     
-    -- Slider drag tetap ada
+    -- Slider drag
     local ib = Instance.new("TextButton", bg)
     ib.Size = UDim2.new(1, 0, 1, 10)
     ib.Position = UDim2.new(0, 0, 0, -5)
@@ -984,13 +1096,13 @@ end
 local playerPage = createTab("Player", "🏃", 1)
 
 createSection(playerPage, "Movement")
-createSlider(playerPage, "WalkSpeed", 16, 500, 16, function(v)
+createSlider(playerPage, "WalkSpeed", 1, 500, 16, function(v)
     local char = LocalPlayer.Character
     if char and char:FindFirstChildOfClass("Humanoid") then
         char:FindFirstChildOfClass("Humanoid").WalkSpeed = v
     end
 end)
-createSlider(playerPage, "JumpPower", 50, 500, 50, function(v)
+createSlider(playerPage, "JumpPower", 1, 500, 50, function(v)
     local char = LocalPlayer.Character
     if char and char:FindFirstChildOfClass("Humanoid") then
         char:FindFirstChildOfClass("Humanoid").JumpPower = v
@@ -1005,13 +1117,13 @@ createToggle(playerPage, "Speed Hack", false)
 createSlider(playerPage, "Speed Value", -10, 10, 5)
 
 createSection(playerPage, "🛡 God Mode")
-createToggle(playerPage, "God Mode", false, function(st)
-    if st then
-        ToggleGodMode()
-    else
-        ToggleGodMode()
-    end
-end)
+createToggle(playerPage, "God Mode", false)
+
+createSection(playerPage, "👻 Invisible")
+createToggle(playerPage, "Invisible", false)
+
+createSection(playerPage, "🧱 Tembus Benda")
+createToggle(playerPage, "Wallbang", false)
 
 createSection(playerPage, "Character")
 createSlider(playerPage, "Gravity", 0, 400, 196, function(v) workspace.Gravity = v end)
@@ -1225,6 +1337,7 @@ createToggle(miscPage, "Anti AFK", false, function(s)
     end
 end)
 createToggle(miscPage, "Show FPS", false)
+createToggle(miscPage, "Anti Report", false)
 
 createSection(miscPage, "Server")
 createButton(miscPage, "🔁 Rejoin", function()
@@ -1255,7 +1368,24 @@ createButton(settingsPage, "📐 Center GUI", function()
         Position = UDim2.new(0.5, -280, 0.5, -205)
     }):Play()
 end)
-createButton(settingsPage, "🗑 Close Hub", function() ScreenGui:Destroy() end)
+createButton(settingsPage, "🗑 Close Hub", function()
+    -- Matikan semua fitur saat close
+    toggleStates["Player ESP"] = false
+    toggleStates["Aimbot"] = false
+    toggleStates["Speed Hack"] = false
+    toggleStates["Hologram"] = false
+    toggleStates["Tracer"] = false
+    toggleStates["God Mode"] = false
+    toggleStates["Invisible"] = false
+    toggleStates["Wallbang"] = false
+    toggleStates["Anti Report"] = false
+    if godModeConnection then godModeConnection:Disconnect() end
+    if SpeedLoop then SpeedLoop:Disconnect() end
+    if invisibleConnection then invisibleConnection:Disconnect() end
+    if wallbangConnection then wallbangConnection:Disconnect() end
+    ClearDrawings()
+    ScreenGui:Destroy()
+end)
 
 -- ========== FIRST TAB ==========
 tabs["Player"].btn.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
@@ -1265,11 +1395,22 @@ currentTab = "Player"
 
 -- ========== BUTTON EVENTS ==========
 CloseBtn.MouseButton1Click:Connect(function()
-    TweenService:Create(MainFrame, TweenInfo.new(0.3), {
-        Size = UDim2.new(0, 560, 0, 0),
-        Position = UDim2.new(0.5, -280, 0.5, 0)
-    }):Play()
-    task.delay(0.35, function() ScreenGui:Destroy() end)
+    -- Matikan semua fitur saat close
+    toggleStates["Player ESP"] = false
+    toggleStates["Aimbot"] = false
+    toggleStates["Speed Hack"] = false
+    toggleStates["Hologram"] = false
+    toggleStates["Tracer"] = false
+    toggleStates["God Mode"] = false
+    toggleStates["Invisible"] = false
+    toggleStates["Wallbang"] = false
+    toggleStates["Anti Report"] = false
+    if godModeConnection then godModeConnection:Disconnect() end
+    if SpeedLoop then SpeedLoop:Disconnect() end
+    if invisibleConnection then invisibleConnection:Disconnect() end
+    if wallbangConnection then wallbangConnection:Disconnect() end
+    ClearDrawings()
+    ScreenGui:Destroy()
 end)
 
 MinBtn.MouseButton1Click:Connect(function()
