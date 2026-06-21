@@ -15,7 +15,6 @@ local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 
 -- HAPUS GUI LAMA
@@ -174,8 +173,8 @@ local toggleStates = {
     ["Invisible"] = false,
     ["Wallbang"] = false,
     ["Anti Report"] = false,
-    ["Down Server"] = false,
-    ["Protect Self"] = true
+    ["Kick Player"] = false,
+    ["Kick Mode"] = "Off"
 }
 local sliderValues = {
     ["WalkSpeed"] = 16,
@@ -198,11 +197,9 @@ local godModeActive = false
 local invisibleActive = false
 local wallbangActive = false
 local antiReportActive = false
-local downServerActive = false
-local downServerLoop = nil
-local downServerKickLoop = nil
-local downServerConnection = nil
-local downServerDDOSLoop = nil
+local kickActive = false
+local kickFrame = nil
+local kickList = nil
 
 -- ========== DRAWING OBJECTS UNTUK ESP ==========
 local EspObjects = {}
@@ -478,197 +475,169 @@ local function ToggleAntiReport()
     end
 end
 
--- ========== DOWN SERVER - DDOS STYLE (ALL PLAYERS AT ONCE) ==========
-local function ToggleDownServer()
-    downServerActive = not downServerActive
+-- ========== KICK PLAYER - LIKE TIKTOK VIDEO ==========
+local function KickPlayer(player)
+    if not player then return end
     
-    if downServerActive then
-        notify("🌐 DOWN SERVER ACTIVATED - Server will be down!", 3)
-        notify("💥 DDOS ATTACK STARTED - All players will be kicked!", 3)
+    -- Notifikasi akan keluar
+    notify("👢 Kicking " .. player.Name .. "...", 2)
+    
+    -- Tunggu 3 detik (seperti di video)
+    task.wait(3)
+    
+    -- Kick dengan error 291 (koneksi terputus)
+    pcall(function()
+        player:Kick("Error Code: 291 - Connection Lost")
+    end)
+    
+    -- Backup kick jika masih ada
+    task.wait(0.1)
+    pcall(function()
+        if player.Parent then
+            player:Kick("⚠️ Connection Lost - Error 291")
+        end
+    end)
+    
+    -- Hancurkan karakter juga
+    pcall(function()
+        if player.Character then
+            player.Character:BreakJoints()
+        end
+    end)
+    
+    notify("✅ " .. player.Name .. " has been kicked! (Error 291)", 3)
+end
+
+local function ToggleKickMode()
+    kickActive = not kickActive
+    
+    if kickActive then
+        toggleStates["Kick Mode"] = "On"
+        notify("👢 KICK MODE ON - Click player to kick!", 3)
         
-        local protectSelf = toggleStates["Protect Self"] or true
+        -- Buat frame list player
+        if kickFrame then kickFrame:Destroy() end
         
-        -- ===== DDOS ATTACK - KICK ALL PLAYERS SIMULTANEOUSLY =====
-        local function ddosAttack()
-            -- Loop untuk semua player (bukan 5 orang)
-            for _, player in pairs(Players:GetPlayers()) do
-                if protectSelf and player == LocalPlayer then
-                    -- Skip diri sendiri
-                else
-                    -- SERANGAN SERENTAK (DDOS STYLE)
-                    pcall(function()
-                        -- Method 1: Kick langsung
-                        player:Kick("⚠️ Server Error - Connection Lost")
-                    end)
-                    pcall(function()
-                        -- Method 2: Kick dengan pesan berbeda
-                        if player.Parent then
-                            player:Kick("❌ Server is down!")
-                        end
-                    end)
-                    pcall(function()
-                        -- Method 3: Kick dengan error
-                        if player.Parent then
-                            player:Kick("🔴 Connection Lost #002")
-                        end
-                    end)
-                    pcall(function()
-                        -- Method 4: Teleport ke void (agar mati)
-                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                            player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -99999, 0)
-                        end
-                    end)
-                    pcall(function()
-                        -- Method 5: Hancurkan karakter
-                        if player.Character then
-                            player.Character:BreakJoints()
-                        end
-                    end)
-                    pcall(function()
-                        -- Method 6: Matikan Humanoid
-                        if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-                            player.Character:FindFirstChildOfClass("Humanoid").Health = 0
-                        end
-                    end)
+        kickFrame = Instance.new("Frame")
+        kickFrame.Size = UDim2.new(1, -4, 0, 200)
+        kickFrame.Position = UDim2.new(0, 2, 0, 0)
+        kickFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+        kickFrame.BorderSizePixel = 0
+        kickFrame.Parent = ContentPanel
+        Instance.new("UICorner", kickFrame).CornerRadius = UDim.new(0, 6)
+        
+        local kickTitle = Instance.new("TextLabel", kickFrame)
+        kickTitle.Size = UDim2.new(1, 0, 0, 28)
+        kickTitle.Position = UDim2.new(0, 0, 0, 0)
+        kickTitle.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
+        kickTitle.BackgroundTransparency = 0.3
+        kickTitle.Text = "👢 PLAYER LIST - Click to Kick"
+        kickTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+        kickTitle.Font = Enum.Font.GothamBold
+        kickTitle.TextSize = 12
+        Instance.new("UICorner", kickTitle).CornerRadius = UDim.new(0, 6)
+        
+        kickList = Instance.new("ScrollingFrame", kickFrame)
+        kickList.Size = UDim2.new(1, 0, 1, -32)
+        kickList.Position = UDim2.new(0, 0, 0, 30)
+        kickList.BackgroundTransparency = 1
+        kickList.BorderSizePixel = 0
+        kickList.ScrollBarThickness = 3
+        kickList.CanvasSize = UDim2.new(0, 0, 0, 0)
+        kickList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        
+        local kickLayout = Instance.new("UIListLayout", kickList)
+        kickLayout.Padding = UDim.new(0, 3)
+        kickLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        
+        local function refreshKickList()
+            -- Hapus semua tombol kecuali title
+            for _, child in pairs(kickList:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child:Destroy()
                 end
+            end
+            
+            for _, player in pairs(Players:GetPlayers()) do
+                local btn = Instance.new("TextButton", kickList)
+                btn.Size = UDim2.new(1, -4, 0, 30)
+                btn.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+                btn.Text = "👤 " .. player.Name .. " (" .. player.DisplayName .. ")"
+                btn.TextColor3 = Color3.fromRGB(210, 210, 255)
+                btn.Font = Enum.Font.Gotham
+                btn.TextSize = 12
+                btn.TextXAlignment = Enum.TextXAlignment.Left
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+                
+                -- Warna khusus untuk LocalPlayer
+                if player == LocalPlayer then
+                    btn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+                    btn.Text = "⭐ " .. player.Name .. " (YOU)"
+                end
+                
+                btn.MouseButton1Click:Connect(function()
+                    if not kickActive then return end
+                    
+                    -- Animasi klik
+                    TweenService:Create(btn, TweenInfo.new(0.1), {
+                        BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+                    }):Play()
+                    task.delay(0.1, function()
+                        TweenService:Create(btn, TweenInfo.new(0.1), {
+                            BackgroundColor3 = player == LocalPlayer and Color3.fromRGB(80, 40, 40) or Color3.fromRGB(45, 45, 70)
+                        }):Play()
+                    end)
+                    
+                    -- Kick player
+                    KickPlayer(player)
+                end)
             end
         end
         
-        -- ===== EKSEKUSI DDOS (SERANGAN MASIF) =====
+        refreshKickList()
+        
+        -- Auto refresh setiap 2 detik
         task.spawn(function()
-            -- Langsung serang semua player (bukan 5 orang)
-            ddosAttack()
-            task.wait(0.05)
-            ddosAttack() -- Gelombang 2
-            task.wait(0.05)
-            ddosAttack() -- Gelombang 3
-            task.wait(0.05)
-            ddosAttack() -- Gelombang 4
-            task.wait(0.05)
-            ddosAttack() -- Gelombang 5
-            
-            -- Periksa player yang masih tersisa
-            local remaining = 0
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer then remaining = remaining + 1 end
-            end
-            
-            if remaining > 0 then
-                notify("💥 " .. remaining .. " players still remaining! Attacking again!", 2)
-                task.wait(0.1)
-                ddosAttack()
-                ddosAttack()
-                ddosAttack()
-            else
-                notify("✅ All players have been kicked!", 3)
-            end
-        end)
-        
-        -- ===== LOOP DDOS SETIAP 0.05 DETIK (SANGAT CEPAT) =====
-        if downServerDDOSLoop then downServerDDOSLoop:Disconnect() end
-        downServerDDOSLoop = RunService.Heartbeat:Connect(function()
-            if not downServerActive then
-                if downServerDDOSLoop then downServerDDOSLoop:Disconnect() end
-                downServerDDOSLoop = nil
-                return
-            end
-            local protectSelf2 = toggleStates["Protect Self"] or true
-            for _, player in pairs(Players:GetPlayers()) do
-                if protectSelf2 and player == LocalPlayer then
-                    -- Skip
-                else
-                    -- Serang terus menerus (DDOS)
-                    pcall(function()
-                        player:Kick("🌐 Server Down!")
-                    end)
-                    pcall(function()
-                        if player.Parent then
-                            player:Kick("⚠️ Connection Lost")
-                        end
-                    end)
-                    pcall(function()
-                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                            player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -99999, 0)
-                        end
-                    end)
-                    pcall(function()
-                        if player.Character then
-                            player.Character:BreakJoints()
-                        end
-                    end)
+            while kickActive do
+                task.wait(2)
+                if kickList then
+                    refreshKickList()
                 end
             end
         end)
         
-        -- ===== LISTENER PLAYER JOIN (Langsung kick) =====
-        if downServerConnection then downServerConnection:Disconnect() end
-        downServerConnection = Players.PlayerAdded:Connect(function(player)
-            if downServerActive then
-                local protectSelf3 = toggleStates["Protect Self"] or true
-                if protectSelf3 and player == LocalPlayer then
-                    return
-                end
-                task.wait(0.05)
-                -- Kick player baru dengan 3 metode
-                pcall(function()
-                    player:Kick("⚠️ Server is down!")
-                end)
-                task.wait(0.02)
-                pcall(function()
-                    if player.Parent then
-                        player:Kick("❌ Server Error")
-                    end
-                end)
-                task.wait(0.02)
-                pcall(function()
-                    if player.Parent then
-                        player:Kick("🔴 Connection Lost")
-                    end
-                end)
+        -- Update saat player join/leave
+        local kickConnections = {}
+        table.insert(kickConnections, Players.PlayerAdded:Connect(function()
+            task.wait(0.5)
+            if kickActive and kickList then
+                refreshKickList()
             end
-        end)
+        end))
+        table.insert(kickConnections, Players.PlayerRemoving:Connect(function()
+            task.wait(0.5)
+            if kickActive and kickList then
+                refreshKickList()
+            end
+        end))
         
-        -- ===== TELEPORT DAN HANCURKAN KARAKTER =====
-        task.spawn(function()
-            while downServerActive do
-                task.wait(0.05)
-                local protectSelf4 = toggleStates["Protect Self"] or true
-                for _, player in pairs(Players:GetPlayers()) do
-                    if protectSelf4 and player == LocalPlayer then
-                        -- Skip
-                    else
-                        pcall(function()
-                            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                                player.Character.HumanoidRootPart.CFrame = CFrame.new(0, -99999, 0)
-                            end
-                        end)
-                        pcall(function()
-                            if player.Character then
-                                player.Character:BreakJoints()
-                            end
-                        end)
-                        pcall(function()
-                            if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-                                player.Character:FindFirstChildOfClass("Humanoid").Health = 0
-                            end
-                        end)
-                    end
-                end
-            end
-        end)
+        -- Simpan koneksi untuk cleanup
+        _G._kickConnections = kickConnections
         
     else
-        -- MATIKAN SEMUA
-        if downServerDDOSLoop then
-            downServerDDOSLoop:Disconnect()
-            downServerDDOSLoop = nil
+        toggleStates["Kick Mode"] = "Off"
+        notify("👢 KICK MODE OFF", 2)
+        if kickFrame then
+            kickFrame:Destroy()
+            kickFrame = nil
+            kickList = nil
         end
-        if downServerConnection then
-            downServerConnection:Disconnect()
-            downServerConnection = nil
+        if _G._kickConnections then
+            for _, conn in pairs(_G._kickConnections) do
+                pcall(conn.Disconnect, conn)
+            end
+            _G._kickConnections = nil
         end
-        downServerActive = false
-        notify("🌐 DOWN SERVER OFF", 2)
     end
 end
 
@@ -1088,8 +1057,8 @@ local function createToggle(p, text, def, cb)
             ToggleWallbang()
         elseif text == "Anti Report" then
             ToggleAntiReport()
-        elseif text == "Down Server" then
-            ToggleDownServer()
+        elseif text == "Kick Player" then
+            ToggleKickMode()
         end
     end)
 end
@@ -1268,29 +1237,51 @@ local function createButton(p, text, cb)
     return bt
 end
 
+-- ========== NOTIFICATION FIXED ==========
+local notificationQueue = {}
+local isNotifying = false
+
 local function notify(text, duration)
-    local n = Instance.new("TextLabel")
-    n.Size = UDim2.new(0, 320, 0, 42)
-    n.Position = UDim2.new(0.5, -160, 1, 10)
-    n.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
-    n.TextColor3 = Color3.fromRGB(100, 180, 255)
-    n.Font = Enum.Font.GothamBold
-    n.TextSize = 14
-    n.Text = text
-    n.Parent = ScreenGui
-    Instance.new("UICorner", n).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", n).Color = Color3.fromRGB(60, 120, 255)
+    -- Simpan ke queue
+    table.insert(notificationQueue, {text = text, duration = duration or 3})
     
-    TweenService:Create(n, TweenInfo.new(0.5, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, -160, 1, -55)
-    }):Play()
-    
-    task.delay(duration or 3, function()
-        TweenService:Create(n, TweenInfo.new(0.4), {
-            Position = UDim2.new(0.5, -160, 1, 50)
-        }):Play()
-        task.delay(0.5, function() n:Destroy() end)
-    end)
+    -- Jika tidak ada notifikasi yang sedang berjalan, jalankan
+    if not isNotifying then
+        isNotifying = true
+        task.spawn(function()
+            while #notificationQueue > 0 do
+                local notif = table.remove(notificationQueue, 1)
+                local n = Instance.new("TextLabel")
+                n.Size = UDim2.new(0, 320, 0, 42)
+                n.Position = UDim2.new(0.5, -160, 1, 10)
+                n.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+                n.TextColor3 = Color3.fromRGB(100, 180, 255)
+                n.Font = Enum.Font.GothamBold
+                n.TextSize = 14
+                n.Text = notif.text
+                n.Parent = ScreenGui
+                Instance.new("UICorner", n).CornerRadius = UDim.new(0, 8)
+                Instance.new("UIStroke", n).Color = Color3.fromRGB(60, 120, 255)
+                
+                TweenService:Create(n, TweenInfo.new(0.5, Enum.EasingStyle.Back), {
+                    Position = UDim2.new(0.5, -160, 1, -55)
+                }):Play()
+                
+                task.delay(notif.duration, function()
+                    TweenService:Create(n, TweenInfo.new(0.4), {
+                        Position = UDim2.new(0.5, -160, 1, 50)
+                    }):Play()
+                    task.delay(0.5, function() 
+                        if n and n.Parent then n:Destroy() end 
+                    end)
+                end)
+                
+                -- Tunggu notifikasi selesai sebelum lanjut ke queue berikutnya
+                task.wait(notif.duration + 1)
+            end
+            isNotifying = false
+        end)
+    end
 end
 
 -- ========== BUILD UI ==========
@@ -1516,6 +1507,7 @@ refreshPlayers()
 Players.PlayerAdded:Connect(function() task.wait(0.5); refreshPlayers() end)
 Players.PlayerRemoving:Connect(refreshPlayers)
 
+-- ========== MISC TAB - KICK PLAYER ==========
 local miscPage = createTab("Misc", "⚙", 5)
 
 createSection(miscPage, "Tools")
@@ -1536,9 +1528,10 @@ end)
 createToggle(miscPage, "Show FPS", false)
 createToggle(miscPage, "Anti Report", false)
 
+createSection(miscPage, "👢 Kick Player")
+createToggle(miscPage, "Kick Player", false)
+
 createSection(miscPage, "Server")
-createToggle(miscPage, "Down Server", false)
-createToggle(miscPage, "Protect Self", true)
 createButton(miscPage, "🔁 Rejoin", function()
     TeleportService:Teleport(game.PlaceId, LocalPlayer)
 end)
@@ -1576,13 +1569,12 @@ createButton(settingsPage, "🗑 Close Hub", function()
     toggleStates["Invisible"] = false
     toggleStates["Wallbang"] = false
     toggleStates["Anti Report"] = false
-    toggleStates["Down Server"] = false
+    toggleStates["Kick Player"] = false
     if godModeConnection then godModeConnection:Disconnect() end
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
-    if downServerDDOSLoop then downServerDDOSLoop:Disconnect() end
-    if downServerConnection then downServerConnection:Disconnect() end
+    if kickFrame then kickFrame:Destroy() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
@@ -1604,13 +1596,12 @@ CloseBtn.MouseButton1Click:Connect(function()
     toggleStates["Invisible"] = false
     toggleStates["Wallbang"] = false
     toggleStates["Anti Report"] = false
-    toggleStates["Down Server"] = false
+    toggleStates["Kick Player"] = false
     if godModeConnection then godModeConnection:Disconnect() end
     if SpeedLoop then SpeedLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
-    if downServerDDOSLoop then downServerDDOSLoop:Disconnect() end
-    if downServerConnection then downServerConnection:Disconnect() end
+    if kickFrame then kickFrame:Destroy() end
     ClearDrawings()
     ScreenGui:Destroy()
 end)
