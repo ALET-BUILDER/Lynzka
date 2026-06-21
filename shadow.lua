@@ -42,6 +42,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 580, 0, 460)
 MainFrame.Position = UDim2.new(0.5, -290, 0.5, -230)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MainFrame.BackgroundTransparency = 0
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
@@ -57,6 +58,7 @@ local drag = {dragging = false, start = nil, origin = nil}
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
+TitleBar.BackgroundTransparency = 0
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
 Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 12)
@@ -123,6 +125,7 @@ local TabPanel = Instance.new("Frame")
 TabPanel.Size = UDim2.new(0, 130, 1, -48)
 TabPanel.Position = UDim2.new(0, 5, 0, 44)
 TabPanel.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+TabPanel.BackgroundTransparency = 0
 TabPanel.BorderSizePixel = 0
 TabPanel.Parent = MainFrame
 Instance.new("UICorner", TabPanel).CornerRadius = UDim.new(0, 8)
@@ -141,6 +144,7 @@ local ContentPanel = Instance.new("Frame")
 ContentPanel.Size = UDim2.new(1, -148, 1, -48)
 ContentPanel.Position = UDim2.new(0, 142, 0, 44)
 ContentPanel.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+ContentPanel.BackgroundTransparency = 0
 ContentPanel.BorderSizePixel = 0
 ContentPanel.ClipsDescendants = true
 ContentPanel.Parent = MainFrame
@@ -192,6 +196,7 @@ local sliderValues = {
 local currentTab = nil
 local godModeConnection = nil
 local SpeedLoop = nil
+local JumpLoop = nil
 local Holos = {}
 local minimized = false
 local godModeActive = false
@@ -512,6 +517,43 @@ local function ApplySpeed()
     end
 end
 
+-- ========== JUMP POWER (FIXED - STABLE) ==========
+local function ApplyJumpPower()
+    if not toggleStates["Infinite Jump"] then
+        if JumpLoop then
+            JumpLoop:Disconnect()
+            JumpLoop = nil
+        end
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.JumpPower ~= 50 then 
+            hum.JumpPower = 50
+            hum.UseJumpPower = true
+        end
+        return
+    end
+    
+    local jp = sliderValues["JumpPower"] or 50
+    jp = math.clamp(jp, 1, 500)
+    
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.JumpPower = jp
+        hum.UseJumpPower = true
+        if JumpLoop then JumpLoop:Disconnect() end
+        JumpLoop = RunService.Heartbeat:Connect(function()
+            if toggleStates["Infinite Jump"] and hum and hum.Parent then
+                if hum.JumpPower ~= jp then
+                    hum.JumpPower = jp
+                    hum.UseJumpPower = true
+                end
+            else
+                if JumpLoop then JumpLoop:Disconnect() end
+                JumpLoop = nil
+            end
+        end)
+    end
+end
+
 -- ========== AIMBOT ==========
 local FOVCircle = NewDrawing("Circle", {
     Thickness = 1,
@@ -634,6 +676,7 @@ RunService.RenderStepped:Connect(function()
     end
     
     ApplySpeed()
+    ApplyJumpPower()
     
     for _, p in ipairs(Players:GetPlayers()) do
         UpdateHologram(p)
@@ -699,6 +742,7 @@ RunService.RenderStepped:Connect(function()
         obj.health.Color = greenHealth
         obj.health.Visible = toggleStates["ESP Health"]
         
+        -- Health Bar (hanya ketebalan yang diatur)
         if toggleStates["ESP Health"] then
             local barX = bbox.x1 + 3
             local barY = bbox.y0
@@ -765,6 +809,7 @@ local function createTab(name, icon, order)
     btn.LayoutOrder = order or 0
     btn.Size = UDim2.new(1, 0, 0, 34)
     btn.BackgroundColor3 = Color3.fromRGB(32, 32, 48)
+    btn.BackgroundTransparency = 0
     btn.BorderSizePixel = 0
     btn.Text = ""
     btn.AutoButtonColor = false
@@ -838,6 +883,7 @@ local function createToggle(p, text, def, cb)
     local fr = Instance.new("Frame")
     fr.Size = UDim2.new(1, -4, 0, 32)
     fr.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+    fr.BackgroundTransparency = 0
     fr.BorderSizePixel = 0
     fr.Parent = p
     Instance.new("UICorner", fr).CornerRadius = UDim.new(0, 6)
@@ -856,6 +902,7 @@ local function createToggle(p, text, def, cb)
     tr.Size = UDim2.new(0, 42, 0, 22)
     tr.Position = UDim2.new(1, -52, 0.5, -11)
     tr.BackgroundColor3 = st and Color3.fromRGB(60, 120, 255) or Color3.fromRGB(55, 55, 75)
+    tr.BackgroundTransparency = 0
     tr.BorderSizePixel = 0
     Instance.new("UICorner", tr).CornerRadius = UDim.new(1, 0)
     
@@ -900,6 +947,7 @@ local function createSlider(p, text, mn, mx, def, cb)
     local fr = Instance.new("Frame")
     fr.Size = UDim2.new(1, -4, 0, 48)
     fr.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+    fr.BackgroundTransparency = 0
     fr.BorderSizePixel = 0
     fr.Parent = p
     Instance.new("UICorner", fr).CornerRadius = UDim.new(0, 6)
@@ -918,6 +966,7 @@ local function createSlider(p, text, mn, mx, def, cb)
     bg.Size = UDim2.new(1, -80, 0, 10)
     bg.Position = UDim2.new(0, 10, 0, 28)
     bg.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+    bg.BackgroundTransparency = 0
     bg.BorderSizePixel = 0
     Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
     
@@ -931,6 +980,7 @@ local function createSlider(p, text, mn, mx, def, cb)
     minusBtn.Size = UDim2.new(0, 28, 0, 22)
     minusBtn.Position = UDim2.new(0, 4, 0.5, -11)
     minusBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    minusBtn.BackgroundTransparency = 0
     minusBtn.Text = "−"
     minusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     minusBtn.Font = Enum.Font.GothamBold
@@ -942,6 +992,7 @@ local function createSlider(p, text, mn, mx, def, cb)
     plusBtn.Size = UDim2.new(0, 28, 0, 22)
     plusBtn.Position = UDim2.new(1, -32, 0.5, -11)
     plusBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 90)
+    plusBtn.BackgroundTransparency = 0
     plusBtn.Text = "+"
     plusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     plusBtn.Font = Enum.Font.GothamBold
@@ -1049,6 +1100,7 @@ local function createColorSlider(p, text, default, cb)
     local fr = Instance.new("Frame")
     fr.Size = UDim2.new(1, -4, 0, 48)
     fr.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+    fr.BackgroundTransparency = 0
     fr.BorderSizePixel = 0
     fr.Parent = p
     Instance.new("UICorner", fr).CornerRadius = UDim.new(0, 6)
@@ -1067,6 +1119,7 @@ local function createColorSlider(p, text, default, cb)
     preview.Size = UDim2.new(0, 30, 0, 22)
     preview.Position = UDim2.new(1, -40, 0.5, -11)
     preview.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+    preview.BackgroundTransparency = 0
     preview.BorderSizePixel = 1
     preview.BorderColor3 = Color3.fromRGB(255, 255, 255)
     Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 4)
@@ -1075,12 +1128,14 @@ local function createColorSlider(p, text, default, cb)
     bg.Size = UDim2.new(1, -80, 0, 10)
     bg.Position = UDim2.new(0, 10, 0, 28)
     bg.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+    bg.BackgroundTransparency = 0
     bg.BorderSizePixel = 0
     Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
     
     local fl = Instance.new("Frame", bg)
     fl.Size = UDim2.new(hue, 0, 1, 0)
     fl.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+    fl.BackgroundTransparency = 0
     fl.BorderSizePixel = 0
     Instance.new("UICorner", fl).CornerRadius = UDim.new(1, 0)
     
@@ -1136,6 +1191,7 @@ local function createButton(p, text, cb)
     local bt = Instance.new("TextButton")
     bt.Size = UDim2.new(1, -4, 0, 32)
     bt.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+    bt.BackgroundTransparency = 0
     bt.BorderSizePixel = 0
     bt.Text = text
     bt.TextColor3 = Color3.fromRGB(210, 210, 225)
@@ -1174,6 +1230,7 @@ local function notify(text, duration)
                 n.Size = UDim2.new(0, 320, 0, 42)
                 n.Position = UDim2.new(0.5, -160, 1, 10)
                 n.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+                n.BackgroundTransparency = 0
                 n.TextColor3 = Color3.fromRGB(100, 180, 255)
                 n.Font = Enum.Font.GothamBold
                 n.TextSize = 14
@@ -1247,11 +1304,8 @@ createSlider(playerPage, "WalkSpeed", 1, 500, 16, function(v)
     end
 end)
 createSlider(playerPage, "JumpPower", 1, 500, 50, function(v)
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChildOfClass("Humanoid") then
-        char:FindFirstChildOfClass("Humanoid").JumpPower = v
-        char:FindFirstChildOfClass("Humanoid").UseJumpPower = true
-    end
+    sliderValues["JumpPower"] = v
+    ApplyJumpPower()
 end)
 createToggle(playerPage, "Infinite Jump", false)
 createToggle(playerPage, "Noclip", false)
@@ -1332,6 +1386,7 @@ local hitboxFrame = Instance.new("Frame", combatPage)
 hitboxFrame.Size = UDim2.new(1, -4, 0, 0)
 hitboxFrame.AutomaticSize = Enum.AutomaticSize.Y
 hitboxFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+hitboxFrame.BackgroundTransparency = 0
 hitboxFrame.BorderSizePixel = 0
 Instance.new("UICorner", hitboxFrame).CornerRadius = UDim.new(0, 6)
 
@@ -1348,6 +1403,7 @@ for i, opt in ipairs(hitboxOptions) do
     local btn = Instance.new("TextButton", hitboxFrame)
     btn.Size = UDim2.new(1, 0, 1, 0)
     btn.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+    btn.BackgroundTransparency = 0
     btn.Text = hitboxNames[i]
     btn.TextColor3 = Color3.fromRGB(180, 180, 255)
     btn.Font = Enum.Font.Gotham
@@ -1477,7 +1533,6 @@ local infoPage = createTab("Info", "📋", 5)
 
 createSection(infoPage, "📋 Script Information")
 
--- Frame untuk konten info dengan scrolling
 local infoFrame = Instance.new("Frame", infoPage)
 infoFrame.Size = UDim2.new(1, -4, 0, 280)
 infoFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
@@ -1486,7 +1541,6 @@ infoFrame.BorderSizePixel = 0
 infoFrame.ClipsDescendants = true
 Instance.new("UICorner", infoFrame).CornerRadius = UDim.new(0, 6)
 
--- Scrolling frame untuk info
 local infoScroll = Instance.new("ScrollingFrame", infoFrame)
 infoScroll.Size = UDim2.new(1, 0, 1, 0)
 infoScroll.BackgroundTransparency = 1
@@ -1547,8 +1601,7 @@ infoText.Text = [[
 ║  ─────────────────────────────────────    ║
 ║  • Press INSERT to toggle menu           ║
 ║  • Click - to minimize                   ║
-║  • Click ✕ to close                     ║
-║  • Drag title bar to move                ║
+║  • Click ✕ to close                     ║║  • Drag title bar to move                ║
 ║                                           ║
 ║  💡 TIPS:                                ║
 ║  • Enable ESP first to see players       ║
@@ -1565,7 +1618,6 @@ infoText.TextXAlignment = Enum.TextXAlignment.Left
 infoText.TextYAlignment = Enum.TextYAlignment.Top
 infoText.LineHeight = 1.3
 
--- Set canvas size sesuai text
 infoScroll.CanvasSize = UDim2.new(0, 0, 0, infoText.Size.Y.Offset + 20)
 
 -- ========== MISC TAB ==========
@@ -1650,8 +1702,15 @@ createSlider(settingsPage, "Menu Height", 300, 600, 460, function(v)
     sliderValues["Menu Height"] = v
 end)
 
-createSection(settingsPage, "⚙ Feature Settings")
-createSlider(settingsPage, "HealthBar Thickness", 5, 20, 10)
+createSection(settingsPage, "⚙ ESP Settings")
+createSlider(settingsPage, "HealthBar Thickness", 5, 20, 10, function(v)
+    sliderValues["HealthBar Thickness"] = v
+    for _, obj in pairs(EspObjects) do
+        if obj and obj.healthBar then
+            obj.healthBar.Thickness = v
+        end
+    end
+end)
 
 createSection(settingsPage, "Hub Settings")
 createToggle(settingsPage, "Rainbow Border", false)
@@ -1672,6 +1731,7 @@ createButton(settingsPage, "🗑 Close Hub", function()
     toggleStates["Anti Report"] = false
     if godModeConnection then godModeConnection:Disconnect() end
     if SpeedLoop then SpeedLoop:Disconnect() end
+    if JumpLoop then JumpLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
     ClearDrawings()
@@ -1697,6 +1757,7 @@ CloseBtn.MouseButton1Click:Connect(function()
     toggleStates["Anti Report"] = false
     if godModeConnection then godModeConnection:Disconnect() end
     if SpeedLoop then SpeedLoop:Disconnect() end
+    if JumpLoop then JumpLoop:Disconnect() end
     if invisibleConnection then invisibleConnection:Disconnect() end
     if wallbangConnection then wallbangConnection:Disconnect() end
     ClearDrawings()
