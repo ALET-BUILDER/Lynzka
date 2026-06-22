@@ -64,22 +64,22 @@ local SpeedLoop = nil
 local speedHackActive = false
 local speedHackValue = 5
 
--- ===================== FLY (FIXED - KE ATAS, BUKAN BAWAH TANAH) =====================
+-- ===================== FLY =====================
 local flyActive = false
 local flyHeight = 10
 local flyConnection = nil
 local flyBodyVelocity = nil
 local flyBodyGyro = nil
+local flyBodyPosition = nil
 
 -- ===================== INFINITE STAMINA =====================
 local staminaLoop = nil
 
--- ===================== DRAG SYSTEM =====================
-local dragData = {
-    dragging = false,
-    startPos = nil,
-    startMouse = nil
-}
+-- ===================== TOGGLES =====================
+local toggles = { AutoRejoinOnKick = true }
+
+-- ===================== CONNECTIONS =====================
+local Connections = {}
 
 -- ===================== NOTIFICATION =====================
 local function notify(text, duration)
@@ -93,6 +93,7 @@ local function notify(text, duration)
             })
         end)
     else
+        -- Fallback notification
         local notification = Instance.new("TextLabel")
         notification.Size = UDim2.new(0, 300, 0, 40)
         notification.Position = UDim2.new(0.5, -150, 1, -50)
@@ -102,7 +103,7 @@ local function notify(text, duration)
         notification.Font = Enum.Font.GothamBold
         notification.TextSize = 14
         notification.Text = "LYNZKA HUB: " .. text
-        notification.Parent = game.CoreGui
+        notification.Parent = CoreGui
         Instance.new("UICorner", notification).CornerRadius = UDim.new(0, 8)
         TweenService:Create(notification, TweenInfo.new(0.5), {
             Position = UDim2.new(0.5, -150, 1, -60)
@@ -576,15 +577,7 @@ local function ToggleSpeedHack(state)
     end
 end
 
--- ===================== FLY (FIXED - KE ATAS, BUKAN BAWAH TANAH) =====================
--- ===================== FLY (FIXED - TANPA GETER) =====================
-local flyActive = false
-local flyHeight = 10
-local flyConnection = nil
-local flyBodyVelocity = nil
-local flyBodyGyro = nil
-local flyBodyPosition = nil
-
+-- ===================== FLY =====================
 local function ToggleFly(state)
     flyActive = state
     
@@ -754,8 +747,6 @@ local function runEvery(interval, fn)
     end)
 end
 
-local Connections = {}
-
 local function fireproximityprompt(Obj, Amount, Skip)
     if Obj.ClassName == "ProximityPrompt" then 
         Amount = Amount or 1
@@ -921,36 +912,31 @@ local GuestSettingsTriggerAnims = {
     "81639435858902", "137314737492715", "92173139187970", "106847695270773"
 }
 
--- ===================== FLUENT UI (FIXED) =====================
+-- ===================== ===================================== =====================
+-- ===================== FLUENT UI (FIXED - PASTI MUNCUL) =====================
+-- ===================== ===================================== =====================
+
 local FluentLoaded = false
-local success, Fluent = pcall(function()
+local Fluent = nil
+
+-- COBA LOAD FLUENT
+local success, result = pcall(function()
     return loadstring(game:HttpGet('https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua'))()
 end)
 
-if success and Fluent then
+if success and result then
+    Fluent = result
     FluentLoaded = true
     print("[LYNZKA] ✅ Fluent loaded successfully!")
 else
-    warn("[LYNZKA] ❌ Fluent failed to load.")
-    -- Jika Fluent gagal, buat notifikasi manual
-    local errNotif = Instance.new("TextLabel")
-    errNotif.Size = UDim2.new(0, 400, 0, 50)
-    errNotif.Position = UDim2.new(0.5, -200, 0.5, -25)
-    errNotif.BackgroundColor3 = Color3.fromRGB(30, 20, 20)
-    errNotif.BackgroundTransparency = 0
-    errNotif.TextColor3 = Color3.fromRGB(255, 100, 100)
-    errNotif.Font = Enum.Font.GothamBold
-    errNotif.TextSize = 16
-    errNotif.Text = "❌ Fluent Gagal Load! Coba jalankan ulang."
-    errNotif.Parent = CoreGui
-    Instance.new("UICorner", errNotif).CornerRadius = UDim.new(0, 8)
-    task.delay(5, function() errNotif:Destroy() end)
+    FluentLoaded = false
+    warn("[LYNZKA] ❌ Fluent failed to load!")
 end
 
 local SaveManager = nil
 local InterfaceManager = nil
 
-if FluentLoaded then
+if FluentLoaded and Fluent then
     pcall(function()
         SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
         InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
@@ -958,25 +944,28 @@ if FluentLoaded then
 end
 
 local Window = nil
-local Tabs = nil
+local Tabs = {}
 
--- ===================== BUILD FLUENT UI (HANYA JIKA FLUENT LOAD) =====================
+-- ===================== CREATE FLUENT WINDOW =====================
 if FluentLoaded and Fluent then
-    -- Tunggu sebentar agar stabil
-    task.wait(0.5)
+    -- Tunggu 1 detik agar stabil
+    task.wait(1)
     
-    Window = Fluent:CreateWindow({
-        Title = "LYNZKA HUB",
-        SubTitle = "v3.6 - Shadow Style Perfect",
-        TabWidth = 160,
-        Size = UDim2.fromOffset(580, 460),
-        Theme = "Dark",
-        MinimizeKeyBind = nil
-    })
-
-    -- CEK APAKAH WINDOW BERHASIL DIBUAT
-    if not Window or not Window.Root then
-        warn("[LYNZKA] ❌ Gagal membuat Window!")
+    pcall(function()
+        Window = Fluent:CreateWindow({
+            Title = "LYNZKA HUB",
+            SubTitle = "v3.6 - Shadow Style Perfect",
+            TabWidth = 160,
+            Size = UDim2.fromOffset(580, 460),
+            Theme = "Dark",
+            MinimizeKeyBind = nil
+        })
+    end)
+    
+    if Window and Window.Root then
+        print("[LYNZKA] ✅ Window created successfully!")
+    else
+        warn("[LYNZKA] ❌ Failed to create Window!")
         -- Buat notifikasi error
         local errNotif = Instance.new("TextLabel")
         errNotif.Size = UDim2.new(0, 400, 0, 50)
@@ -990,11 +979,12 @@ if FluentLoaded and Fluent then
         errNotif.Parent = CoreGui
         Instance.new("UICorner", errNotif).CornerRadius = UDim.new(0, 8)
         task.delay(5, function() errNotif:Destroy() end)
-        return
     end
+end
 
-    print("[LYNZKA] ✅ Window created successfully!")
-
+-- ===================== BUILD UI (HANYA JIKA WINDOW BERHASIL) =====================
+if Window and Window.Root then
+    
     Tabs = {
         Player = Window:AddTab({ Title = "Player", Icon = "lucide-circle-user" }),
         Game = Window:AddTab({ Title = "Game", Icon = "lucide-gamepad-2" }),
@@ -1008,7 +998,7 @@ if FluentLoaded and Fluent then
         Settings = Window:AddTab({ Title = "Settings", Icon = "lucide-settings" })
     }
 
-    -- SAVE MANAGER
+    -- Save Manager
     if SaveManager and InterfaceManager then
         pcall(function()
             SaveManager:SetLibrary(Fluent)
@@ -1721,9 +1711,6 @@ if FluentLoaded and Fluent then
 end
 
 -- ===================== AUTO REJOIN =====================
--- DEFINE toggles SEBELUM dipakai
-local toggles = { AutoRejoinOnKick = true }
-
 if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     Connections.AutoRejoin = GuiService.ErrorMessageChanged:Connect(function(msg)
         if msg and msg ~= "" then
@@ -1732,7 +1719,35 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
--- ===================== TOMBOL -/+ (DIBUAT SETELAH FLUENT READY) =====================
+-- ===================== CHARGE SPEED LOOP =====================
+RunService.Stepped:Connect(function()
+    if ChargeSpeedLoop then
+        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
+        local mult = speedMultipliers and speedMultipliers:FindFirstChild("Guest1337Charge")
+        if mult and GuestChargeSpeed ~= nil then
+            mult.Value = GuestChargeSpeed
+        end
+    end
+end)
+
+-- ===================== ANTI SLOW =====================
+RunService.RenderStepped:Connect(function()
+    if AntiSlow then
+        checkAndSetSlowStatus()
+        enforceMultipliers()
+    end
+end)
+
+-- ===================== CHAT ENABLER =====================
+RunService.Heartbeat:Connect(function()
+    chatWindow.Enabled = true
+end)
+
+-- ===================== ===================================== =====================
+-- ===================== TOMBOL -/+ UNTUK BUKA MENU =====================
+-- ===================== ===================================== =====================
+
 task.spawn(function()
     -- Tunggu Fluent dan Window benar-benar siap
     local waitCount = 0
@@ -1829,7 +1844,8 @@ task.spawn(function()
     tooltip.Parent = buttonFrame
     local tooltipCorner = Instance.new("UICorner")
     tooltipCorner.CornerRadius = UDim.new(0, 4)
-    tooltipCorner.Parent = tooltip    
+    tooltipCorner.Parent = tooltip
+    
     -- State
     local menuVisible = true
     
