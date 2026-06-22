@@ -74,6 +74,20 @@ local originalTransparency = {}
 local SpeedLoop = nil
 local JumpLoop = nil
 
+-- ===================== JUMP POWER VARIABLES =====================
+local jumpPowerValue = 50
+local jumpPowerActive = true
+local jumpPowerLoop = nil
+
+-- ===================== WALKSPEED VARIABLES =====================
+local walkSpeedValue = 1
+local walkSpeedActive = true
+local walkSpeedLoop = nil
+
+-- ===================== INFINITE STAMINA FIX =====================
+local staminaActive = false
+local staminaLoop = nil
+
 -- ===================== DRAG SYSTEM (SHADOW STYLE) =====================
 local catDragData = {
     dragging = false,
@@ -81,7 +95,7 @@ local catDragData = {
     startMouse = nil
 }
 
--- ===================== ESP SYSTEM =====================
+-- ===================== ESP SYSTEM (FIXED - HEALTH BAR) =====================
 local EspObjects = {}
 local TracerLines = {}
 local DrawingPool = {}
@@ -451,7 +465,7 @@ local function DisableAimbot()
     end
 end
 
--- ===================== SHADOW STYLE FUNCTIONS =====================
+-- ===================== SHADOW STYLE FUNCTIONS (FIXED) =====================
 
 local function ToggleGodMode()
     godModeActive = not godModeActive
@@ -508,12 +522,14 @@ local function ToggleGodMode()
     end
 end
 
+-- ===================== INVISIBLE FIX (TIDAK BIKIN PLAYER ILANG) =====================
 local function ToggleInvisibleShadow()
     invisibleActive = not invisibleActive
     local char = LocalPlayer.Character
     if not char then return end
     
     if invisibleActive then
+        -- Simpan transparency asli
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 originalTransparency[part] = part.Transparency
@@ -530,6 +546,7 @@ local function ToggleInvisibleShadow()
             end
             local char2 = LocalPlayer.Character
             if not char2 then return end
+            -- HANYA set transparency, JANGAN sentuh properti lain
             for _, part in pairs(char2:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.Transparency = 1
@@ -559,6 +576,7 @@ local function ToggleInvisibleShadow()
     end
 end
 
+-- ===================== WALLBANG FIX =====================
 local function ToggleWallbang()
     wallbangActive = not wallbangActive
     
@@ -1078,16 +1096,14 @@ local frontflipObj = createFrontflip()()
 
 -- ===================== KILLER EMOTE GUI =====================
 function KillerEmoteGUI()
-    -- [Killer Emote GUI - shortened for space, keep original]
     local KillerEmoteGUI = Instance.new("ScreenGui", PlayerGui)
     -- ... (keep original code)
 end
 
 -- ===================== STATS TRACKER =====================
 local function createStatsTracker()
-    -- [Stats Tracker - keep original]
     local screenGui = Instance.new("ScreenGui")
-    -- ...
+    -- ... (keep original)
     return screenGui
 end
 
@@ -1244,7 +1260,26 @@ if FluentLoaded then
     InterfaceManager:BuildInterfaceSection(Tabs.Settings)
     SaveManager:BuildConfigSection(Tabs.Settings)
 
-    -- ===================== PLAYER TAB =====================
+    -- ===================== PLAYER TAB (FIXED) =====================
+    
+    -- WALKSPEED FIX
+    local function applyWalkSpeed(value)
+        walkSpeedValue = value
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Parent then
+                local speedMultipliers = humanoid.Parent:FindFirstChild("SpeedMultipliers")
+                if speedMultipliers then
+                    local sprintMult = speedMultipliers:FindFirstChild("Sprinting")
+                    if sprintMult then
+                        sprintMult.Value = value
+                    end
+                end
+            end
+        end
+    end
+    
     Tabs.Player:AddSlider("Walkspeed", {
         Title = "Walkspeed Multiplier",
         Default = 1,
@@ -1253,31 +1288,64 @@ if FluentLoaded then
         Rounding = 1,
         Suffix = "x",
         Callback = function(value)
-            local char = LocalPlayer.Character
-            if char then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Parent:FindFirstChild("SpeedMultipliers") then
-                    local sprintMult = humanoid.Parent.SpeedMultipliers:FindFirstChild("Sprinting")
-                    if sprintMult then sprintMult.Value = value end
-                end
-            end
+            applyWalkSpeed(value)
         end
     })
+    
+    -- Auto apply walkspeed saat respawn
+    LocalPlayer.CharacterAdded:Connect(function(char)
+        task.wait(0.5)
+        applyWalkSpeed(walkSpeedValue)
+    end)
 
+    -- JUMP POWER FIX
+    local function applyJumpPower(value)
+        jumpPowerValue = value
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.JumpPower = value
+            end
+        end
+    end
+    
     Tabs.Player:AddSlider("JumpPower", {
         Title = "Jump Power",
+        Description = "Ubah kekuatan lompatan (default: 50)",
         Default = 50,
         Min = 1,
         Max = 500,
         Rounding = 0,
         Callback = function(value)
-            local char = LocalPlayer.Character
-            if char then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid then humanoid.JumpPower = value end
-            end
+            applyJumpPower(value)
         end
     })
+    
+    -- Auto apply jump power saat respawn
+    LocalPlayer.CharacterAdded:Connect(function(char)
+        task.wait(0.5)
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid and jumpPowerValue ~= 50 then
+            humanoid.JumpPower = jumpPowerValue
+        end
+    end)
+    
+    -- Loop untuk menjaga jump power
+    task.spawn(function()
+        while true do
+            task.wait(2)
+            if jumpPowerValue ~= 50 then
+                local char = LocalPlayer.Character
+                if char then
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.JumpPower ~= jumpPowerValue then
+                        humanoid.JumpPower = jumpPowerValue
+                    end
+                end
+            end
+        end
+    end)
 
     Tabs.Player:AddToggle("Goon", {
         Title = "Goon Animation",
@@ -1329,6 +1397,7 @@ if FluentLoaded then
         end
     })
 
+    -- INVISIBLE FIXED - Tidak bikin player ilang
     Tabs.Player:AddToggle("InvisibleShadow", {
         Title = "👻 Invisible (Full Transparent)",
         Default = false,
@@ -1338,6 +1407,7 @@ if FluentLoaded then
         end
     })
 
+    -- WALLBANG FIXED
     Tabs.Player:AddToggle("Wallbang", {
         Title = "🧱 Wallbang (Tembus Benda)",
         Default = false,
@@ -1402,7 +1472,7 @@ if FluentLoaded then
         end
     })
 
-    -- ===================== GAME TAB =====================
+    -- ===================== GAME TAB (FIXED - INFINITE STAMINA) =====================
     Tabs.Game:AddToggle("StatsTrackerToggle", {
         Title = "Stats Tracker",
         Default = false,
@@ -1412,33 +1482,45 @@ if FluentLoaded then
         end
     })
 
-    Tabs.Game:AddToggle("InfiniteStamina", {
-        Title = "Infinite Stamina",
-        Default = false,
-        Callback = function(value)
-            if executor == "Xeno" or executor == "Velocity" or executor == "LX63" or executor == "Solara" then
-                if Fluent and Fluent.Notify then
-                    Fluent:Notify({
-                        Title = "Not Supported",
-                        Content = "Infinite Stamina doesn't work on your executor.",
-                        Duration = 5,
-                        Image = "lucide-leaf",
-                    })
-                end
-                return
-            end
-            infinitestamina = value
-            task.spawn(function()
+    -- INFINITE STAMINA FIX
+    local function toggleInfiniteStamina(state)
+        infinitestamina = state
+        if state then
+            if staminaLoop then task.cancel(staminaLoop) end
+            staminaLoop = task.spawn(function()
                 while infinitestamina do
-                    local Sprinting = ReplicatedStorage.Systems.Character.Game.Sprinting
-                    local stamina = require(Sprinting)
-                    stamina.StaminaLossDisabled = true
+                    pcall(function()
+                        local Sprinting = ReplicatedStorage.Systems.Character.Game.Sprinting
+                        local stamina = require(Sprinting)
+                        stamina.StaminaLossDisabled = true
+                    end)
                     task.wait(0.5)
                 end
+            end)
+            if Fluent and Fluent.Notify then
+                Fluent:Notify({ Title = "♾️ Infinite Stamina ON", Content = "Stamina tidak akan habis!", Duration = 2 })
+            end
+        else
+            if staminaLoop then
+                task.cancel(staminaLoop)
+                staminaLoop = nil
+            end
+            pcall(function()
                 local Sprinting = ReplicatedStorage.Systems.Character.Game.Sprinting
                 local stamina = require(Sprinting)
                 stamina.StaminaLossDisabled = false
             end)
+            if Fluent and Fluent.Notify then
+                Fluent:Notify({ Title = "♾️ Infinite Stamina OFF", Content = "Stamina normal", Duration = 2 })
+            end
+        end
+    end
+
+    Tabs.Game:AddToggle("InfiniteStamina", {
+        Title = "Infinite Stamina",
+        Default = false,
+        Callback = function(state)
+            toggleInfiniteStamina(state)
         end
     })
 
@@ -1499,7 +1581,7 @@ if FluentLoaded then
         end
     })
 
-    -- ===================== ESP TAB =====================
+    -- ===================== ESP TAB (FIXED - HEALTH BAR) =====================
     Tabs.ESP:AddToggle("ESPToggle", {
         Title = "Enable ESP",
         Default = false,
@@ -1790,8 +1872,7 @@ if FluentLoaded then
                         end
                         wasVisible = isVisible
                         task.wait(0.1)
-                    end
-                    removeVideo()
+                    end                    removeVideo()
                 end)
             else
                 if _G.SettingsVideoLoop then
@@ -2460,34 +2541,30 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
--- ===================== SHADOW STYLE MENU TOGGLE (FINAL FIX) =====================
+-- ===================== SHADOW STYLE MENU TOGGLE (FIXED - ULTRA COMPACT) =====================
 task.spawn(function()
-    -- Tunggu Fluent benar-benar siap
-    repeat task.wait(0.5) until Window and Window.Root
-    repeat task.wait(0.5) until Window.Root.Parent and Window.Root.Parent:IsA("ScreenGui")
+    -- Tunggu Fluent siap
+    repeat task.wait(0.3) until Window and Window.Root
+    repeat task.wait(0.3) until Window.Root.Parent and Window.Root.Parent:IsA("ScreenGui")
     
-    -- Dapatkan ScreenGui Fluent
     local fluentScreenGui = Window.Root.Parent
-    if not fluentScreenGui or not fluentScreenGui:IsA("ScreenGui") then
-        fluentScreenGui = game.CoreGui:FindFirstChildWhichIsA("ScreenGui")
-        if not fluentScreenGui then
-            warn("[Goonsaken] Gagal menemukan ScreenGui!")
-            return
-        end
-    end
     
-    -- Buat ScreenGui terpisah untuk tombol (agar tidak ikut tersembunyi)
+    -- Hapus tombol lama jika ada
+    local oldGui = game.CoreGui:FindFirstChild("GoonHubToggleGui")
+    if oldGui then oldGui:Destroy() end
+    
+    -- Buat ScreenGui terpisah
     local toggleGui = Instance.new("ScreenGui")
     toggleGui.Name = "GoonHubToggleGui"
     toggleGui.ResetOnSpawn = false
     toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     toggleGui.Parent = game.CoreGui
     
-    -- Buat tombol dengan Frame sebagai background
+    -- Tombol UKURAN KECIL (40x40)
     local buttonFrame = Instance.new("Frame")
     buttonFrame.Name = "ToggleFrame"
-    buttonFrame.Size = UDim2.new(0, 70, 0, 70)
-    buttonFrame.Position = UDim2.new(0, 20, 0, 100)
+    buttonFrame.Size = UDim2.new(0, 40, 0, 40)
+    buttonFrame.Position = UDim2.new(0, 15, 0, 80)
     buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
     buttonFrame.BackgroundTransparency = 0
     buttonFrame.BorderSizePixel = 0
@@ -2495,12 +2572,12 @@ task.spawn(function()
     buttonFrame.ZIndex = 9999
     buttonFrame.Parent = toggleGui
     
-    -- Corner radius untuk frame
+    -- Corner radius
     local frameCorner = Instance.new("UICorner")
-    frameCorner.CornerRadius = UDim.new(0, 14)
+    frameCorner.CornerRadius = UDim.new(0, 10)
     frameCorner.Parent = buttonFrame
     
-    -- Shadow/glow effect
+    -- Glow effect (lebih kecil)
     local glow = Instance.new("Frame")
     glow.Name = "Glow"
     glow.Size = UDim2.new(1.4, 0, 1.4, 0)
@@ -2510,12 +2587,12 @@ task.spawn(function()
     glow.BorderSizePixel = 0
     glow.ZIndex = -1
     glow.Parent = buttonFrame
-    Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 18)
+    Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 14)
     
-    -- Tombol utama
+    -- Tombol (lebih besar dari frame agar mudah dipencet)
     local toggleButton = Instance.new("TextButton")
     toggleButton.Name = "ToggleButton"
-    toggleButton.Size = UDim2.new(1, -10, 1, -10)
+    toggleButton.Size = UDim2.new(1.3, 0, 1.3, 0)
     toggleButton.Position = UDim2.new(0.5, 0, 0.5, 0)
     toggleButton.AnchorPoint = Vector2.new(0.5, 0.5)
     toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
@@ -2523,7 +2600,7 @@ task.spawn(function()
     toggleButton.BorderSizePixel = 0
     toggleButton.Text = "−"
     toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleButton.TextSize = 32
+    toggleButton.TextSize = 24
     toggleButton.Font = Enum.Font.GothamBold
     toggleButton.ZIndex = 9999
     toggleButton.AutoButtonColor = false
@@ -2531,47 +2608,41 @@ task.spawn(function()
     
     -- Corner untuk tombol
     local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 12)
+    btnCorner.CornerRadius = UDim.new(0, 8)
     btnCorner.Parent = toggleButton
     
-    -- Tooltip saat hover
+    -- Tooltip
     local tooltip = Instance.new("TextLabel")
     tooltip.Name = "Tooltip"
-    tooltip.Size = UDim2.new(0, 120, 0, 25)
-    tooltip.Position = UDim2.new(0.5, -60, 1, 10)
+    tooltip.Size = UDim2.new(0, 80, 0, 18)
+    tooltip.Position = UDim2.new(0.5, -40, 1, 6)
     tooltip.AnchorPoint = Vector2.new(0.5, 0)
     tooltip.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-    tooltip.BackgroundTransparency = 0.2
+    tooltip.BackgroundTransparency = 0.3
     tooltip.BorderSizePixel = 0
-    tooltip.Text = "Toggle Menu ( - )"
+    tooltip.Text = "Menu"
     tooltip.TextColor3 = Color3.fromRGB(200, 200, 255)
-    tooltip.TextSize = 12
+    tooltip.TextSize = 10
     tooltip.Font = Enum.Font.GothamMedium
     tooltip.Visible = false
     tooltip.ZIndex = 9999
     tooltip.Parent = buttonFrame
-    Instance.new("UICorner", tooltip).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", tooltip).CornerRadius = UDim.new(0, 4)
     
     -- Variabel state
     local menuVisible = true
     
-    -- Fungsi toggle yang AMAN (hanya menyembunyikan menu Fluent)
+    -- Fungsi toggle
     local function toggleMenu()
         menuVisible = not menuVisible
         
-        -- HANYA target menu Fluent, BUKAN semua objek
-        local success = pcall(function()
-            -- Method 1: Set ScreenGui Enabled (paling aman)
+        pcall(function()
             if fluentScreenGui and fluentScreenGui:IsA("ScreenGui") then
                 fluentScreenGui.Enabled = menuVisible
             end
-            
-            -- Method 2: Set Root Visible
             if Window and Window.Root then
                 Window.Root.Visible = menuVisible
             end
-            
-            -- Method 3: Set container jika ada
             if Window and Window.Container then
                 Window.Container.Visible = menuVisible
             end
@@ -2580,36 +2651,78 @@ task.spawn(function()
             end
         end)
         
-        if not success then
-            -- Fallback: cari frame dengan Title
-            for _, child in ipairs(fluentScreenGui:GetChildren()) do
-                if child:IsA("Frame") and child:FindFirstChild("Title") then
-                    child.Visible = menuVisible
-                end
-            end
-        end
-        
-        -- Update tampilan tombol (TANPA menyembunyikan tombol itu sendiri)
+        -- Update tampilan
         if menuVisible then
             toggleButton.Text = "−"
             buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
             glow.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
             glow.BackgroundTransparency = 0.7
             toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            tooltip.Text = "Toggle Menu ( - )"
+            tooltip.Text = "Menu"
         else
             toggleButton.Text = "+"
             buttonFrame.BackgroundColor3 = Color3.fromRGB(45, 25, 25)
             glow.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
             glow.BackgroundTransparency = 0.6
             toggleButton.TextColor3 = Color3.fromRGB(255, 200, 200)
-            tooltip.Text = "Show Menu ( + )"
+            tooltip.Text = "Menu"
         end
     end
     
-    -- ==================== EVENT HANDLERS ====================
+    -- ==================== DRAG SYSTEM (FIXED) ====================
+    local dragData = {
+        dragging = false,
+        dragStart = nil,
+        startPos = nil,
+        isDragging = false
+    }
     
-    -- Hover effect
+    -- Mulai drag dari tombol
+    toggleButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragData.dragging = true
+            dragData.dragStart = input.Position
+            dragData.startPos = buttonFrame.Position
+            dragData.isDragging = false
+        end
+    end)
+    
+    toggleButton.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragData.dragging = false
+            task.wait(0.05)
+            dragData.isDragging = false
+        end
+    end)
+    
+    -- Track gerakan mouse
+    local mouseConnection
+    mouseConnection = UserInputService.InputChanged:Connect(function(input)
+        if dragData.dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragData.dragStart
+            if delta.Magnitude > 3 then
+                dragData.isDragging = true
+            end
+            
+            if dragData.isDragging then
+                local newX = dragData.startPos.X.Offset + delta.X
+                local newY = dragData.startPos.Y.Offset + delta.Y
+                
+                -- Batasi agar tidak keluar layar
+                local screenSize = game:GetService("GuiService"):GetScreenSize()
+                local maxX = screenSize.X - 40
+                local maxY = screenSize.Y - 40
+                
+                newX = math.clamp(newX, 0, maxX)
+                newY = math.clamp(newY, 0, maxY)
+                
+                buttonFrame.Position = UDim2.new(0, newX, 0, newY)
+                _G.GoonHubButtonPos = { X = newX, Y = newY }
+            end
+        end
+    end)
+    
+    -- Hover effects
     toggleButton.MouseEnter:Connect(function()
         tooltip.Visible = true
         if menuVisible then
@@ -2632,79 +2745,14 @@ task.spawn(function()
         end
     end)
     
-    -- Click
-    toggleButton.MouseButton1Click:Connect(toggleMenu)
+    -- Click hanya jika bukan drag
+    toggleButton.MouseButton1Click:Connect(function()
+        if not dragData.isDragging then
+            toggleMenu()
+        end
+    end)
     
--- ==================== DRAG SYSTEM (FIXED - Lebih Responsif) ====================
-local dragData = {
-    dragging = false,
-    dragStart = nil,
-    startPos = nil,
-    isDragging = false
-}
-
--- Deteksi drag dari tombol (bukan frame)
-toggleButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragData.dragging = true
-        dragData.dragStart = input.Position
-        dragData.startPos = buttonFrame.Position
-        dragData.isDragging = false
-    end
-end)
-
-toggleButton.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragData.dragging = false
-        -- Jika tidak ada pergerakan, berarti klik biasa
-        task.wait(0.05)
-        dragData.isDragging = false
-    end
-end)
-
--- Track mouse movement
-local mouseConnection
-mouseConnection = UserInputService.InputChanged:Connect(function(input)
-    if dragData.dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragData.dragStart
-        -- Deteksi jika ada pergerakan (bukan klik)
-        if delta.Magnitude > 5 then
-            dragData.isDragging = true
-        end
-        
-        if dragData.isDragging then
-            -- Hitung posisi baru
-            local newX = dragData.startPos.X.Offset + delta.X
-            local newY = dragData.startPos.Y.Offset + delta.Y
-            
-            -- Batasi agar tidak keluar layar
-            local screenSize = game:GetService("GuiService"):GetScreenSize()
-            local maxX = screenSize.X - 70
-            local maxY = screenSize.Y - 70
-            
-            newX = math.clamp(newX, 0, maxX)
-            newY = math.clamp(newY, 0, maxY)
-            
-            -- Terapkan posisi baru
-            buttonFrame.Position = UDim2.new(0, newX, 0, newY)
-            
-            -- Simpan posisi
-            _G.GoonHubButtonPos = { X = newX, Y = newY }
-        end
-    end
-end)
-
--- Cleanup saat tombol dihapus
-toggleButton.AncestryChanged:Connect(function()
-    if not toggleButton.Parent then
-        if mouseConnection then
-            mouseConnection:Disconnect()
-            mouseConnection = nil
-        end
-    end
-end)
-    
-    -- ==================== KEYBOARD SHORTCUT ====================
+    -- Keyboard shortcut
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.Minus or input.KeyCode == Enum.KeyCode.M then
@@ -2712,25 +2760,12 @@ end)
         end
     end)
     
-    -- ==================== SIMPAN POSISI ====================
-    -- Simpan posisi tombol (opsional)
-    local function savePosition()
-        local pos = buttonFrame.Position
-        _G.GoonHubButtonPos = {
-            X = pos.X.Offset,
-            Y = pos.Y.Offset
-        }
-    end
-    
     -- Load posisi tersimpan
     if _G.GoonHubButtonPos then
         buttonFrame.Position = UDim2.new(0, _G.GoonHubButtonPos.X, 0, _G.GoonHubButtonPos.Y)
     end
     
-    -- Simpan posisi saat game ditutup
-    game:BindToClose(savePosition)
-    
-    -- ==================== GLOBAL API ====================
+    -- Global API
     _G.GoonHubToggle = {
         Button = toggleButton,
         Frame = buttonFrame,
@@ -2745,22 +2780,18 @@ end)
             return menuVisible
         end,
         SetPosition = function(x, y)
-            buttonFrame.Position = UDim2.new(0, x or 20, 0, y or 100)
+            buttonFrame.Position = UDim2.new(0, x or 15, 0, y or 80)
         end
     }
     
-    print("[Goonsaken] ✅ Menu toggle berhasil!")
-    print("💡 Klik tombol atau tekan '-' di keyboard")
+    print("[Goonsaken] ✅ Menu toggle siap!")
+    print("💡 Klik tombol atau tekan '-' untuk toggle menu")
     print("💡 Drag tombol untuk memindahkan")
-    
-    -- Notifikasi awal
-    if Fluent and Fluent.Notify then
-        pcall(function()
-            Fluent:Notify({
-                Title = "Goonsaken Hub v3.6",
-                Content = "Klik '−' atau tekan '-' untuk toggle menu!",
-                Duration = 3
-            })
-        end)
-    end
 end)
+
+-- ===================== SAVE CONFIG =====================
+SaveManager:LoadAutoloadConfig()
+
+print("[Goonsaken Hub v3.6] Loaded successfully!")
+print("Click '-' to toggle menu (Shadow Style - Perfect!)")
+print("Drag the '-' button to move it anywhere!")
