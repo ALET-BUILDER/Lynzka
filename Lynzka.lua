@@ -2460,158 +2460,69 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
--- ===================== SHADOW STYLE MINUS BUTTON TOGGLE =====================
+-- ===================== SHADOW STYLE MENU TOGGLE (FIXED) =====================
 task.spawn(function()
-    local toggleHolder = game.CoreGui:FindFirstChild("TopBarApp")
-        and game.CoreGui.TopBarApp:FindFirstChild("TopBarApp")
-        and game.CoreGui.TopBarApp.TopBarApp:FindFirstChild("UnibarLeftFrame")
-        and game.CoreGui.TopBarApp.TopBarApp.UnibarLeftFrame:FindFirstChild("UnibarMenu")
-        and game.CoreGui.TopBarApp.TopBarApp.UnibarLeftFrame.UnibarMenu:FindFirstChild("2")
-
-    if not toggleHolder then
-        -- Fallback: cari TopBarApp langsung
-        toggleHolder = game.CoreGui:FindFirstChild("TopBarApp")
-        if not toggleHolder then
-            toggleHolder = game.CoreGui:FindFirstChild("TopBarAppV2")
-        end
-        if not toggleHolder then
-            -- Buat holder sendiri di CoreGui
-            toggleHolder = Instance.new("Frame")
-            toggleHolder.Name = "GoonHubToggleHolder"
-            toggleHolder.Size = UDim2.new(0, 200, 0, 44)
-            toggleHolder.BackgroundTransparency = 1
-            toggleHolder.Position = UDim2.new(0.5, -100, 0, 50)
-            toggleHolder.Parent = game.CoreGui
-        end
-    end
-
-    if not toggleHolder then return end
-
-    local buttonFrame = Instance.new("Frame")
-    buttonFrame.Size = UDim2.new(0, 70, 0, 44)
-    buttonFrame.BackgroundTransparency = 1
-    buttonFrame.BorderSizePixel = 0
-    buttonFrame.Position = UDim2.new(0, 0, 0, 0)
-    buttonFrame.Parent = toggleHolder
-
-    local minusButton = Instance.new("TextButton")
-    minusButton.Size = UDim2.new(0, 60, 0, 36)
-    minusButton.Position = UDim2.new(0.5, -30, 0.5, -18)
-    minusButton.AnchorPoint = Vector2.new(0.5, 0.5)
-    minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
-    minusButton.BackgroundTransparency = 0
-    minusButton.BorderSizePixel = 0
-    minusButton.Text = "-"
-    minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
-    minusButton.Font = Enum.Font.GothamBold
-    minusButton.TextSize = 24
-    minusButton.TextScaled = false
-    minusButton.ZIndex = 999
-    minusButton.Parent = buttonFrame
-    Instance.new("UICorner", minusButton).CornerRadius = UDim.new(0, 6)
-
-    -- DRAG SYSTEM
-    local dragData = {
-        dragging = false,
-        startPos = nil,
-        startMouse = nil,
-        startButtonPos = nil
-    }
-
-    minusButton.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-           input.UserInputType == Enum.UserInputType.Touch then
-            dragData.dragging = true
-            dragData.startPos = buttonFrame.Position
-            dragData.startButtonPos = buttonFrame.Position
-            dragData.startMouse = input.Position
-        end
-    end)
-
-    minusButton.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-           input.UserInputType == Enum.UserInputType.Touch then
-            dragData.dragging = false
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragData.dragging then
-            if input.UserInputType == Enum.UserInputType.MouseMovement or 
-               input.UserInputType == Enum.UserInputType.Touch then
-                local delta = input.Position - dragData.startMouse
-                local newPos = UDim2.new(
-                    dragData.startPos.X.Scale,
-                    dragData.startPos.X.Offset + delta.X,
-                    dragData.startPos.Y.Scale,
-                    dragData.startPos.Y.Offset + delta.Y
-                )
-                buttonFrame.Position = newPos
-            end
-        end
-    end)
-
-    -- HOVER EFFECTS
-    minusButton.MouseEnter:Connect(function()
-        minusButton.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
-        minusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    end)
-    minusButton.MouseLeave:Connect(function()
-        if menuVisible then
-            minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
-            minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
-        else
-            minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
-            minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
-        end
-    end)
-
-    -- ==================== TOGGLE MENU ====================
-    local menuVisible = true
+    -- Tunggu Fluent selesai loading
+    repeat task.wait(0.1) until Window and Window._container
     
-    -- Fungsi untuk mendapatkan main GUI dari Fluent
-    local function getFluentMainGui()
-        -- Coba berbagai cara untuk mendapatkan GUI Fluent
+    -- Dapatkan ScreenGui utama Fluent
+    local fluentGui = nil
+    local fluentContainer = nil
+    
+    -- Cari Fluent GUI
+    local function findFluentGui()
+        -- Cek dari Window
         if Window then
-            -- Cek properti yang mungkin ada
-            if Window.Gui then
-                return Window.Gui
+            -- Coba berbagai properti
+            if Window._container then
+                fluentContainer = Window._container
+                fluentGui = fluentContainer.Parent
+                if fluentGui and fluentGui:IsA("ScreenGui") then
+                    return fluentGui
+                end
             end
             if Window.Container then
-                return Window.Container
+                fluentContainer = Window.Container
+                fluentGui = fluentContainer.Parent
+                if fluentGui and fluentGui:IsA("ScreenGui") then
+                    return fluentGui
+                end
+            end
+            if Window.Gui then
+                fluentGui = Window.Gui
+                if fluentGui:IsA("ScreenGui") then
+                    return fluentGui
+                end
             end
             if Window.Root then
-                return Window.Root
-            end
-            if Window.ScreenGui then
-                return Window.ScreenGui
-            end
-            if Window._gui then
-                return Window._gui
-            end
-            if Window._container then
-                return Window._container
+                fluentGui = Window.Root.Parent
+                if fluentGui and fluentGui:IsA("ScreenGui") then
+                    return fluentGui
+                end
             end
         end
         
-        -- Cari di CoreGui
-        local coreGui = game:GetService("CoreGui")
-        for _, child in ipairs(coreGui:GetChildren()) do
-            if child:IsA("ScreenGui") then
-                if child.Name:lower():find("fluent") or 
-                   child.Name:lower():find("window") or
-                   child.Name:lower():find("goon") then
-                    return child
-                end
-                -- Cek child untuk Frame dengan Fluent
-                for _, sub in ipairs(child:GetChildren()) do
-                    if sub:IsA("Frame") and sub:FindFirstChild("TopBar") then
-                        return child
-                    end
-                    if sub:IsA("Frame") and sub:FindFirstChild("Title") then
-                        local title = sub:FindFirstChild("Title")
-                        if title and title:IsA("TextLabel") and title.Text and title.Text:find("Goon") then
-                            return child
+        -- Scan CoreGui
+        for _, sg in ipairs(game.CoreGui:GetChildren()) do
+            if sg:IsA("ScreenGui") then
+                -- Cek apakah ini Fluent
+                for _, child in ipairs(sg:GetChildren()) do
+                    if child:IsA("Frame") then
+                        -- Cek title
+                        local title = child:FindFirstChild("Title")
+                        if title and title:IsA("TextLabel") then
+                            local text = title.Text or ""
+                            if text:find("GoonHub") or text:find("Goon") or text:find("Fluent") then
+                                return sg
+                            end
+                        end
+                        -- Cek top bar
+                        if child:FindFirstChild("TopBar") then
+                            return sg
+                        end
+                        -- Cek shadow atau draggable
+                        if child:FindFirstChild("Shadow") or child:FindFirstChild("Draggable") then
+                            return sg
                         end
                     end
                 end
@@ -2619,127 +2530,260 @@ task.spawn(function()
         end
         return nil
     end
-
-    minusButton.MouseButton1Click:Connect(function()
-        -- Cari GUI Fluent
-        local gui = getFluentMainGui()
+    
+    -- Tunggu sampai GUI ditemukan
+    local attempts = 0
+    while not fluentGui and attempts < 50 do
+        fluentGui = findFluentGui()
+        if not fluentGui then
+            task.wait(0.2)
+            attempts = attempts + 1
+        end
+    end
+    
+    if not fluentGui then
+        warn("[Goonsaken Hub] Tidak dapat menemukan Fluent GUI!")
+        return
+    end
+    
+    -- Simpan referensi
+    _G.FluentGui = fluentGui
+    _G.FluentContainer = fluentContainer or Window._container or Window.Container or Window.Root
+    
+    -- Buat toggle button di CoreGui
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "GoonHubToggle"
+    toggleButton.Size = UDim2.new(0, 60, 0, 60)
+    toggleButton.Position = UDim2.new(0, 10, 0, 100)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+    toggleButton.BackgroundTransparency = 0
+    toggleButton.BorderSizePixel = 0
+    toggleButton.Text = "−"
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.TextSize = 30
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.ClipsDescendants = true
+    toggleButton.ZIndex = 9999
+    toggleButton.Parent = game.CoreGui
+    
+    -- Tambah rounded corners
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = toggleButton
+    
+    -- Tambah shadow
+    local shadow = Instance.new("ImageLabel")
+    shadow.Name = "Shadow"
+    shadow.Size = UDim2.new(1.2, 0, 1.2, 0)
+    shadow.Position = UDim2.new(-0.1, 0, -0.1, 0)
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://131504545"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = 0.5
+    shadow.Parent = toggleButton
+    
+    -- Tambah glow effect
+    local glow = Instance.new("Frame")
+    glow.Name = "Glow"
+    glow.Size = UDim2.new(1.4, 0, 1.4, 0)
+    glow.Position = UDim2.new(-0.2, 0, -0.2, 0)
+    glow.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+    glow.BackgroundTransparency = 0.8
+    glow.BorderSizePixel = 0
+    glow.ZIndex = -1
+    glow.Parent = toggleButton
+    Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 16)
+    
+    -- Variable state
+    local menuVisible = true
+    
+    -- Fungsi untuk toggle menu
+    local function toggleMenu()
+        menuVisible = not menuVisible
         
-        if not gui then
-            -- Jika tidak ditemukan, coba cari Window.Root langsung
-            if Window and Window.Root then
-                gui = Window.Root.Parent
-                if not gui then
-                    gui = Window.Root
+        -- Set visibility semua komponen Fluent
+        local success = pcall(function()
+            -- Method 1: Set ScreenGui Enabled
+            if fluentGui and fluentGui:IsA("ScreenGui") then
+                fluentGui.Enabled = menuVisible
+            end
+            
+            -- Method 2: Set container Visible
+            if fluentContainer then
+                fluentContainer.Visible = menuVisible
+            end
+            
+            -- Method 3: Set semua child di dalam GUI
+            if fluentGui then
+                for _, child in ipairs(fluentGui:GetChildren()) do
+                    if child:IsA("Frame") or child:IsA("ScrollingFrame") then
+                        child.Visible = menuVisible
+                    end
                 end
             end
-        end
-
-        if not gui then
-            -- Coba cari ScreenGui yang berisi Fluent
+            
+            -- Method 4: Set Window.Root
+            if Window and Window.Root then
+                Window.Root.Visible = menuVisible
+            end
+            
+            -- Method 5: Cari semua Frame dengan Title
+            if fluentGui then
+                for _, child in ipairs(fluentGui:GetDescendants()) do
+                    if child:IsA("Frame") and child:FindFirstChild("Title") then
+                        child.Visible = menuVisible
+                    end
+                    if child:IsA("ScrollingFrame") then
+                        child.Visible = menuVisible
+                    end
+                end
+            end
+        end)
+        
+        if not success then
+            -- Fallback terakhir: coba set semua ScreenGui di CoreGui
             for _, sg in ipairs(game.CoreGui:GetChildren()) do
                 if sg:IsA("ScreenGui") then
                     for _, child in ipairs(sg:GetChildren()) do
                         if child:IsA("Frame") and child:FindFirstChild("Title") then
                             local title = child:FindFirstChild("Title")
-                            if title and title:IsA("TextLabel") and title.Text and title.Text:find("GoonHub") then
-                                gui = sg
-                                break
+                            if title and title:IsA("TextLabel") then
+                                local text = title.Text or ""
+                                if text:find("GoonHub") or text:find("Fluent") then
+                                    sg.Enabled = menuVisible
+                                    break
+                                end
                             end
                         end
                     end
                 end
-                if gui then break end
             end
         end
-
-        if not gui then
-            warn("Tidak dapat menemukan GUI Fluent!")
-            -- Notifikasi error
-            if Fluent and Fluent.Notify then
-                Fluent:Notify({
-                    Title = "Error",
-                    Content = "Tidak dapat menemukan menu!",
-                    Duration = 3
-                })
-            end
-            return
-        end
-
-        -- Toggle visibility
-        menuVisible = not menuVisible
         
-        -- Set visibility untuk semua child dari GUI
-        local success = pcall(function()
-            for _, obj in ipairs(gui:GetChildren()) do
-                -- Jangan sentuh tombol toggle sendiri
-                if obj ~= buttonFrame and obj ~= minusButton and obj ~= buttonFrame.Parent then
-                    if obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ScreenGui") then
-                        obj.Visible = menuVisible
-                    end
-                end
-            end
-            
-            -- Jika GUI itu sendiri adalah ScreenGui, set enabled
-            if gui:IsA("ScreenGui") then
-                gui.Enabled = menuVisible
-            end
-        end)
-
-        if not success then
-            -- Fallback: coba set visible untuk Window.Root
-            if Window and Window.Root then
-                Window.Root.Visible = menuVisible
-            end
-        end
-
         -- Update tampilan tombol
         if menuVisible then
-            minusButton.Text = "-"
-            minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
-            minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
+            toggleButton.Text = "−"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+            toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            glow.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+            glow.BackgroundTransparency = 0.8
+            
+            -- Notifikasi
             if Fluent and Fluent.Notify then
-                Fluent:Notify({
-                    Title = "Menu",
-                    Content = "Menu ditampilkan",
-                    Duration = 1
-                })
+                pcall(function()
+                    Fluent:Notify({
+                        Title = "Menu",
+                        Content = "Menu ditampilkan",
+                        Duration = 1
+                    })
+                end)
             end
         else
-            minusButton.Text = "+"
-            minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
-            minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+            toggleButton.Text = "+"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(50, 30, 30)
+            toggleButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+            glow.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            glow.BackgroundTransparency = 0.6
+        end
+    end
+    
+    -- Hover effects
+    toggleButton.MouseEnter:Connect(function()
+        if menuVisible then
+            toggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
+            glow.BackgroundTransparency = 0.5
+        else
+            toggleButton.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+            glow.BackgroundTransparency = 0.4
         end
     end)
-
-    -- Simpan referensi untuk akses global
-    _G.GoonHubMenuButton = {
-        Button = minusButton,
-        Frame = buttonFrame,
-        Toggle = function()
-            minusButton.MouseButton1Click:Fire()
-        end,
-        SetVisible = function(visible)
-            menuVisible = visible
-            local gui = getFluentMainGui()
-            if gui then
-                if gui:IsA("ScreenGui") then
-                    gui.Enabled = visible
-                else
-                    gui.Visible = visible
-                end
-            end
-            if visible then
-                minusButton.Text = "-"
-                minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
-                minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
-            else
-                minusButton.Text = "+"
-                minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
-                minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+    
+    toggleButton.MouseLeave:Connect(function()
+        if menuVisible then
+            toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+            glow.BackgroundTransparency = 0.8
+        else
+            toggleButton.BackgroundColor3 = Color3.fromRGB(50, 30, 30)
+            glow.BackgroundTransparency = 0.6
+        end
+    end)
+    
+    -- Click handler
+    toggleButton.MouseButton1Click:Connect(toggleMenu)
+    
+    -- DRAG SYSTEM
+    local dragData = {
+        dragging = false,
+        startPos = nil,
+        startMouse = nil
+    }
+    
+    toggleButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragData.dragging = true
+            dragData.startPos = toggleButton.Position
+            dragData.startMouse = input.Position
+        end
+    end)
+    
+    toggleButton.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragData.dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragData.dragging then
+            if input.UserInputType == Enum.UserInputType.MouseMovement or 
+               input.UserInputType == Enum.UserInputType.Touch then
+                local delta = input.Position - dragData.startMouse
+                local newPos = UDim2.new(
+                    dragData.startPos.X.Scale,
+                    math.clamp(dragData.startPos.X.Offset + delta.X, 0, 500),
+                    dragData.startPos.Y.Scale,
+                    math.clamp(dragData.startPos.Y.Offset + delta.Y, 0, 500)
+                )
+                toggleButton.Position = newPos
             end
         end
+    end)
+    
+    -- Keyboard shortcut: Klik tombol minus di keyboard
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == Enum.KeyCode.Minus or input.KeyCode == Enum.KeyCode.M then
+            toggleMenu()
+        end
+    end)
+    
+    -- Simpan referensi global
+    _G.GoonHubToggle = {
+        Button = toggleButton,
+        Toggle = toggleMenu,
+        SetVisible = function(visible)
+            if visible ~= menuVisible then
+                toggleMenu()
+            end
+        end,
+        IsVisible = function()
+            return menuVisible
+        end
     }
-
-    print("[Goonsaken Hub] Menu toggle button loaded!")
-    print("Klik '-' untuk toggle menu, drag untuk memindahkan!")
+    
+    print("[Goonsaken Hub] ✅ Menu toggle berhasil dipasang!")
+    print("💡 Klik '−' atau tekan '-' (minus) di keyboard untuk toggle menu")
+    print("💡 Drag tombol untuk memindahkan posisi")
+    
+    -- Notifikasi awal
+    if Fluent and Fluent.Notify then
+        pcall(function()
+            Fluent:Notify({
+                Title = "Goonsaken Hub v3.6",
+                Content = "Klik '−' atau tekan '-' untuk toggle menu!",
+                Duration = 4
+            })
+        end)
+    end
 end)
