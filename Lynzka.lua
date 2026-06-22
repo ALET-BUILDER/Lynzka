@@ -1,7 +1,8 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║      🔥 LYNZKA HUB v3.6.2 🔥           ║
+    ║      🔥 LYNZKA HUB v3.6.4 🔥           ║
     ║   Shadow Style - Perfect Toggle        ║
+    ║   ALL ERRORS FIXED!                    ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -60,200 +61,65 @@ local wallbangActive = false
 local wallbangConnection = nil
 local SpeedLoop = nil
 local nameProtectActive = false
-local originalNames = {}
+local originalName = ""
 
--- ===================== SPEED HACK =====================
-local speedHackActive = false
-local speedHackValue = 5
+-- ===================== NOCLIP - ANTI MASUK TANAH =====================
+local noclipActive = false
+local noclipConnection = nil
 
--- ===================== FLY (FIXED - ANALOG ROXBLOX + SMOOTH) =====================
-local flyActive = false
-local flyHeight = 10
-local flyConnection = nil
-local flyBodyVelocity = nil
-local flyBodyGyro = nil
-local flyNoclip = true
-local flySpeed = 50
-
-local function ToggleFly(state)
-    flyActive = state
+local function ToggleNoclip(state)
+    noclipActive = state
     
-    if flyActive then
-        if flyConnection then flyConnection:Disconnect() end
+    if noclipActive then
+        if noclipConnection then noclipConnection:Disconnect() end
         
-        -- Bersihkan BodyVelocity lama
-        if flyBodyVelocity then
-            flyBodyVelocity:Destroy()
-            flyBodyVelocity = nil
-        end
-        if flyBodyGyro then
-            flyBodyGyro:Destroy()
-            flyBodyGyro = nil
-        end
-        
-        local char = LocalPlayer.Character
-        if not char then
-            notify("❌ Character not found!", 2)
-            return
-        end
-        
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then
-            notify("❌ HumanoidRootPart not found!", 2)
-            return
-        end
-        
-        -- Naikkan ke ketinggian yang dipilih
-        local targetPos = Vector3.new(hrp.Position.X, flyHeight, hrp.Position.Z)
-        hrp.CFrame = CFrame.new(targetPos)
-        
-        -- Matikan gravitasi
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.PlatformStand = true
-            hum.Sit = false
-            hum.AutoRotate = false
-        end
-        
-        -- BodyVelocity untuk kontrol halus
-        flyBodyVelocity = Instance.new("BodyVelocity")
-        flyBodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        flyBodyVelocity.Parent = hrp
-        
-        -- BodyGyro untuk stabilitas
-        flyBodyGyro = Instance.new("BodyGyro")
-        flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-        flyBodyGyro.CFrame = hrp.CFrame
-        flyBodyGyro.Parent = hrp
-        
-        -- LOOP UTAMA TERBANG - PAKE ANALOG ROXBLOX
-        flyConnection = RunService.Heartbeat:Connect(function()
-            if not flyActive then
-                if flyConnection then
-                    flyConnection:Disconnect()
-                    flyConnection = nil
+        -- Aktifkan noclip
+        noclipConnection = RunService.Heartbeat:Connect(function()
+            if not noclipActive then
+                if noclipConnection then
+                    noclipConnection:Disconnect()
+                    noclipConnection = nil
                 end
                 return
             end
             
-            local char2 = LocalPlayer.Character
-            if not char2 then return end
+            local char = LocalPlayer.Character
+            if not char then return end
             
-            local hrp2 = char2:FindFirstChild("HumanoidRootPart")
-            local hum2 = char2:FindFirstChildOfClass("Humanoid")
-            if not hrp2 or not hum2 then return end
-            
-            -- NOCLIP
-            if flyNoclip then
-                for _, part in pairs(char2:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        pcall(function()
-                            part.CanCollide = false
-                        end)
-                    end
+            -- Set semua part ke CanCollide = false
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    pcall(function()
+                        part.CanCollide = false
+                    end)
                 end
-            end
-            
-            -- DAPATKAN INPUT DARI ROXBLOX ANALOG
-            local moveDir = hum2.MoveDirection
-            local walkSpeed = hum2.WalkSpeed
-            
-            -- Hitung velocity berdasarkan arah gerak
-            if moveDir.Magnitude > 0 then
-                -- Kecepatan terbang = walk speed * multiplier
-                local currentFlySpeed = walkSpeed * 3.5
-                currentFlySpeed = math.clamp(currentFlySpeed, 10, 150)
-                
-                -- Velocity arah gerak horizontal
-                local vel = moveDir * currentFlySpeed
-                
-                -- Pertahankan ketinggian
-                local currentY = hrp2.Position.Y
-                local targetY = flyHeight
-                local diff = (targetY - currentY) * 3
-                diff = math.clamp(diff, -25, 25)
-                
-                -- Gabungkan velocity horizontal + vertikal
-                vel = Vector3.new(vel.X, diff, vel.Z)
-                
-                if flyBodyVelocity then
-                    flyBodyVelocity.Velocity = vel
-                end
-            else
-                -- Kalo ga gerak, hover stabil di tempat
-                local currentY = hrp2.Position.Y
-                local targetY = flyHeight
-                local diff = (targetY - currentY) * 3
-                diff = math.clamp(diff, -10, 10)
-                
-                if flyBodyVelocity then
-                    flyBodyVelocity.Velocity = Vector3.new(0, diff, 0)
-                end
-            end
-            
-            -- Update gyro biar stabil
-            if flyBodyGyro then
-                flyBodyGyro.CFrame = CFrame.new(hrp2.Position, hrp2.Position + Camera.CFrame.LookVector)
             end
         end)
-        
-        notify("✈️ FLY ON - Ketinggian: " .. flyHeight .. "m (Gerakin pake analog/WASD)", 3)
+        notify("🚫 NOCLIP ON - Ga bakal masuk tanah!", 2)
     else
-        -- MATIKAN FLY
-        if flyConnection then
-            flyConnection:Disconnect()
-            flyConnection = nil
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
         end
         
-        -- Hapus BodyVelocity & BodyGyro
-        if flyBodyVelocity then
-            flyBodyVelocity:Destroy()
-            flyBodyVelocity = nil
-        end
-        if flyBodyGyro then
-            flyBodyGyro:Destroy()
-            flyBodyGyro = nil
-        end
-        
+        -- Kembalikan CanCollide
         local char = LocalPlayer.Character
         if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.PlatformStand = false
-                hum.AutoRotate = true
-            end
-            
-            -- TURUN KE TANAH
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local ray = Ray.new(hrp.Position, Vector3.new(0, -200, 0))
-                local hit, pos = Workspace:FindPartOnRay(ray, char)
-                if pos then
-                    hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, pos.Y + 2, hrp.Position.Z))
-                else
-                    hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 2, hrp.Position.Z))
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    pcall(function()
+                        part.CanCollide = true
+                    end)
                 end
             end
         end
-        
-        notify("✈️ FLY OFF - Mendarat...", 2)
+        notify("🚫 NOCLIP OFF", 2)
     end
 end
 
--- ===================== UPDATE KETINGGIAN DARI MENU =====================
-local function updateFlyHeight(height)
-    flyHeight = height
-    notify("✈️ Ketinggian diatur ke: " .. height .. "m", 2)
-    if flyActive then
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            local hrp = char.HumanoidRootPart
-            -- Naikkan ke ketinggian baru
-            hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, height, hrp.Position.Z))
-        end
-    end
-end
+-- ===================== SPEED HACK =====================
+local speedHackActive = false
+local speedHackValue = 5
 
 -- ===================== INFINITE STAMINA =====================
 local staminaLoop = nil
@@ -293,62 +159,56 @@ local function notify(text, duration)
     end
 end
 
--- ===================== NAMEPROTECT =====================
+-- ===================== NAMEPROTECT (FIXED - PROTEKSI NAMA KITA) =====================
 local function ToggleNameProtect(state)
     nameProtectActive = state
     
     if state then
-        -- Simpan nama asli semua player
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                originalNames[player] = player.Name
-                pcall(function()
-                    player.Name = "???"
-                end)
-            end
+        -- SIMPAN NAMA ASLI KITA
+        originalName = LocalPlayer.Name
+        
+        -- GANTI NAMA KITA JADI "???"
+        local success, err = pcall(function()
+            LocalPlayer.Name = "???"
+        end)
+        
+        if not success then
+            notify("⚠️ Gagal mengganti nama: " .. tostring(err), 3)
         end
         
-        -- Handler untuk player baru
-        local function onPlayerAdded(player)
-            if player ~= LocalPlayer then
-                originalNames[player] = player.Name
-                pcall(function()
-                    player.Name = "???"
-                end)
-            end
-        end
-        
-        -- Handler untuk player yang keluar
-        local function onPlayerRemoving(player)
-            originalNames[player] = nil
-        end
-        
-        -- Simpan koneksi
-        Connections.NameProtectAdded = Players.PlayerAdded:Connect(onPlayerAdded)
-        Connections.NameProtectRemoving = Players.PlayerRemoving:Connect(onPlayerRemoving)
-        
-        notify("🛡️ NameProtect ON - Nama player disembunyikan!", 3)
-    else
-        -- Kembalikan nama asli
-        for player, name in pairs(originalNames) do
+        -- LISTENER BUAT RESET NAMA KALAU ADA YANG NGANTI
+        if Connections.NameProtectListener then
             pcall(function()
-                if player and player.Parent then
-                    player.Name = name
-                end
+                Connections.NameProtectListener:Disconnect()
+            end)
+            Connections.NameProtectListener = nil
+        end
+        
+        Connections.NameProtectListener = LocalPlayer:GetPropertyChangedSignal("Name"):Connect(function()
+            if nameProtectActive and LocalPlayer.Name ~= "???" then
+                pcall(function()
+                    LocalPlayer.Name = "???"
+                end)
+            end
+        end)
+        
+        notify("🛡️ NameProtect ON - Namamu disembunyikan!", 3)
+    else
+        -- KEMBALIKAN NAMA ASLI
+        if Connections.NameProtectListener then
+            pcall(function()
+                Connections.NameProtectListener:Disconnect()
+            end)
+            Connections.NameProtectListener = nil
+        end
+        
+        if originalName and originalName ~= "" then
+            pcall(function()
+                LocalPlayer.Name = originalName
             end)
         end
-        originalNames = {}
         
-        if Connections.NameProtectAdded then
-            Connections.NameProtectAdded:Disconnect()
-            Connections.NameProtectAdded = nil
-        end
-        if Connections.NameProtectRemoving then
-            Connections.NameProtectRemoving:Disconnect()
-            Connections.NameProtectRemoving = nil
-        end
-        
-        notify("🛡️ NameProtect OFF", 2)
+        notify("🛡️ NameProtect OFF - Namamu kembali!", 2)
     end
 end
 
@@ -507,12 +367,6 @@ local function UpdateESP(player)
         return
     end
     
-    -- Jika NameProtect aktif, tampilkan "???"
-    local displayName = player.Name
-    if nameProtectActive and player ~= LocalPlayer then
-        displayName = "???"
-    end
-    
     local color = GetTeamColor(player)
     
     if espSettings.ShowBox then
@@ -534,7 +388,7 @@ local function UpdateESP(player)
     end
     
     if espSettings.ShowNames then
-        obj.name.Text = displayName
+        obj.name.Text = player.Name
         obj.name.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 15)
         obj.name.Color = color
         obj.name.Visible = true
@@ -728,14 +582,13 @@ local function DisableAimbot()
     end
 end
 
--- ===================== WALLBANG (FIXED) =====================
+-- ===================== WALLBANG =====================
 local wallbangState = false
 
 local function ToggleWallbang()
     wallbangState = not wallbangState
     
     if wallbangState then
-        -- Aktifkan Wallbang
         local char = LocalPlayer.Character
         if char then
             for _, part in pairs(char:GetDescendants()) do
@@ -747,7 +600,6 @@ local function ToggleWallbang()
             end
         end
         
-        -- Start loop untuk mempertahankan
         if wallbangConnection then wallbangConnection:Disconnect() end
         wallbangConnection = RunService.Heartbeat:Connect(function()
             if not wallbangState then
@@ -769,7 +621,6 @@ local function ToggleWallbang()
         end)
         notify("🧱 WALLBANG ON - Tembus dinding!", 3)
     else
-        -- Matikan Wallbang
         if wallbangConnection then
             wallbangConnection:Disconnect()
             wallbangConnection = nil
@@ -1057,7 +908,7 @@ local Window, Tabs = nil, nil
 if FluentLoaded then
     Window = Fluent:CreateWindow({
         Title = "LYNZKA HUB",
-        SubTitle = "v3.6.2 - Shadow Style Perfect",
+        SubTitle = "v3.6.4 - All Errors Fixed!",
         TabWidth = 160,
         Size = UDim2.fromOffset(580, 460),
         Theme = "Dark",
@@ -1100,6 +951,16 @@ if FluentLoaded then
         end
     })
 
+    -- NOCLIP - ANTI MASUK TANAH
+    Tabs.Player:AddToggle("Noclip", {
+        Title = "🚫 Noclip",
+        Description = "Ga bakal masuk tanah / tembus semua",
+        Default = false,
+        Callback = function(state)
+            ToggleNoclip(state)
+        end
+    })
+
     -- SPEED HACK
     Tabs.Player:AddToggle("SpeedHack", {
         Title = "💨 Speed Hack",
@@ -1132,36 +993,6 @@ if FluentLoaded then
                         hum.WalkSpeed = ws
                     end
                 end
-            end
-        end
-    })
-
-    -- FLY (FIXED - ANALOG ROXBLOX)
-    Tabs.Player:AddToggle("Fly", {
-        Title = "✈️ Fly",
-        Description = "Terbang pake analog/WASD + atur ketinggian dari menu",
-        Default = false,
-        Callback = function(state)
-            ToggleFly(state)
-        end
-    })
-
-    -- FLY HEIGHT DROPDOWN
-    local flyHeightOptions = {}
-    for i = 1, 30 do
-        table.insert(flyHeightOptions, tostring(i) .. "m")
-    end
-    
-    Tabs.Player:AddDropdown("FlyHeight", {
-        Title = "📏 Fly Height",
-        Description = "Pilih ketinggian terbang (1m - 30m)",
-        Values = flyHeightOptions,
-        Multi = false,
-        Default = 1,
-        Callback = function(value)
-            local height = tonumber(value:match("(%d+)"))
-            if height then
-                updateFlyHeight(height)
             end
         end
     })
@@ -1438,10 +1269,10 @@ if FluentLoaded then
         end
     })
 
-    -- NAMEPROTECT
+    -- NAMEPROTECT - FIXED
     Tabs.Misc:AddToggle("NameProtect", {
         Title = "🛡️ NameProtect",
-        Description = "Sembunyikan nama player dari ESP dan chat",
+        Description = "Sembunyikan NAMA KAMU sendiri (orang lain ga bisa liat)",
         Default = false,
         Callback = function(state)
             ToggleNameProtect(state)
@@ -1769,7 +1600,7 @@ if FluentLoaded then
 
     -- ===================== FINALIZE =====================
     Window:SelectTab("Player")
-    notify("🔥 LYNZKA HUB v3.6.2 Loaded!", 4)
+    notify("🔥 LYNZKA HUB v3.6.4 Loaded - All Errors Fixed!", 4)
 
     hubLoaded = true
 end
@@ -2066,6 +1897,6 @@ if SaveManager then
     end)
 end
 
-print("[LYNZKA HUB v3.6.2] ✅ Loaded successfully!")
+print("[LYNZKA HUB v3.6.4] ✅ Loaded successfully!")
 print("💡 Klik '-' atau tekan '-' di keyboard untuk toggle menu")
 print("💡 Drag tombol '-' untuk memindahkan posisi")
