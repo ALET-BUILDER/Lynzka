@@ -1,7 +1,7 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║      🔥 GOONSAKEN HUB v3.2 🔥          ║
-    ║   Mobile Friendly - Cat Button Fixed   ║
+    ║      🔥 GOONSAKEN HUB v3.3 🔥          ║
+    ║   Shadow Style - All Features Fixed     ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -34,14 +34,19 @@ local Camera = workspace.CurrentCamera
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- ===================== DRAG SYSTEM (MOBILE FRIENDLY) =====================
-local catButtonData = {
-    dragging = false,
-    startPos = nil,
-    startMouse = nil,
-    object = nil
-}
+-- ===================== SHADOW STYLE VARIABLES =====================
+local godModeActive = false
+local godModeConnection = nil
+local invisibleActive = false
+local invisibleConnection = nil
+local wallbangActive = false
+local wallbangConnection = nil
+local originalTransparency = {}
+local SpeedLoop = nil
+local JumpLoop = nil
+local menuVisible = true
 
 -- ===================== VARIABLES =====================
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -68,7 +73,6 @@ local timebetweenpuzzles = 3
 local running = false
 local animTrack = nil
 local existence = nil
-local menuVisible = true
 
 -- ===================== ESP SYSTEM (OPTIMIZED) =====================
 local EspObjects = {}
@@ -157,11 +161,6 @@ local function GetTeamColor(p)
         return p.Team.TeamColor.Color
     end
     return Color3.fromRGB(255, 255, 255)
-end
-
--- Same Team
-local function SameTeam(p)
-    return LocalPlayer.Team and p.Team and LocalPlayer.Team == p.Team
 end
 
 -- Create ESP for player
@@ -469,6 +468,194 @@ local function DisableAimbot()
     end
 end
 
+-- ===================== SHADOW STYLE FUNCTIONS =====================
+
+-- GOD MODE (Shadow Style)
+local function ToggleGodMode()
+    godModeActive = not godModeActive
+    local char = LocalPlayer.Character
+    if not char then 
+        Fluent:Notify({
+            Title = "❌ Error",
+            Content = "Character not found!",
+            Duration = 3
+        })
+        return 
+    end
+    
+    if godModeActive then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.MaxHealth = 9e9
+            humanoid.Health = 9e9
+            humanoid.BreakJointsOnDeath = false
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+        end
+        
+        if godModeConnection then godModeConnection:Disconnect() end
+        godModeConnection = RunService.Heartbeat:Connect(function()
+            if not godModeActive then
+                if godModeConnection then godModeConnection:Disconnect() end
+                godModeConnection = nil
+                return
+            end
+            local char2 = LocalPlayer.Character
+            if not char2 then return end
+            local h = char2:FindFirstChildOfClass("Humanoid")
+            if h then
+                h.MaxHealth = 9e9
+                h.Health = 9e9
+                h.BreakJointsOnDeath = false
+                h:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+            end
+        end)
+        Fluent:Notify({
+            Title = "🛡 GOD MODE ON",
+            Content = "You are immortal!",
+            Duration = 3
+        })
+    else
+        if godModeConnection then
+            godModeConnection:Disconnect()
+            godModeConnection = nil
+        end
+        local char2 = LocalPlayer.Character
+        if char2 then
+            local h = char2:FindFirstChildOfClass("Humanoid")
+            if h then
+                h.MaxHealth = 100
+                h.Health = 100
+                h.BreakJointsOnDeath = true
+                h:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+            end
+        end
+        Fluent:Notify({
+            Title = "💀 GOD MODE OFF",
+            Content = "You are mortal again!",
+            Duration = 2
+        })
+    end
+end
+
+-- INVISIBLE (Shadow Style - Full transparency)
+local function ToggleInvisibleShadow()
+    invisibleActive = not invisibleActive
+    local char = LocalPlayer.Character
+    if not char then
+        Fluent:Notify({
+            Title = "❌ Error",
+            Content = "Character not found!",
+            Duration = 3
+        })
+        return
+    end
+    
+    if invisibleActive then
+        -- Save original transparency
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                originalTransparency[part] = part.Transparency
+                part.Transparency = 1
+            end
+        end
+        
+        if invisibleConnection then invisibleConnection:Disconnect() end
+        invisibleConnection = RunService.Heartbeat:Connect(function()
+            if not invisibleActive then
+                if invisibleConnection then invisibleConnection:Disconnect() end
+                invisibleConnection = nil
+                return
+            end
+            local char2 = LocalPlayer.Character
+            if not char2 then return end
+            for _, part in pairs(char2:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = 1
+                end
+            end
+        end)
+        Fluent:Notify({
+            Title = "👻 INVISIBLE ON",
+            Content = "You are invisible!",
+            Duration = 3
+        })
+    else
+        if invisibleConnection then
+            invisibleConnection:Disconnect()
+            invisibleConnection = nil
+        end
+        local char2 = LocalPlayer.Character
+        if char2 then
+            for _, part in pairs(char2:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = originalTransparency[part] or 0
+                end
+            end
+        end
+        originalTransparency = {}
+        Fluent:Notify({
+            Title = "👁 INVISIBLE OFF",
+            Content = "You are visible again!",
+            Duration = 2
+        })
+    end
+end
+
+-- WALLBANG (Shadow Style - Tembus Benda)
+local function ToggleWallbang()
+    wallbangActive = not wallbangActive
+    
+    if wallbangActive then
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+        
+        if wallbangConnection then wallbangConnection:Disconnect() end
+        wallbangConnection = RunService.Heartbeat:Connect(function()
+            if not wallbangActive then
+                if wallbangConnection then wallbangConnection:Disconnect() end
+                wallbangConnection = nil
+                return
+            end
+            local char2 = LocalPlayer.Character
+            if not char2 then return end
+            for _, part in pairs(char2:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end)
+        Fluent:Notify({
+            Title = "🧱 WALLBANG ON",
+            Content = "Can pass through walls!",
+            Duration = 3
+        })
+    else
+        if wallbangConnection then
+            wallbangConnection:Disconnect()
+            wallbangConnection = nil
+        end
+        local char2 = LocalPlayer.Character
+        if char2 then
+            for _, part in pairs(char2:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+        Fluent:Notify({
+            Title = "🧱 WALLBANG OFF",
+            Content = "Normal collision restored!",
+            Duration = 2
+        })
+    end
+end
+
 -- ===================== FUNCTIONS =====================
 local function runEvery(interval, fn)
     task.spawn(function()
@@ -707,109 +894,6 @@ local function Do1x1x1x1Popups()
             end
         end
     end)
-end
-
-local function ToggleInvis(enabled)
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-    local animator = humanoid:FindFirstChildOfClass("Animator")
-    if not animator then
-        animator = Instance.new("Animator")
-        animator.Parent = humanoid
-    end
-    if enabled then
-        running = true
-        spawn(function()
-            while running do
-                local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if not humanoid then return end
-                local animator = humanoid:FindFirstChildOfClass("Animator")
-                if not animator then
-                    animator = Instance.new("Animator")
-                    animator.Parent = humanoid
-                end
-                if true then
-                    if not animTrack or not animTrack.IsPlaying then
-                        local animation = Instance.new("Animation")
-                        animation.AnimationId = "rbxassetid://75804462760596"
-                        animTrack = animator:LoadAnimation(animation)
-                        animTrack.Looped = true
-                        animTrack:Play()
-                        animTrack:AdjustSpeed(0)
-                        humanoid.Parent.HumanoidRootPart.Transparency = 0.4
-                    end
-                else
-                    if animTrack and animTrack.IsPlaying then
-                        animTrack:Stop()
-                        animTrack = nil
-                        humanoid.Parent.HumanoidRootPart.Transparency = 1
-                    end
-                end
-                wait(0.5)
-            end
-        end)
-    else
-        running = false
-        if animTrack and animTrack.IsPlaying then
-            animTrack:Stop()
-            animTrack = nil
-            humanoid.Parent.HumanoidRootPart.Transparency = 1
-        end
-    end
-end
-
-local function handleToggle(enabled)
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-    local animator = humanoid:FindFirstChildOfClass("Animator")
-    if not animator then
-        animator = Instance.new("Animator")
-        animator.Parent = humanoid
-    end
-    if enabled then
-        running = true
-        spawn(function()
-            while running do
-                local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if not humanoid then return end
-                local animator = humanoid:FindFirstChildOfClass("Animator")
-                if not animator then
-                    animator = Instance.new("Animator")
-                    animator.Parent = humanoid
-                end
-                local torso = character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
-                if torso and torso.Transparency ~= 0 then
-                    if not animTrack or not animTrack.IsPlaying then
-                        local animation = Instance.new("Animation")
-                        animation.AnimationId = "rbxassetid://75804462760596"
-                        animTrack = animator:LoadAnimation(animation)
-                        animTrack.Looped = true
-                        animTrack:Play()
-                        animTrack:AdjustSpeed(0)
-                        humanoid.Parent.HumanoidRootPart.Transparency = 0.4
-                    end
-                else
-                    if animTrack and animTrack.IsPlaying then
-                        animTrack:Stop()
-                        animTrack = nil
-                        humanoid.Parent.HumanoidRootPart.Transparency = 1
-                    end
-                end
-                wait(0.5)
-            end
-        end)
-    else
-        running = false
-        if animTrack and animTrack.IsPlaying then
-            animTrack:Stop()
-            animTrack = nil
-            humanoid.Parent.HumanoidRootPart.Transparency = 1
-        end
-    end
 end
 
 local LMSSongs = {
@@ -1487,7 +1571,10 @@ local toggles = {
     StatsTracker = false,
     ESP = false,
     infiniteStamina = false,
-    AutoRejoinOnKick = true
+    AutoRejoinOnKick = true,
+    GodMode = false,
+    Invisible = false,
+    Wallbang = false
 }
 
 local guiRefs = {}
@@ -1601,12 +1688,12 @@ local statsGui = createStatsTracker()
 
 if FluentLoaded then
     Window = Fluent:CreateWindow({
-        Title = "Goonsaken Hub",
-        SubTitle = "v3.2 - Mobile Friendly",
+        Title = "GoonHub",
+        SubTitle = "v3.3 - Shadow Style",
         TabWidth = 160,
         Size = UDim2.fromOffset(580, 460),
         Theme = "Dark",
-        MinimizeKeyBind = nil  -- HAPUS keybind K
+        MinimizeKeyBind = nil
     })
 
     Tabs = {
@@ -1633,14 +1720,15 @@ if FluentLoaded then
 
     Fluent:Notify({
         Title = "Loading...",
-        Content = "the little goon minions are loading goonsaken hub!!!",
+        Content = "Goonsaken Hub v3.3 loading!!!",
         Duration = 5,
         Image = "ban",
     })
 
     -- ===================== PLAYER TAB =====================
+    -- Walkspeed Slider (FIXED)
     Tabs.Player:AddSlider("Walkspeed", {
-        Title = "Walkspeed",
+        Title = "Walkspeed Multiplier",
         Default = 1,
         Min = 1,
         Max = 5,
@@ -1648,30 +1736,39 @@ if FluentLoaded then
         Suffix = "x",
         Callback = function(value)
             local char = LocalPlayer.Character
-            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Parent:FindFirstChild("SpeedMultipliers") then
-                humanoid.Parent.SpeedMultipliers.Sprinting.Value = value
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Parent:FindFirstChild("SpeedMultipliers") then
+                    local sprintMult = humanoid.Parent.SpeedMultipliers:FindFirstChild("Sprinting")
+                    if sprintMult then
+                        sprintMult.Value = value
+                    end
+                end
             end
         end
     })
 
+    -- Jump Power Slider (FIXED - now actually changes jump power)
     Tabs.Player:AddSlider("JumpPower", {
         Title = "Jump Power",
         Default = 50,
-        Min = 0,
-        Max = 100,
+        Min = 1,
+        Max = 500,
         Rounding = 0,
         Callback = function(value)
             local char = LocalPlayer.Character
-            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.JumpPower = value
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.JumpPower = value
+                end
             end
         end
     })
 
+    -- Goon Toggle
     Tabs.Player:AddToggle("Goon", {
-        Title = "Goon",
+        Title = "Goon Animation",
         Default = false,
         Callback = function(state)
             toggles.Goon = state
@@ -1679,8 +1776,9 @@ if FluentLoaded then
         end
     })
 
+    -- LayDown Toggle
     Tabs.Player:AddToggle("LayDown", {
-        Title = "Lay Down",
+        Title = "Lay Down Animation",
         Default = false,
         Callback = function(state)
             toggles.LayDown = state
@@ -1688,6 +1786,7 @@ if FluentLoaded then
         end
     })
 
+    -- Frontflip Button
     Tabs.Player:AddButton({
         Title = "Frontflip (Key: P)",
         Callback = function()
@@ -1697,6 +1796,7 @@ if FluentLoaded then
         end
     })
 
+    -- Anti Slowness
     Tabs.Player:AddToggle("AntiSlowness", {
         Title = "Anti Slowness",
         Default = false,
@@ -1705,6 +1805,7 @@ if FluentLoaded then
         end
     })
 
+    -- Void Rush Control
     Tabs.Player:AddToggle("VoidRushControl", {
         Title = "Void Rush Control",
         Default = false,
@@ -1717,6 +1818,37 @@ if FluentLoaded then
         end
     })
 
+    -- GOD MODE (Shadow Style)
+    Tabs.Player:AddToggle("GodMode", {
+        Title = "🛡 God Mode (Immortal)",
+        Default = false,
+        Callback = function(state)
+            toggles.GodMode = state
+            ToggleGodMode()
+        end
+    })
+
+    -- INVISIBLE (Shadow Style)
+    Tabs.Player:AddToggle("InvisibleShadow", {
+        Title = "👻 Invisible (Full Transparent)",
+        Default = false,
+        Callback = function(state)
+            toggles.Invisible = state
+            ToggleInvisibleShadow()
+        end
+    })
+
+    -- WALLBANG (Shadow Style - NEW)
+    Tabs.Player:AddToggle("Wallbang", {
+        Title = "🧱 Wallbang (Tembus Benda)",
+        Default = false,
+        Callback = function(state)
+            toggles.Wallbang = state
+            ToggleWallbang()
+        end
+    })
+
+    -- Auto 404 Parry
     Tabs.Player:AddButton({
         Title = "Auto 404 Parry",
         Callback = function()
@@ -1724,6 +1856,7 @@ if FluentLoaded then
         end
     })
 
+    -- Auto Raging Pace Parry
     Tabs.Player:AddButton({
         Title = "Auto Raging Pace Parry",
         Callback = function()
@@ -1731,6 +1864,7 @@ if FluentLoaded then
         end
     })
 
+    -- Ultra Instinct
     Tabs.Player:AddButton({
         Title = "Ultra Instinct",
         Callback = function()
@@ -1738,6 +1872,7 @@ if FluentLoaded then
         end
     })
 
+    -- Auto Two Time Backstab
     Tabs.Player:AddButton({
         Title = "Auto Two Time Backstab",
         Callback = function()
@@ -1751,38 +1886,7 @@ if FluentLoaded then
         end
     })
 
-    Tabs.Player:AddToggle("Invisible", {
-        Title = "Invisible",
-        Default = false,
-        Callback = function(state)
-            if state then
-                Fluent:Notify({
-                    Title = "Read me!",
-                    Content = "The block in the middle of your screen is your LocalPlayer!",
-                    Duration = 5,
-                    Image = "lucide-leaf",
-                })
-            end
-            ToggleInvis(state)
-        end
-    })
-
-    Tabs.Player:AddToggle("Invis007n7", {
-        Title = "Fully Invisible (007n7)",
-        Default = false,
-        Callback = function(state)
-            if state then
-                Fluent:Notify({
-                    Title = "Read me!",
-                    Content = "When Cloning, The block in the middle is your LocalPlayer!",
-                    Duration = 5,
-                    Image = "lucide-leaf",
-                })
-            end
-            handleToggle(state)
-        end
-    })
-
+    -- Hitbox Modifier
     Tabs.Player:AddToggle("HitboxModifier", {
         Title = "Hitbox Modifier",
         Default = false,
@@ -1791,6 +1895,7 @@ if FluentLoaded then
         end
     })
 
+    -- Hitbox Detection Distance
     Tabs.Player:AddInput("HitboxDetectionDistance", {
         Title = "Hitbox Detection Distance",
         Default = "120",
@@ -2494,14 +2599,14 @@ if FluentLoaded then
     Window:SelectTab("Player")
 
     Fluent:Notify({
-        Title = "Goonsaken Hub v3.2",
-        Content = "time to goon!!!",
+        Title = "Goonsaken Hub v3.3",
+        Content = "Shadow Style - All features fixed!",
         Duration = 8
     })
 
     Fluent:Notify({
-        Title = "IMPORTANT!!!",
-        Content = "Click the cat icon to toggle menu!",
+        Title = "📌 HOW TO USE",
+        Content = "Click the '-' button (minus) to toggle menu!",
         Duration = 5
     })
 
@@ -2876,7 +2981,7 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
--- ===================== GUI TOGGLE BUTTON (FIXED - DRAGGABLE) =====================
+-- ===================== SHADOW STYLE MINUS BUTTON TOGGLE =====================
 task.spawn(function()
     local toggleHolder = game.CoreGui:FindFirstChild("TopBarApp")
         and game.CoreGui.TopBarApp:FindFirstChild("TopBarApp")
@@ -2885,99 +2990,76 @@ task.spawn(function()
         and game.CoreGui.TopBarApp.TopBarApp.UnibarLeftFrame.UnibarMenu:FindFirstChild("2")
 
     if toggleHolder then
+        -- Simpan ukuran asli
         local originalSize = toggleHolder.Size.X.Offset
-        local sSize = UDim2.new(0, originalSize + 48, 0, toggleHolder.Size.Y.Offset)
-
+        local minusSize = UDim2.new(0, originalSize + 70, 0, toggleHolder.Size.Y.Offset)
+        
+        -- Buat frame untuk tombol "-"
         local buttonFrame = Instance.new("Frame")
-        buttonFrame.Size = UDim2.new(0, 48, 0, 44)
+        buttonFrame.Size = UDim2.new(0, 70, 0, 44)
         buttonFrame.BackgroundTransparency = 1
         buttonFrame.BorderSizePixel = 0
-        buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 48, 0, 0)
+        buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 70, 0, 0)
         buttonFrame.Parent = toggleHolder
 
-        local imageButton = Instance.new("ImageButton")
-        imageButton.BackgroundTransparency = 1
-        imageButton.BorderSizePixel = 0
-        imageButton.Size = UDim2.new(0, 36, 0, 36)
-        imageButton.AnchorPoint = Vector2.new(0.5, 0.5)
-        imageButton.Position = UDim2.new(0.5, 0, 0.5, 0)
-        imageButton.Image = "http://www.roblox.com/asset/?id=10385136549"
-        imageButton.Parent = buttonFrame
+        -- Buat tombol "-" style seperti Shadow
+        local minusButton = Instance.new("TextButton")
+        minusButton.Size = UDim2.new(0, 60, 0, 36)
+        minusButton.Position = UDim2.new(0.5, -30, 0.5, -18)
+        minusButton.AnchorPoint = Vector2.new(0.5, 0.5)
+        minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
+        minusButton.BackgroundTransparency = 0
+        minusButton.BorderSizePixel = 0
+        minusButton.Text = "-"
+        minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
+        minusButton.Font = Enum.Font.GothamBold
+        minusButton.TextSize = 24
+        minusButton.TextScaled = false
+        minusButton.Parent = buttonFrame
+        Instance.new("UICorner", minusButton).CornerRadius = UDim.new(0, 6)
 
-        -- === DRAG SYSTEM UNTUK TOMBOL KUCING ===
-        local catDragData = {
-            dragging = false,
-            startPos = nil,
-            startMouse = nil
-        }
+        -- Hover effect
+        minusButton.MouseEnter:Connect(function()
+            minusButton.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
+            minusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end)
+        minusButton.MouseLeave:Connect(function()
+            minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
+            minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
+        end)
 
-        -- Untuk drag (Mobile & PC)
-        local function onCatInputBegan(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-               input.UserInputType == Enum.UserInputType.Touch then
-                catDragData.dragging = true
-                catDragData.startPos = buttonFrame.Position
-                catDragData.startMouse = input.Position
-            end
-        end
-
-        local function onCatInputEnded(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-               input.UserInputType == Enum.UserInputType.Touch then
-                catDragData.dragging = false
-            end
-        end
-
-        local function onCatInputChanged(input)
-            if catDragData.dragging then
-                if input.UserInputType == Enum.UserInputType.MouseMovement or 
-                   input.UserInputType == Enum.UserInputType.Touch then
-                    local delta = input.Position - catDragData.startMouse
-                    local newPos = UDim2.new(
-                        catDragData.startPos.X.Scale,
-                        catDragData.startPos.X.Offset + delta.X,
-                        catDragData.startPos.Y.Scale,
-                        catDragData.startPos.Y.Offset + delta.Y
-                    )
-                    buttonFrame.Position = newPos
-                end
-            end
-        end
-
-        -- Connect events
-        imageButton.InputBegan:Connect(onCatInputBegan)
-        imageButton.InputEnded:Connect(onCatInputEnded)
-        UserInputService.InputChanged:Connect(onCatInputChanged)
-
-        -- === KLIK UNTUK TOGGLE MENU ===
-        imageButton.Activated:Connect(function()
+        -- Toggle menu
+        minusButton.MouseButton1Click:Connect(function()
             if Window then
                 if menuVisible then
                     Window:Hide()
                     menuVisible = false
+                    minusButton.Text = "+"
+                    minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
+                    minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
                 else
                     Window:Show()
                     menuVisible = true
+                    minusButton.Text = "-"
+                    minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
+                    minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
                 end
             end
         end)
 
         -- Update posisi setiap frame
         while task.wait(0.03) do
-            toggleHolder.Size = sSize
-            -- Jangan override posisi jika sedang di-drag
-            if not catDragData.dragging then
-                buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 48, 0, 0)
-            end
+            toggleHolder.Size = minusSize
+            buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 70, 0, 0)
         end
     else
-        warn("ToggleHolder not found, cat button not created.")
+        warn("ToggleHolder not found, minus button not created.")
     end
 end)
 
 -- ===================== SAVE CONFIG =====================
 SaveManager:LoadAutoloadConfig()
 
-print("[Goonsaken Hub v3.2] Loaded successfully!")
-print("Click the cat icon to toggle menu!")
-print("ESP uses Drawing API for better performance")
+print("[Goonsaken Hub v3.3] Loaded successfully!")
+print("Click the '-' button to toggle menu!")
+print("All features fixed - God Mode, Invisible, Wallbang from Shadow style!")
