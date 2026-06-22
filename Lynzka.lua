@@ -56,21 +56,20 @@ local timebetweenpuzzles = 3
 -- ===================== SHADOW STYLE VARIABLES =====================
 local godModeActive = false
 local godModeConnection = nil
-local invisibleActive = false
-local invisibleConnection = nil
 local wallbangActive = false
 local wallbangConnection = nil
-local originalTransparency = {}
 local SpeedLoop = nil
 
 -- ===================== SPEED HACK =====================
 local speedHackActive = false
 local speedHackValue = 5
 
--- ===================== FLY =====================
+-- ===================== FLY (FIXED - KE ATAS, BUKAN BAWAH TANAH) =====================
 local flyActive = false
 local flyHeight = 10
 local flyConnection = nil
+local flyBodyVelocity = nil
+local flyBodyGyro = nil
 
 -- ===================== INFINITE STAMINA =====================
 local staminaLoop = nil
@@ -487,12 +486,11 @@ local function DisableAimbot()
     end
 end
 
--- ===================== WALLBANG (FIXED - BEKERJA) =====================
+-- ===================== WALLBANG =====================
 local function ToggleWallbang()
     wallbangActive = not wallbangActive
     
     if wallbangActive then
-        -- Apply ke karakter saat ini
         local char = LocalPlayer.Character
         if char then
             for _, part in pairs(char:GetDescendants()) do
@@ -502,7 +500,6 @@ local function ToggleWallbang()
             end
         end
         
-        -- Loop untuk menjaga wallbang aktif
         if wallbangConnection then wallbangConnection:Disconnect() end
         wallbangConnection = RunService.Heartbeat:Connect(function()
             if not wallbangActive then
@@ -522,7 +519,6 @@ local function ToggleWallbang()
         end)
         notify("🧱 WALLBANG ON - Tembus dinding!", 3)
     else
-        -- Matikan wallbang
         if wallbangConnection then
             wallbangConnection:Disconnect()
             wallbangConnection = nil
@@ -536,62 +532,6 @@ local function ToggleWallbang()
             end
         end
         notify("🧱 WALLBANG OFF", 2)
-    end
-end
-
--- ===================== INVISIBLE (FIXED - BEKERJA) =====================
-local function ToggleInvisible()
-    invisibleActive = not invisibleActive
-    local char = LocalPlayer.Character
-    if not char then
-        notify("❌ Character not found!", 2)
-        return
-    end
-    
-    if invisibleActive then
-        -- Simpan transparency asli lalu set ke 1
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                originalTransparency[part] = part.Transparency
-                part.Transparency = 1
-            end
-        end
-        
-        -- Loop untuk menjaga invisible
-        if invisibleConnection then invisibleConnection:Disconnect() end
-        invisibleConnection = RunService.Heartbeat:Connect(function()
-            if not invisibleActive then
-                if invisibleConnection then
-                    invisibleConnection:Disconnect()
-                    invisibleConnection = nil
-                end
-                return
-            end
-            local char2 = LocalPlayer.Character
-            if not char2 then return end
-            for _, part in pairs(char2:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Transparency = 1
-                end
-            end
-        end)
-        notify("👻 INVISIBLE ON - Kamu transparan!", 3)
-    else
-        -- Kembalikan transparency asli
-        if invisibleConnection then
-            invisibleConnection:Disconnect()
-            invisibleConnection = nil
-        end
-        local char2 = LocalPlayer.Character
-        if char2 then
-            for _, part in pairs(char2:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Transparency = originalTransparency[part] or 0
-                end
-            end
-        end
-        originalTransparency = {}
-        notify("👁 INVISIBLE OFF", 2)
     end
 end
 
@@ -636,20 +576,60 @@ local function ToggleSpeedHack(state)
     end
 end
 
--- ===================== FLY =====================
+-- ===================== FLY (FIXED - KE ATAS, BUKAN BAWAH TANAH) =====================
 local function ToggleFly(state)
     flyActive = state
     
     if flyActive then
         if flyConnection then flyConnection:Disconnect() end
         
-        -- Langsung naik ke ketinggian
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            local hrp = char.HumanoidRootPart
-            hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, flyHeight, hrp.Position.Z))
+        -- Bersihkan BodyVelocity lama
+        if flyBodyVelocity then
+            flyBodyVelocity:Destroy()
+            flyBodyVelocity = nil
+        end
+        if flyBodyGyro then
+            flyBodyGyro:Destroy()
+            flyBodyGyro = nil
         end
         
+        local char = LocalPlayer.Character
+        if not char then
+            notify("❌ Character not found!", 2)
+            return
+        end
+        
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then
+            notify("❌ HumanoidRootPart not found!", 2)
+            return
+        end
+        
+        -- Naikkan ke ketinggian yang dipilih (KE ATAS!)
+        local targetPos = Vector3.new(hrp.Position.X, flyHeight, hrp.Position.Z)
+        hrp.CFrame = CFrame.new(targetPos)
+        
+        -- Buat BodyVelocity untuk terbang
+        flyBodyVelocity = Instance.new("BodyVelocity")
+        flyBodyVelocity.MaxForce = Vector3.new(1, 1, 1) * 9e9
+        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVelocity.Parent = hrp
+        
+        -- Buat BodyGyro untuk stabilitas
+        flyBodyGyro = Instance.new("BodyGyro")
+        flyBodyGyro.MaxTorque = Vector3.new(1, 1, 1) * 9e9
+        flyBodyGyro.CFrame = hrp.CFrame
+        flyBodyGyro.Parent = hrp
+        
+        -- Matikan gravitasi
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.PlatformStand = true
+            hum.Sit = false
+            hum.AutoRotate = false
+        end
+        
+        -- Loop untuk menjaga ketinggian
         flyConnection = RunService.Heartbeat:Connect(function()
             if not flyActive then
                 if flyConnection then
@@ -659,36 +639,57 @@ local function ToggleFly(state)
                 return
             end
             
-            local char = LocalPlayer.Character
-            if not char then return end
+            local char2 = LocalPlayer.Character
+            if not char2 then return end
             
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            local hum = char:FindFirstChildOfClass("Humanoid")
+            local hrp2 = char2:FindFirstChild("HumanoidRootPart")
+            local hum2 = char2:FindFirstChildOfClass("Humanoid")
             
-            if hrp and hum then
-                hum.PlatformStand = true
-                hum.Sit = false
-                hum.AutoRotate = false
+            if hrp2 and hum2 then
+                -- Pertahankan ketinggian (KE ATAS)
+                local currentPos = hrp2.Position
+                local targetY = flyHeight
                 
-                -- Pertahankan ketinggian
-                local currentPos = hrp.Position
-                if math.abs(currentPos.Y - flyHeight) > 0.5 then
-                    hrp.CFrame = CFrame.new(Vector3.new(currentPos.X, flyHeight, currentPos.Z))
+                -- Jika terlalu rendah, naikkan
+                if currentPos.Y < targetY - 0.5 then
+                    hrp2.CFrame = CFrame.new(Vector3.new(currentPos.X, targetY, currentPos.Z))
+                end
+                
+                -- Jika terlalu tinggi, turunkan
+                if currentPos.Y > targetY + 0.5 then
+                    hrp2.CFrame = CFrame.new(Vector3.new(currentPos.X, targetY, currentPos.Z))
                 end
                 
                 -- Noclip saat terbang
-                for _, part in pairs(char:GetDescendants()) do
+                for _, part in pairs(char2:GetDescendants()) do
                     if part:IsA("BasePart") then
                         part.CanCollide = false
                     end
                 end
+                
+                -- Update gyro
+                if flyBodyGyro then
+                    flyBodyGyro.CFrame = hrp2.CFrame
+                end
             end
         end)
+        
         notify("✈️ FLY ON - Ketinggian: " .. flyHeight .. "m", 3)
     else
+        -- Matikan fly
         if flyConnection then
             flyConnection:Disconnect()
             flyConnection = nil
+        end
+        
+        -- Hapus BodyVelocity & BodyGyro
+        if flyBodyVelocity then
+            flyBodyVelocity:Destroy()
+            flyBodyVelocity = nil
+        end
+        if flyBodyGyro then
+            flyBodyGyro:Destroy()
+            flyBodyGyro = nil
         end
         
         local char = LocalPlayer.Character
@@ -699,10 +700,10 @@ local function ToggleFly(state)
                 hum.AutoRotate = true
             end
             
-            -- Turun ke tanah
+            -- Turun ke tanah (JATUH)
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if hrp then
-                local ray = Ray.new(hrp.Position, Vector3.new(0, -100, 0))
+                local ray = Ray.new(hrp.Position, Vector3.new(0, -200, 0))
                 local hit, pos = Workspace:FindPartOnRay(ray, char)
                 if pos then
                     hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, pos.Y + 2, hrp.Position.Z))
@@ -888,6 +889,41 @@ local function checkAndSetSlowStatus()
     fovSlowedStatus.Value = 1
 end
 
+-- ===================== GUEST SETTINGS VARIABLES =====================
+local GuestSettingsOn = false
+local strictRangeOn = false
+local looseFacing = true
+local detectionRange = 18
+local predictiveBlockOn = false
+local edgeKillerDelay = 3
+local killerInRangeSince = nil
+local predictiveCooldown = 0
+local flingPunchOn = false
+local flingPower = 10000
+local hiddenfling = false
+local aimPunch = false
+local customBlockEnabled = false
+local customBlockAnimId = ""
+local customPunchEnabled = false
+local customPunchAnimId = ""
+local lastBlockTime = 0
+local lastPunchTime = 0
+local lastBlockTpTime = 0
+local blockTPEnabled = false
+local customChargeEnabled = false
+local customChargeAnimId = ""
+local blockAnimIds = {"72722244508749", "96959123077498"}
+local punchAnimIds = {"87259391926321"}
+local chargeAnimIds = {"106014898528300"}
+local GuestSettingsTriggerAnims = {
+    "126830014841198", "126355327951215", "121086746534252", "18885909645",
+    "98456918873918", "105458270463374", "83829782357897", "125403313786645",
+    "118298475669935", "82113744478546", "70371667919898", "99135633258223",
+    "97167027849946", "109230267448394", "139835501033932", "126896426760253",
+    "109667959938617", "126681776859538", "129976080405072", "121293883585738",
+    "81639435858902", "137314737492715", "92173139187970", "106847695270773"
+}
+
 -- ===================== FLUENT UI =====================
 local FluentLoaded = false
 local success, Fluent = pcall(function()
@@ -949,16 +985,6 @@ if FluentLoaded then
         end
     })
 
-    -- INVISIBLE
-    Tabs.Player:AddToggle("InvisibleShadow", {
-        Title = "👻 Invisible",
-        Description = "Tubuh menjadi transparan",
-        Default = false,
-        Callback = function(state)
-            ToggleInvisible()
-        end
-    })
-
     -- SPEED HACK
     Tabs.Player:AddToggle("SpeedHack", {
         Title = "💨 Speed Hack",
@@ -969,10 +995,10 @@ if FluentLoaded then
         end
     })
 
-    -- SPEED HACK VALUE
+    -- SPEED HACK VALUE (SLIDER DENGAN -/+ YANG MUDAH DIGESER)
     Tabs.Player:AddSlider("SpeedHackValue", {
         Title = "Speed Hack Value",
-        Description = "Atur kecepatan (1x - 20x)",
+        Description = "Atur kecepatan (1x - 20x) - Geser atau klik +/-",
         Default = 5,
         Min = 1,
         Max = 20,
@@ -1005,7 +1031,7 @@ if FluentLoaded then
         end
     })
 
-    -- FLY HEIGHT
+    -- FLY HEIGHT (SEPERTI DROPDOWN HITBOX MODE)
     local flyHeightOptions = {}
     for i = 1, 30 do
         table.insert(flyHeightOptions, tostring(i) .. "m")
@@ -1026,6 +1052,7 @@ if FluentLoaded then
                     local char = LocalPlayer.Character
                     if char and char:FindFirstChild("HumanoidRootPart") then
                         local hrp = char.HumanoidRootPart
+                        -- Naikkan ke ketinggian baru (KE ATAS!)
                         hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, height, hrp.Position.Z))
                     end
                 end
@@ -1680,7 +1707,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ===================== ===================================== =====================
--- ===================== TOMBOL -/+ UNTUK BUKA MENU (FIXED) =====================
+-- ===================== TOMBOL -/+ UNTUK BUKA MENU =====================
 -- ===================== ===================================== =====================
 
 task.spawn(function()
