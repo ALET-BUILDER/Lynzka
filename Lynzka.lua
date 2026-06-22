@@ -2460,7 +2460,7 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
--- ===================== SHADOW STYLE MINUS BUTTON TOGGLE (PERFECT) =====================
+-- ===================== SHADOW STYLE MINUS BUTTON TOGGLE =====================
 task.spawn(function()
     local toggleHolder = game.CoreGui:FindFirstChild("TopBarApp")
         and game.CoreGui.TopBarApp:FindFirstChild("TopBarApp")
@@ -2508,7 +2508,7 @@ task.spawn(function()
             end
         end)
 
-        -- DRAG SYSTEM (Shadow Style)
+        -- DRAG SYSTEM
         local dragData = {
             dragging = false,
             startPos = nil,
@@ -2547,7 +2547,7 @@ task.spawn(function()
             end
         end)
 
-        -- TOGGLE MENU (Perbaikan Final)
+        -- TOGGLE MENU
         minusButton.MouseButton1Click:Connect(function()
             if Window then
                 -- Cari Fluent GUI container di CoreGui
