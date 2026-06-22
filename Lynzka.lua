@@ -1,8 +1,8 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║      🔥 LYNZKA HUB v3.6.7 🔥           ║
+    ║      🔥 LYNZKA HUB v3.6.8 🔥           ║
     ║   Shadow Style - Perfect Toggle        ║
-    ║   ALL ERRORS FIXED!                   ║
+    ║   ESP & AIMBOT FIXED!                 ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -65,7 +65,7 @@ local originalName = ""
 local soundActive = false
 local currentSound = nil
 
--- ===================== NOCLIP - FIXED =====================
+-- ===================== NOCLIP =====================
 local noclipActive = false
 local noclipConnection = nil
 
@@ -94,13 +94,10 @@ local function ToggleNoclip(state)
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
                 
-                -- CEK JIKA POSISI DI BAWAH TANAH
                 if hrp.Position.Y < 2 then
-                    -- Teleport ke atas tanah
                     hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 5, hrp.Position.Z))
                 end
                 
-                -- CEK KEPALA MASUK TANAH
                 local head = char:FindFirstChild("Head")
                 if head and head.Position.Y < 0 then
                     hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 5, hrp.Position.Z))
@@ -161,7 +158,7 @@ local function notify(text, duration)
     end)
 end
 
--- ===================== NAMEPROTECT - FIXED =====================
+-- ===================== NAMEPROTECT =====================
 local function ToggleNameProtect(state)
     nameProtectActive = state
     
@@ -212,28 +209,24 @@ local function ToggleNameProtect(state)
     end)
 end
 
--- ===================== PLAY SOUND - FIXED + VOLUME MAX =====================
+-- ===================== PLAY SOUND =====================
 local function PlaySoundByID(id)
     pcall(function()
-        -- Hapus sound lama
         if currentSound then
             pcall(function() currentSound:Destroy() end)
             currentSound = nil
         end
         
-        -- Buat sound baru
         local sound = Instance.new("Sound")
         sound.SoundId = "rbxassetid://" .. tostring(id)
-        sound.Volume = 1 -- MAX VOLUME
+        sound.Volume = 1
         sound.PlaybackSpeed = 1
         sound.Looped = false
         sound.Parent = Workspace
         
-        -- Play
         sound:Play()
         currentSound = sound
         
-        -- Auto destroy setelah selesai
         task.delay(10, function()
             pcall(function()
                 if currentSound then
@@ -247,7 +240,7 @@ local function PlaySoundByID(id)
     end)
 end
 
--- ===================== ESP SYSTEM =====================
+-- ===================== ESP SYSTEM - FIXED =====================
 local EspObjects = {}
 local TracerLines = {}
 local DrawingPool = {}
@@ -264,16 +257,24 @@ local espSettings = {
     ShowHealthBar = true
 }
 
+-- CREATE DRAWING DENGAN AMAN
 local function NewDrawing(type, props)
-    pcall(function()
+    local success, result = pcall(function()
         local d = Drawing.new(type)
-        for k, v in pairs(props) do
-            d[k] = v
+        if d then
+            for k, v in pairs(props) do
+                d[k] = v
+            end
+            d.Visible = false
+            table.insert(DrawingPool, d)
+            return d
         end
-        d.Visible = false
-        table.insert(DrawingPool, d)
-        return d
+        return nil
     end)
+    if success then
+        return result
+    end
+    return nil
 end
 
 local function ClearDrawings()
@@ -286,13 +287,16 @@ local function ClearDrawings()
 end
 
 local function GetHealth(p)
-    pcall(function()
+    local success = pcall(function()
         local c = p.Character
         if not c then return 0, 100 end
         local h = c:FindFirstChildOfClass("Humanoid")
         if not h then return 0, 100 end
         return math.floor(h.Health), math.floor(h.MaxHealth)
     end)
+    if success then
+        return GetHealth(p)
+    end
     return 0, 100
 end
 
@@ -320,12 +324,15 @@ local function GetBBox(char)
 end
 
 local function IsAlive(p)
-    pcall(function()
+    local success = pcall(function()
         local c = p.Character
         if not c then return false end
         local h = c:FindFirstChildOfClass("Humanoid")
         return h and h.Health > 0
     end)
+    if success then
+        return IsAlive(p)
+    end
     return false
 end
 
@@ -337,17 +344,19 @@ local function GetTeamColor(p)
 end
 
 local function CreateESP(player)
-    EspObjects[player] = {
-        top = NewDrawing("Line", {Thickness = 1, ZIndex = 1}),
-        bottom = NewDrawing("Line", {Thickness = 1, ZIndex = 1}),
-        left = NewDrawing("Line", {Thickness = 1, ZIndex = 1}),
-        right = NewDrawing("Line", {Thickness = 1, ZIndex = 1}),
-        name = NewDrawing("Text", {Size = 13, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
-        health = NewDrawing("Text", {Size = 12, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
-        distance = NewDrawing("Text", {Size = 11, Center = true, Outline = true, Font = Drawing.Fonts.UI, ZIndex = 2}),
-        healthBar = NewDrawing("Line", {Thickness = healthBarThickness, ZIndex = 2})
-    }
-    TracerLines[player] = NewDrawing("Line", {Thickness = 2, Color = Color3.fromRGB(255, 0, 0), ZIndex = 3})
+    pcall(function()
+        EspObjects[player] = {
+            top = NewDrawing("Line", {Thickness = 1, Color = Color3.fromRGB(255,255,255)}),
+            bottom = NewDrawing("Line", {Thickness = 1, Color = Color3.fromRGB(255,255,255)}),
+            left = NewDrawing("Line", {Thickness = 1, Color = Color3.fromRGB(255,255,255)}),
+            right = NewDrawing("Line", {Thickness = 1, Color = Color3.fromRGB(255,255,255)}),
+            name = NewDrawing("Text", {Size = 13, Center = true, Outline = true, Font = Drawing.Fonts.UI}),
+            health = NewDrawing("Text", {Size = 12, Center = true, Outline = true, Font = Drawing.Fonts.UI}),
+            distance = NewDrawing("Text", {Size = 11, Center = true, Outline = true, Font = Drawing.Fonts.UI}),
+            healthBar = NewDrawing("Line", {Thickness = healthBarThickness, Color = Color3.fromRGB(0,255,0)})
+        }
+        TracerLines[player] = NewDrawing("Line", {Thickness = 2, Color = Color3.fromRGB(255, 0, 0)})
+    end)
 end
 
 local function RemoveESP(player)
@@ -365,8 +374,11 @@ local function RemoveESP(player)
 end
 
 local function HideESP(obj)
+    if not obj then return end
     for _, d in pairs(obj) do
-        d.Visible = false
+        if d then
+            d.Visible = false
+        end
     end
 end
 
@@ -383,64 +395,105 @@ local function UpdateESP(player)
     pcall(function()
         if player == LocalPlayer then
             if EspObjects[player] then HideESP(EspObjects[player]) end
-            if TracerLines[player] then TracerLines[player].Visible = false end
+            if TracerLines[player] then 
+                pcall(function() TracerLines[player].Visible = false end)
+            end
             return
         end
         
-        if not EspObjects[player] then CreateESP(player) end
+        if not EspObjects[player] then 
+            CreateESP(player) 
+        end
+        
         local obj = EspObjects[player]
+        if not obj then return end
+        
         local tracer = TracerLines[player]
         
-        if not espSettings.Enabled or not IsAlive(player) then
+        if not espSettings.Enabled then
             HideESP(obj)
-            if tracer then tracer.Visible = false end
+            if tracer then 
+                pcall(function() tracer.Visible = false end)
+            end
             return
         end
         
         local char = player.Character
         if not char then
             HideESP(obj)
-            if tracer then tracer.Visible = false end
+            if tracer then 
+                pcall(function() tracer.Visible = false end)
+            end
+            return
+        end
+        
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then
+            HideESP(obj)
+            if tracer then 
+                pcall(function() tracer.Visible = false end)
+            end
             return
         end
         
         local bbox = GetBBox(char)
         if not bbox then
             HideESP(obj)
-            if tracer then tracer.Visible = false end
+            if tracer then 
+                pcall(function() tracer.Visible = false end)
+            end
             return
         end
         
         local color = GetTeamColor(player)
         
+        -- BOX
         if espSettings.ShowBox then
-            local function SetLine(line, x0, y0, x1, y1)
-                line.From = Vector2.new(x0, y0)
-                line.To = Vector2.new(x1, y1)
-                line.Color = color
-                line.Visible = true
-            end
-            SetLine(obj.top, bbox.x0, bbox.y0, bbox.x1, bbox.y0)
-            SetLine(obj.bottom, bbox.x0, bbox.y1, bbox.x1, bbox.y1)
-            SetLine(obj.left, bbox.x0, bbox.y0, bbox.x0, bbox.y1)
-            SetLine(obj.right, bbox.x1, bbox.y0, bbox.x1, bbox.y1)
+            pcall(function()
+                if obj.top then
+                    obj.top.From = Vector2.new(bbox.x0, bbox.y0)
+                    obj.top.To = Vector2.new(bbox.x1, bbox.y0)
+                    obj.top.Color = color
+                    obj.top.Visible = true
+                end
+                if obj.bottom then
+                    obj.bottom.From = Vector2.new(bbox.x0, bbox.y1)
+                    obj.bottom.To = Vector2.new(bbox.x1, bbox.y1)
+                    obj.bottom.Color = color
+                    obj.bottom.Visible = true
+                end
+                if obj.left then
+                    obj.left.From = Vector2.new(bbox.x0, bbox.y0)
+                    obj.left.To = Vector2.new(bbox.x0, bbox.y1)
+                    obj.left.Color = color
+                    obj.left.Visible = true
+                end
+                if obj.right then
+                    obj.right.From = Vector2.new(bbox.x1, bbox.y0)
+                    obj.right.To = Vector2.new(bbox.x1, bbox.y1)
+                    obj.right.Color = color
+                    obj.right.Visible = true
+                end
+            end)
         else
-            obj.top.Visible = false
-            obj.bottom.Visible = false
-            obj.left.Visible = false
-            obj.right.Visible = false
+            if obj.top then obj.top.Visible = false end
+            if obj.bottom then obj.bottom.Visible = false end
+            if obj.left then obj.left.Visible = false end
+            if obj.right then obj.right.Visible = false end
         end
         
-        if espSettings.ShowNames then
+        -- NAMES
+        if espSettings.ShowNames and obj.name then
             obj.name.Text = player.Name
             obj.name.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 15)
             obj.name.Color = color
             obj.name.Visible = true
-        else
+        elseif obj.name then
             obj.name.Visible = false
         end
         
-        if espSettings.ShowHealth then
+        -- HEALTH
+        if espSettings.ShowHealth and obj.health then
             local hp, mhp = GetHealth(player)
             local healthPercent = hp / mhp
             local greenHealth = Color3.fromRGB(
@@ -452,11 +505,12 @@ local function UpdateESP(player)
             obj.health.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 27)
             obj.health.Color = greenHealth
             obj.health.Visible = true
-        else
+        elseif obj.health then
             obj.health.Visible = false
         end
         
-        if espSettings.ShowHealthBar then
+        -- HEALTH BAR
+        if espSettings.ShowHealthBar and obj.healthBar then
             local hp, mhp = GetHealth(player)
             local healthPercent = hp / mhp
             local barX = bbox.x1 + 3
@@ -472,15 +526,16 @@ local function UpdateESP(player)
             )
             obj.healthBar.Thickness = healthBarThickness
             obj.healthBar.Visible = true
-        else
+        elseif obj.healthBar then
             obj.healthBar.Visible = false
         end
         
-        if espSettings.ShowDistance then
-            local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
-            local targetPos = char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart.Position
+        -- DISTANCE
+        if espSettings.ShowDistance and obj.distance then
+            local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local targetPos = char:FindFirstChild("HumanoidRootPart")
             if myPos and targetPos then
-                local distStuds = (myPos - targetPos).Magnitude
+                local distStuds = (myPos.Position - targetPos.Position).Magnitude
                 local distMeters = distStuds * 0.28
                 obj.distance.Text = string.format("%.1f m", distMeters)
                 obj.distance.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1 + 12)
@@ -490,11 +545,12 @@ local function UpdateESP(player)
             else
                 obj.distance.Visible = false
             end
-        else
+        elseif obj.distance then
             obj.distance.Visible = false
         end
         
-        if espSettings.ShowTracer and bbox then
+        -- TRACER
+        if espSettings.ShowTracer and tracer and bbox then
             local vp = Camera.ViewportSize
             local footPos = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1)
             local bottomCenter = Vector2.new(vp.X / 2, vp.Y)
@@ -513,12 +569,14 @@ Players.PlayerRemoving:Connect(function(p)
 end)
 
 RunService.RenderStepped:Connect(function()
-    for _, p in ipairs(Players:GetPlayers()) do
-        UpdateESP(p)
-    end
+    pcall(function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            UpdateESP(p)
+        end
+    end)
 end)
 
--- ===================== AIMBOT =====================
+-- ===================== AIMBOT - FIXED =====================
 local aimbotEnabled = false
 local aimbotFOV = 500
 local hitboxMode = "Head"
@@ -536,63 +594,88 @@ local function CreateFOVCircle()
         Filled = false,
         Color = Color3.fromRGB(255, 255, 255),
         NumSides = 64,
-        ZIndex = 10
+        Radius = aimbotFOV
     })
-    FOVCircle.Visible = false
+    if FOVCircle then
+        FOVCircle.Visible = false
+    end
 end
 
 local function GetBestTarget()
     if not aimbotEnabled then return nil end
+    
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local best, bestDist = nil, aimbotFOV
     
     for _, p in ipairs(Players:GetPlayers()) do
         if p == LocalPlayer then continue end
-        local char = p.Character
-        if not char then continue end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hum or hum.Health <= 0 then continue end
-        if teamCheck and LocalPlayer.Team and p.Team and LocalPlayer.Team == p.Team then continue end
         
-        local targetParts = {}
-        if hitboxMode == "Head" then
-            targetParts = {char:FindFirstChild("Head")}
-        elseif hitboxMode == "Neck" then
-            targetParts = {char:FindFirstChild("Neck") or char:FindFirstChild("UpperTorso")}
-        elseif hitboxMode == "UpperTorso" then
-            targetParts = {char:FindFirstChild("UpperTorso") or char:FindFirstChild("HumanoidRootPart")}
-        elseif hitboxMode == "LowerTorso" then
-            targetParts = {char:FindFirstChild("LowerTorso") or char:FindFirstChild("HumanoidRootPart")}
-        else
-            targetParts = {char:FindFirstChild("Head")}
-        end
-        
-        local bestPart = nil
-        local bestPartDist = aimbotFOV
-        
-        for _, pt in ipairs(targetParts) do
-            if pt then
-                local s, on = Camera:WorldToViewportPoint(pt.Position)
-                if on then
-                    local d = (Vector2.new(s.X, s.Y) - center).Magnitude
-                    if d < bestPartDist then
-                        bestPartDist = d
-                        bestPart = pt
+        pcall(function()
+            local char = p.Character
+            if not char then return end
+            
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if not hum or hum.Health <= 0 then return end
+            
+            if teamCheck and LocalPlayer.Team and p.Team and LocalPlayer.Team == p.Team then return end
+            
+            -- TARGET PARTS
+            local targetParts = {}
+            if hitboxMode == "Head" then
+                local head = char:FindFirstChild("Head")
+                if head then table.insert(targetParts, head) end
+            elseif hitboxMode == "Neck" then
+                local neck = char:FindFirstChild("Neck") or char:FindFirstChild("UpperTorso")
+                if neck then table.insert(targetParts, neck) end
+            elseif hitboxMode == "UpperTorso" then
+                local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("HumanoidRootPart")
+                if torso then table.insert(targetParts, torso) end
+            elseif hitboxMode == "LowerTorso" then
+                local torso = char:FindFirstChild("LowerTorso") or char:FindFirstChild("HumanoidRootPart")
+                if torso then table.insert(targetParts, torso) end
+            else
+                local head = char:FindFirstChild("Head")
+                if head then table.insert(targetParts, head) end
+            end
+            
+            -- Jika tidak ada target parts, coba pake HumanoidRootPart
+            if #targetParts == 0 then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then table.insert(targetParts, hrp) end
+            end
+            
+            local bestPart = nil
+            local bestPartDist = aimbotFOV
+            
+            for _, pt in ipairs(targetParts) do
+                if pt then
+                    local s, on = Camera:WorldToViewportPoint(pt.Position)
+                    if on then
+                        local d = (Vector2.new(s.X, s.Y) - center).Magnitude
+                        if d < bestPartDist then
+                            bestPartDist = d
+                            bestPart = pt
+                        end
                     end
                 end
             end
-        end
-        
-        if bestPart and bestPartDist < bestDist then
-            bestDist = bestPartDist
-            best = bestPart
-        end
+            
+            if bestPart and bestPartDist < bestDist then
+                bestDist = bestPartDist
+                best = bestPart
+            end
+        end)
     end
+    
     return best
 end
 
 local function EnableAimbot()
-    if aimbotConnection then return end
+    if aimbotConnection then 
+        pcall(function() aimbotConnection:Disconnect() end)
+        aimbotConnection = nil
+    end
+    
     aimbotEnabled = true
     CreateFOVCircle()
     
@@ -615,18 +698,27 @@ local function EnableAimbot()
             end
         end)
     end)
+    
+    notify("🎯 Aimbot ON", 2)
 end
 
 local function DisableAimbot()
     aimbotEnabled = false
+    
     if aimbotConnection then
-        aimbotConnection:Disconnect()
+        pcall(function() aimbotConnection:Disconnect() end)
         aimbotConnection = nil
     end
+    
     if FOVCircle then
-        pcall(FOVCircle.Remove, FOVCircle)
+        pcall(function() 
+            FOVCircle.Visible = false
+            FOVCircle.Remove(FOVCircle)
+        end)
         FOVCircle = nil
     end
+    
+    notify("🎯 Aimbot OFF", 2)
 end
 
 -- ===================== WALLBANG =====================
@@ -768,16 +860,6 @@ local function toggleInfiniteStamina(state)
 end
 
 -- ===================== FUNCTIONS =====================
-local function runEvery(interval, fn)
-    task.spawn(function()
-        while true do
-            local ok, err = pcall(fn)
-            if not ok then warn("[runEvery]", err) end
-            task.wait(interval)
-        end
-    end)
-end
-
 local Connections = {}
 
 local function fireproximityprompt(Obj, Amount, Skip)
@@ -796,8 +878,6 @@ local function fireproximityprompt(Obj, Amount, Skip)
                 Obj:InputHoldEnd()
             end
             Obj.HoldDuration = PromptTime
-        else 
-            error("userdata<ProximityPrompt> expected")
         end
     end)
 end
@@ -904,7 +984,6 @@ local function checkAndSetSlowStatus()
         if AntiSlow == false then return end
         local Character = LocalPlayer.Character
         if not Character then return end
-        local Humanoid = Character:WaitForChild("Humanoid")
         local speedMultipliers = Character:FindFirstChild("SpeedMultipliers")
         if not speedMultipliers then return end
         local slowedStatus = speedMultipliers:FindFirstChild("SlowedStatus")
@@ -973,7 +1052,7 @@ local Window, Tabs = nil, nil
 if FluentLoaded then
     Window = Fluent:CreateWindow({
         Title = "LYNZKA HUB",
-        SubTitle = "v3.6.7 - All Fixed!",
+        SubTitle = "v3.6.8 - ESP & Aimbot Fixed!",
         TabWidth = 160,
         Size = UDim2.fromOffset(580, 460),
         Theme = "Dark",
@@ -1003,10 +1082,9 @@ if FluentLoaded then
 
     -- ===================== PLAYER TAB =====================
     
-    -- WALLBANG
     Tabs.Player:AddToggle("Wallbang", {
         Title = "🧱 Wallbang",
-        Description = "Tembus dinding (TERPISAH dari Noclip)",
+        Description = "Tembus dinding",
         Default = false,
         Callback = function(state)
             pcall(function()
@@ -1017,10 +1095,9 @@ if FluentLoaded then
         end
     })
 
-    -- NOCLIP - FIXED
     Tabs.Player:AddToggle("Noclip", {
         Title = "🚫 Noclip (Anti Tanah)",
-        Description = "CEGAH masuk tanah - BUKAN tembus tembok!",
+        Description = "CEGAH masuk tanah",
         Default = false,
         Callback = function(state)
             pcall(function()
@@ -1029,7 +1106,6 @@ if FluentLoaded then
         end
     })
 
-    -- SPEED HACK
     Tabs.Player:AddToggle("SpeedHack", {
         Title = "💨 Speed Hack",
         Description = "Meningkatkan kecepatan jalan",
@@ -1041,7 +1117,6 @@ if FluentLoaded then
         end
     })
 
-    -- SPEED HACK VALUE
     Tabs.Player:AddSlider("SpeedHackValue", {
         Title = "Speed Hack Value",
         Description = "Atur kecepatan (1x - 20x)",
@@ -1119,7 +1194,7 @@ if FluentLoaded then
         end
     })
 
-    -- ===================== ESP TAB =====================
+    -- ===================== ESP TAB - FIXED =====================
     Tabs.ESP:AddToggle("ESPToggle", {
         Title = "👁️ Enable ESP",
         Description = "Nyalakan ESP untuk melihat player",
@@ -1127,7 +1202,9 @@ if FluentLoaded then
         Callback = function(state)
             pcall(function()
                 espSettings.Enabled = state
-                if not state then ClearDrawings() end
+                if not state then 
+                    ClearDrawings() 
+                end
                 if state then
                     notify("👁️ ESP ON", 2)
                 else
@@ -1229,7 +1306,7 @@ if FluentLoaded then
         end
     })
 
-    -- ===================== COMBAT TAB =====================
+    -- ===================== COMBAT TAB - FIXED =====================
     Tabs.Combat:AddToggle("AimbotToggle", {
         Title = "🎯 Aimbot",
         Description = "Auto aim ke musuh",
@@ -1238,10 +1315,8 @@ if FluentLoaded then
             pcall(function()
                 if state then 
                     EnableAimbot()
-                    notify("🎯 Aimbot ON", 2)
                 else 
                     DisableAimbot()
-                    notify("🎯 Aimbot OFF", 2)
                 end
             end)
         end
@@ -1286,7 +1361,9 @@ if FluentLoaded then
         Callback = function(value)
             pcall(function()
                 aimbotFOV = value
-                if FOVCircle then FOVCircle.Radius = value end
+                if FOVCircle then 
+                    FOVCircle.Radius = value 
+                end
                 notify("🎯 FOV: " .. value, 2)
             end)
         end
@@ -1295,7 +1372,7 @@ if FluentLoaded then
     Tabs.Combat:AddDropdown("HitboxMode", {
         Title = "🎯 Hitbox Mode",
         Description = "Pilih target body part",
-        Values = {"Head", "Neck", "UpperTorso", "LowerTorso", "All"},
+        Values = {"Head", "Neck", "UpperTorso", "LowerTorso"},
         Multi = false,
         Default = "Head",
         Callback = function(value)
@@ -1308,7 +1385,7 @@ if FluentLoaded then
 
     Tabs.Combat:AddToggle("ChanceAimbot", {
         Title = "🎲 Chance Aimbot",
-        Description = "Aimbot legacy dengan prediksi",
+        Description = "Aimbot dengan prediksi",
         Default = false,
         Callback = function(state)
             pcall(function()
@@ -1383,7 +1460,6 @@ if FluentLoaded then
         end
     })
 
-    -- NAMEPROTECT - FIXED
     Tabs.Misc:AddToggle("NameProtect", {
         Title = "🛡️ NameProtect",
         Description = "Sembunyikan NAMA KAMU sendiri",
@@ -1406,7 +1482,6 @@ if FluentLoaded then
         end
     })
 
-    -- PLAY SOUND - FIXED + VOLUME MAX
     Tabs.Misc:AddInput("PlaySoundByID", {
         Title = "🔊 Play Sound",
         Description = "Masukkan ID sound Roblox (Volume MAX)",
@@ -1667,7 +1742,6 @@ if FluentLoaded then
     })
 
     -- ===================== CUSTOM ANIMATIONS TAB =====================
-    -- CUSTOM BLOCK ANIM - FIXED
     Tabs.CustomAnimations:AddInput("CustomBlockAnim", {
         Title = "🎭 Custom Block Animation",
         Description = "Masukkan ID animasi block",
@@ -1700,7 +1774,6 @@ if FluentLoaded then
         end
     })
 
-    -- CUSTOM PUNCH ANIM - FIXED
     Tabs.CustomAnimations:AddInput("CustomPunchAnim", {
         Title = "🎭 Custom Punch Animation",
         Description = "Masukkan ID animasi punch",
@@ -1733,7 +1806,6 @@ if FluentLoaded then
         end
     })
 
-    -- CHARGE ANIM - FIXED
     Tabs.CustomAnimations:AddInput("ChargeAnimID", {
         Title = "🎭 Charge Animation ID",
         Description = "Masukkan ID animasi charge",
@@ -1782,7 +1854,7 @@ if FluentLoaded then
 
     -- ===================== FINALIZE =====================
     Window:SelectTab("Player")
-    notify("🔥 LYNZKA HUB v3.6.7 Loaded - All Errors Fixed!", 4)
+    notify("🔥 LYNZKA HUB v3.6.8 - ESP & Aimbot Fixed!", 4)
 
     hubLoaded = true
 end
@@ -2063,5 +2135,6 @@ if SaveManager then
     end)
 end
 
-print("[LYNZKA HUB v3.6.7] ✅ Loaded successfully!")
+print("[LYNZKA HUB v3.6.8] ✅ Loaded successfully!")
 print("💡 Klik '-' atau tekan '-' di keyboard untuk toggle menu")
+print("🎯 ESP & Aimbot FIXED!")menu")
