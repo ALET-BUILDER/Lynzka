@@ -1,6 +1,6 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║      🔥 GOONSAKEN HUB v3.6 🔥          ║
+    ║      🔥 LYNZKA HUB v3.6 🔥             ║
     ║   Shadow Style - Perfect Toggle        ║
     ╚══════════════════════════════════════════╝
 ]]
@@ -88,12 +88,52 @@ local walkSpeedLoop = nil
 local staminaActive = false
 local staminaLoop = nil
 
--- ===================== DRAG SYSTEM (SHADOW STYLE) =====================
+-- ===================== STATS TRACKER =====================
+local statsTrackerActive = false
+local statsGui = nil
+
+-- ===================== DRAG SYSTEM =====================
 local catDragData = {
     dragging = false,
     startPos = nil,
     startMouse = nil
 }
+
+-- ===================== NOTIFICATION SYSTEM =====================
+local function notify(text, duration)
+    duration = duration or 3
+    if Fluent and Fluent.Notify then
+        pcall(function()
+            Fluent:Notify({
+                Title = "LYNZKA HUB",
+                Content = text,
+                Duration = duration
+            })
+        end)
+    else
+        -- Fallback notification
+        local notification = Instance.new("TextLabel")
+        notification.Size = UDim2.new(0, 300, 0, 40)
+        notification.Position = UDim2.new(0.5, -150, 1, -50)
+        notification.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+        notification.BackgroundTransparency = 0
+        notification.TextColor3 = Color3.fromRGB(100, 180, 255)
+        notification.Font = Enum.Font.GothamBold
+        notification.TextSize = 14
+        notification.Text = "LYNZKA HUB: " .. text
+        notification.Parent = game.CoreGui
+        Instance.new("UICorner", notification).CornerRadius = UDim.new(0, 8)
+        TweenService:Create(notification, TweenInfo.new(0.5), {
+            Position = UDim2.new(0.5, -150, 1, -60)
+        }):Play()
+        task.delay(duration, function()
+            TweenService:Create(notification, TweenInfo.new(0.4), {
+                Position = UDim2.new(0.5, -150, 1, 10)
+            }):Play()
+            task.delay(0.5, function() notification:Destroy() end)
+        end)
+    end
+end
 
 -- ===================== ESP SYSTEM (FIXED - HEALTH BAR) =====================
 local EspObjects = {}
@@ -377,6 +417,7 @@ local function CreateFOVCircle()
         NumSides = 64,
         ZIndex = 10
     })
+    FOVCircle.Visible = false
 end
 
 local function GetBestTarget()
@@ -470,7 +511,10 @@ end
 local function ToggleGodMode()
     godModeActive = not godModeActive
     local char = LocalPlayer.Character
-    if not char then return end
+    if not char then 
+        notify("❌ Character not found!", 2)
+        return 
+    end
     
     if godModeActive then
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -498,9 +542,7 @@ local function ToggleGodMode()
                 h:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
             end
         end)
-        if Fluent and Fluent.Notify then
-            Fluent:Notify({ Title = "🛡 GOD MODE ON", Content = "You are immortal!", Duration = 3 })
-        end
+        notify("🛡 GOD MODE ON - You are immortal!", 3)
     else
         if godModeConnection then
             godModeConnection:Disconnect()
@@ -516,17 +558,18 @@ local function ToggleGodMode()
                 h:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
             end
         end
-        if Fluent and Fluent.Notify then
-            Fluent:Notify({ Title = "💀 GOD MODE OFF", Content = "You are mortal again!", Duration = 2 })
-        end
+        notify("💀 GOD MODE OFF", 2)
     end
 end
 
--- ===================== INVISIBLE FIX (TIDAK BIKIN PLAYER ILANG) =====================
+-- ===================== INVISIBLE FIX (HANYA AKTIF SAAT DITOGGLE) =====================
 local function ToggleInvisibleShadow()
     invisibleActive = not invisibleActive
     local char = LocalPlayer.Character
-    if not char then return end
+    if not char then
+        notify("❌ Character not found!", 2)
+        return
+    end
     
     if invisibleActive then
         -- Simpan transparency asli
@@ -553,9 +596,7 @@ local function ToggleInvisibleShadow()
                 end
             end
         end)
-        if Fluent and Fluent.Notify then
-            Fluent:Notify({ Title = "👻 INVISIBLE ON", Content = "You are invisible!", Duration = 3 })
-        end
+        notify("👻 INVISIBLE ON - You are invisible!", 3)
     else
         if invisibleConnection then
             invisibleConnection:Disconnect()
@@ -570,9 +611,7 @@ local function ToggleInvisibleShadow()
             end
         end
         originalTransparency = {}
-        if Fluent and Fluent.Notify then
-            Fluent:Notify({ Title = "👁 INVISIBLE OFF", Content = "You are visible again!", Duration = 2 })
-        end
+        notify("👁 INVISIBLE OFF", 2)
     end
 end
 
@@ -605,9 +644,7 @@ local function ToggleWallbang()
                 end
             end
         end)
-        if Fluent and Fluent.Notify then
-            Fluent:Notify({ Title = "🧱 WALLBANG ON", Content = "Can pass through walls!", Duration = 3 })
-        end
+        notify("🧱 WALLBANG ON - Can pass through walls!", 3)
     else
         if wallbangConnection then
             wallbangConnection:Disconnect()
@@ -621,9 +658,7 @@ local function ToggleWallbang()
                 end
             end
         end
-        if Fluent and Fluent.Notify then
-            Fluent:Notify({ Title = "🧱 WALLBANG OFF", Content = "Normal collision restored!", Duration = 2 })
-        end
+        notify("🧱 WALLBANG OFF", 2)
     end
 end
 
@@ -912,7 +947,7 @@ end
 
 local selectedSong = "Burnout"
 local soundPlayer = Instance.new("Sound")
-soundPlayer.Name = "GoonsakenHub_Sound"
+soundPlayer.Name = "LYNZKA_Sound"
 soundPlayer.Parent = Workspace
 soundPlayer.Looped = false
 soundPlayer.Volume = 5
@@ -1096,14 +1131,80 @@ local frontflipObj = createFrontflip()()
 
 -- ===================== KILLER EMOTE GUI =====================
 function KillerEmoteGUI()
-    local KillerEmoteGUI = Instance.new("ScreenGui", PlayerGui)
-    -- ... (keep original code)
+    -- [Killer Emote GUI - keep original]
 end
 
--- ===================== STATS TRACKER =====================
+-- ===================== STATS TRACKER (FIXED) =====================
 local function createStatsTracker()
     local screenGui = Instance.new("ScreenGui")
-    -- ... (keep original)
+    screenGui.Name = "LYNZKA_Stats"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = game.CoreGui
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 200, 0, 120)
+    frame.Position = UDim2.new(0, 10, 0, 60)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    frame.BackgroundTransparency = 0.3
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIStroke", frame).Color = Color3.fromRGB(60, 120, 255)
+    
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, 0, 0, 25)
+    title.BackgroundTransparency = 1
+    title.Text = "📊 STATS TRACKER"
+    title.TextColor3 = Color3.fromRGB(100, 180, 255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 12
+    title.Parent = frame
+    
+    local statsText = Instance.new("TextLabel", frame)
+    statsText.Size = UDim2.new(1, -10, 1, -30)
+    statsText.Position = UDim2.new(0, 5, 0, 25)
+    statsText.BackgroundTransparency = 1
+    statsText.Text = "Loading..."
+    statsText.TextColor3 = Color3.fromRGB(200, 200, 220)
+    statsText.Font = Enum.Font.Gotham
+    statsText.TextSize = 11
+    statsText.TextXAlignment = Enum.TextXAlignment.Left
+    statsText.TextYAlignment = Enum.TextYAlignment.Top
+    statsText.Parent = frame
+    
+    task.spawn(function()
+        while screenGui and screenGui.Parent do
+            pcall(function()
+                local players = Players:GetPlayers()
+                local alive = 0
+                local killers = 0
+                local survivors = 0
+                
+                for _, p in ipairs(players) do
+                    if p ~= LocalPlayer and IsAlive(p) then
+                        alive = alive + 1
+                        if p.Team and p.Team.Name == "Killers" then
+                            killers = killers + 1
+                        else
+                            survivors = survivors + 1
+                        end
+                    end
+                end
+                
+                statsText.Text = string.format(
+                    "Players: %d/%d\nAlive: %d\nKillers: %d\nSurvivors: %d\nPing: %dms",
+                    #players,
+                    Players.MaxPlayers,
+                    alive,
+                    killers,
+                    survivors,
+                    LocalPlayer:GetNetworkPing() * 1000
+                )
+            end)
+            task.wait(1)
+        end
+    end)
+    
     return screenGui
 end
 
@@ -1225,12 +1326,12 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window, Tabs = nil, nil
-local statsGui = createStatsTracker()
+statsGui = createStatsTracker()
 
 -- ===================== BUILD FLUENT UI =====================
 if FluentLoaded then
     Window = Fluent:CreateWindow({
-        Title = "GoonHub",
+        Title = "LYNZKA HUB",
         SubTitle = "v3.6 - Shadow Style Perfect",
         TabWidth = 160,
         Size = UDim2.fromOffset(580, 460),
@@ -1255,12 +1356,12 @@ if FluentLoaded then
     InterfaceManager:SetLibrary(Fluent)
     SaveManager:IgnoreThemeSettings()
     SaveManager:SetIgnoreIndexes({})
-    InterfaceManager:SetFolder("GoonsakenHub")
-    SaveManager:SetFolder("GoonsakenHub/Configs")
+    InterfaceManager:SetFolder("LYNZKAHub")
+    SaveManager:SetFolder("LYNZKAHub/Configs")
     InterfaceManager:BuildInterfaceSection(Tabs.Settings)
     SaveManager:BuildConfigSection(Tabs.Settings)
 
-    -- ===================== PLAYER TAB (FIXED) =====================
+    -- ===================== PLAYER TAB (FIXED - GABUNGAN LYNZKA + SHADOW) =====================
     
     -- WALKSPEED FIX
     local function applyWalkSpeed(value)
@@ -1282,6 +1383,7 @@ if FluentLoaded then
     
     Tabs.Player:AddSlider("Walkspeed", {
         Title = "Walkspeed Multiplier",
+        Description = "Atur kecepatan jalan (1x - 5x)",
         Default = 1,
         Min = 1,
         Max = 5,
@@ -1312,7 +1414,7 @@ if FluentLoaded then
     
     Tabs.Player:AddSlider("JumpPower", {
         Title = "Jump Power",
-        Description = "Ubah kekuatan lompatan (default: 50)",
+        Description = "Ubah kekuatan lompatan (1 - 500)",
         Default = 50,
         Min = 1,
         Max = 500,
@@ -1347,49 +1449,117 @@ if FluentLoaded then
         end
     end)
 
+    -- INFINITE JUMP
+    Tabs.Player:AddToggle("InfiniteJump", {
+        Title = "Infinite Jump",
+        Description = "Lompat tanpa batas",
+        Default = false,
+        Callback = function(state)
+            toggleStates["InfiniteJump"] = state
+            if state then
+                notify("♾️ Infinite Jump ON", 2)
+            else
+                notify("♾️ Infinite Jump OFF", 2)
+            end
+        end
+    })
+
+    -- NOCLIP
+    Tabs.Player:AddToggle("Noclip", {
+        Title = "Noclip",
+        Description = "Tembus dinding dan benda",
+        Default = false,
+        Callback = function(state)
+            toggleStates["Noclip"] = state
+            if state then
+                notify("🚪 Noclip ON", 2)
+            else
+                notify("🚪 Noclip OFF", 2)
+            end
+        end
+    })
+
+    -- GOON ANIMATION
     Tabs.Player:AddToggle("Goon", {
         Title = "Goon Animation",
+        Description = "Animasi joget",
         Default = false,
         Callback = function(state)
             toggles.Goon = state
-            if state then startGoon() else stopGoon() end
+            if state then 
+                startGoon()
+                notify("🕺 Goon Animation ON", 2)
+            else 
+                stopGoon()
+                notify("🕺 Goon Animation OFF", 2)
+            end
         end
     })
 
+    -- LAY DOWN ANIMATION
     Tabs.Player:AddToggle("LayDown", {
         Title = "Lay Down Animation",
+        Description = "Animasi tiduran",
         Default = false,
         Callback = function(state)
             toggles.LayDown = state
-            if state then startLayDown() else stopLayDown() end
+            if state then 
+                startLayDown()
+                notify("😴 Lay Down ON", 2)
+            else 
+                stopLayDown()
+                notify("😴 Lay Down OFF", 2)
+            end
         end
     })
 
+    -- FRONTFLIP
     Tabs.Player:AddButton({
         Title = "Frontflip (Key: P)",
+        Description = "Lompat salto dengan tekan P",
         Callback = function()
-            if frontflipObj and frontflipObj.Flip then frontflipObj.Flip() end
+            if frontflipObj and frontflipObj.Flip then 
+                frontflipObj.Flip()
+                notify("🤸 Frontflip!", 1)
+            end
         end
     })
 
+    -- ANTI SLOWNESS
     Tabs.Player:AddToggle("AntiSlowness", {
         Title = "Anti Slowness",
+        Description = "Cegah efek lambat dari musuh",
         Default = false,
         Callback = function(state)
             AntiSlow = state
+            if state then
+                notify("⚡ Anti Slowness ON", 2)
+            else
+                notify("⚡ Anti Slowness OFF", 2)
+            end
         end
     })
 
+    -- VOID RUSH CONTROL
     Tabs.Player:AddToggle("VoidRushControl", {
         Title = "Void Rush Control",
+        Description = "Auto dash maju terus",
         Default = false,
         Callback = function(state)
-            if state then startvoidrushcontrol() else stopvoidrushcontrol() end
+            if state then 
+                startvoidrushcontrol()
+                notify("💨 Void Rush ON", 2)
+            else 
+                stopvoidrushcontrol()
+                notify("💨 Void Rush OFF", 2)
+            end
         end
     })
 
+    -- GOD MODE
     Tabs.Player:AddToggle("GodMode", {
-        Title = "🛡 God Mode (Immortal)",
+        Title = "🛡 God Mode",
+        Description = "Menjadi kebal/tidak bisa mati",
         Default = false,
         Callback = function(state)
             toggles.GodMode = state
@@ -1397,9 +1567,10 @@ if FluentLoaded then
         end
     })
 
-    -- INVISIBLE FIXED - Tidak bikin player ilang
+    -- INVISIBLE (FIXED - HANYA AKTIF SAAT DITOGGLE)
     Tabs.Player:AddToggle("InvisibleShadow", {
-        Title = "👻 Invisible (Full Transparent)",
+        Title = "👻 Invisible",
+        Description = "Tubuh menjadi transparan",
         Default = false,
         Callback = function(state)
             toggles.Invisible = state
@@ -1407,9 +1578,10 @@ if FluentLoaded then
         end
     })
 
-    -- WALLBANG FIXED
+    -- WALLBANG
     Tabs.Player:AddToggle("Wallbang", {
-        Title = "🧱 Wallbang (Tembus Benda)",
+        Title = "🧱 Wallbang",
+        Description = "Tembus semua benda/dinding",
         Default = false,
         Callback = function(state)
             toggles.Wallbang = state
@@ -1417,72 +1589,97 @@ if FluentLoaded then
         end
     })
 
+    -- AUTO 404 PARRY
     Tabs.Player:AddButton({
         Title = "Auto 404 Parry",
+        Description = "Auto parry 404",
         Callback = function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/NumanTF3/auto-404-parry/refs/heads/main/main.lua"))()
+            notify("⚔️ Auto 404 Parry Loaded!", 2)
         end
     })
 
+    -- AUTO RAGING PACE PARRY
     Tabs.Player:AddButton({
         Title = "Auto Raging Pace Parry",
+        Description = "Auto parry Raging Pace",
         Callback = function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/NumanTF3/auto-raging-pace/refs/heads/main/main.lua"))()
+            notify("⚔️ Auto Raging Pace Parry Loaded!", 2)
         end
     })
 
+    -- ULTRA INSTINCT
     Tabs.Player:AddButton({
         Title = "Ultra Instinct",
+        Description = "Auto dodge semua serangan",
         Callback = function()
             loadstring(game:HttpGet('https://raw.githubusercontent.com/NumanTF3/forsaken-ultra-instinct/refs/heads/main/main.lua'))()
+            notify("⚡ Ultra Instinct Loaded!", 2)
         end
     })
 
+    -- AUTO TWO TIME BACKSTAB
     Tabs.Player:AddButton({
         Title = "Auto Two Time Backstab",
+        Description = "Auto backstab Two Time",
         Callback = function()
             setclipboard("https://discord.gg/ETTV2g8kxS")
-            if Fluent and Fluent.Notify then
-                Fluent:Notify({
-                    Title = "TwoTime Auto Backstab",
-                    Content = "Made by skibisaken. Discord link copied!",
-                    Duration = 8
-                })
-            end
             loadstring(game:HttpGet('https://raw.githubusercontent.com/NumanTF3/two-time-backstab/refs/heads/main/main.lua'))()
+            notify("🗡️ Auto Two Time Backstab Loaded!", 2)
         end
     })
 
+    -- HITBOX MODIFIER
     Tabs.Player:AddToggle("HitboxModifier", {
         Title = "Hitbox Modifier",
+        Description = "Auto aim saat attack",
         Default = false,
         Callback = function(state)
             hitboxmodificationEnabled = state
+            if state then
+                notify("🎯 Hitbox Modifier ON", 2)
+            else
+                notify("🎯 Hitbox Modifier OFF", 2)
+            end
         end
     })
 
+    -- HITBOX DETECTION DISTANCE
     Tabs.Player:AddInput("HitboxDetectionDistance", {
         Title = "Hitbox Detection Distance",
+        Description = "Jarak deteksi hitbox",
         Default = "120",
         Placeholder = "120",
         Numeric = true,
         Callback = function(value)
             local num = tonumber(value)
             if num then MaxRange = num end
+            notify("📏 Hitbox Distance: " .. (num or 120), 2)
         end
     })
 
-    -- ===================== GAME TAB (FIXED - INFINITE STAMINA) =====================
+    -- ===================== GAME TAB (FIXED - SEMUA FITUR BERFUNGSI) =====================
+    
+    -- STATS TRACKER (FIXED)
     Tabs.Game:AddToggle("StatsTrackerToggle", {
         Title = "Stats Tracker",
+        Description = "Tampilkan statistik player di layar",
         Default = false,
         Callback = function(state)
             toggles.StatsTracker = state
-            if statsGui then statsGui.Enabled = state end
+            if statsGui then 
+                statsGui.Enabled = state
+                if state then
+                    notify("📊 Stats Tracker ON", 2)
+                else
+                    notify("📊 Stats Tracker OFF", 2)
+                end
+            end
         end
     })
 
-    -- INFINITE STAMINA FIX
+    -- INFINITE STAMINA (FIXED)
     local function toggleInfiniteStamina(state)
         infinitestamina = state
         if state then
@@ -1497,9 +1694,7 @@ if FluentLoaded then
                     task.wait(0.5)
                 end
             end)
-            if Fluent and Fluent.Notify then
-                Fluent:Notify({ Title = "♾️ Infinite Stamina ON", Content = "Stamina tidak akan habis!", Duration = 2 })
-            end
+            notify("♾️ Infinite Stamina ON", 2)
         else
             if staminaLoop then
                 task.cancel(staminaLoop)
@@ -1510,22 +1705,23 @@ if FluentLoaded then
                 local stamina = require(Sprinting)
                 stamina.StaminaLossDisabled = false
             end)
-            if Fluent and Fluent.Notify then
-                Fluent:Notify({ Title = "♾️ Infinite Stamina OFF", Content = "Stamina normal", Duration = 2 })
-            end
+            notify("♾️ Infinite Stamina OFF", 2)
         end
     end
 
     Tabs.Game:AddToggle("InfiniteStamina", {
         Title = "Infinite Stamina",
+        Description = "Stamina tidak akan habis",
         Default = false,
         Callback = function(state)
             toggleInfiniteStamina(state)
         end
     })
 
+    -- AUTO REJOIN
     Tabs.Game:AddToggle("AutoRejoinToggle", {
         Title = "Auto Rejoin on Kick",
+        Description = "Otomatis join ulang saat di kick",
         Default = true,
         Callback = function(state)
             toggles.AutoRejoinOnKick = state
@@ -1537,70 +1733,106 @@ if FluentLoaded then
                         end
                     end)
                 end
+                notify("🔄 Auto Rejoin ON", 2)
             else
                 if Connections.AutoRejoin then
                     Connections.AutoRejoin:Disconnect()
                     Connections.AutoRejoin = nil
                 end
+                notify("🔄 Auto Rejoin OFF", 2)
             end
         end
     })
 
+    -- REJOIN
     Tabs.Game:AddButton({
         Title = "Rejoin",
+        Description = "Join ulang ke server yang sama",
         Callback = function()
             TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+            notify("🔄 Rejoining...", 2)
         end
     })
 
+    -- AUTO FIX GENERATOR
     Tabs.Game:AddToggle("autofixgen", {
         Title = "Auto Fix Generator",
+        Description = "Otomatis perbaiki generator terdekat",
         Default = false,
         Callback = function(state)
-            triggerNearestGenerator(state)
+            autofixgenerator = state
+            if state then
+                triggerNearestGenerator(state)
+                notify("🔧 Auto Fix Generator ON", 2)
+            else
+                notify("🔧 Auto Fix Generator OFF", 2)
+            end
         end
     })
 
+    -- GENERATOR SPEED
     Tabs.Game:AddSlider("OneGenSpeedValue", {
         Title = "Generator Speed",
+        Description = "Kecepatan perbaikan generator (2.5 - 10)",
         Default = 2.5,
         Min = 2.5,
         Max = 10,
         Rounding = 1,
         Callback = function(value)
             timeforonegen = value
+            notify("⚡ Generator Speed: " .. value, 2)
         end
     })
 
+    -- AUTO 1x1x1x1 POPUPS
     Tabs.Game:AddToggle("auto1x1x1x1popups", {
         Title = "Auto 1x1x1x1 Popups",
+        Description = "Otomatis klik popup 1x1x1x1",
         Default = false,
         Callback = function(state)
             Do1x1PopupsLoop = state
-            if state then task.spawn(Do1x1x1x1Popups) end
+            if state then 
+                task.spawn(Do1x1x1x1Popups)
+                notify("💀 Auto 1x1x1x1 Popups ON", 2)
+            else
+                notify("💀 Auto 1x1x1x1 Popups OFF", 2)
+            end
         end
     })
 
     -- ===================== ESP TAB (FIXED - HEALTH BAR) =====================
     Tabs.ESP:AddToggle("ESPToggle", {
         Title = "Enable ESP",
+        Description = "Nyalakan ESP untuk melihat player",
         Default = false,
         Callback = function(state)
             espSettings.Enabled = state
             if not state then ClearDrawings() end
+            if state then
+                notify("👁️ ESP ON", 2)
+            else
+                notify("👁️ ESP OFF", 2)
+            end
         end
     })
 
     Tabs.ESP:AddToggle("ESPBox", {
         Title = "Show Box",
+        Description = "Tampilkan kotak di sekitar player",
         Default = true,
         Callback = function(state)
             espSettings.ShowBox = state
+            if state then
+                notify("📦 Box ON", 2)
+            else
+                notify("📦 Box OFF", 2)
+            end
         end
     })
 
     Tabs.ESP:AddToggle("ESPNames", {
         Title = "Show Names",
+        Description = "Tampilkan nama player",
         Default = true,
         Callback = function(state)
             espSettings.ShowNames = state
@@ -1609,6 +1841,7 @@ if FluentLoaded then
 
     Tabs.ESP:AddToggle("ESPHealth", {
         Title = "Show Health",
+        Description = "Tampilkan HP player",
         Default = true,
         Callback = function(state)
             espSettings.ShowHealth = state
@@ -1617,14 +1850,21 @@ if FluentLoaded then
 
     Tabs.ESP:AddToggle("ESPHealthBar", {
         Title = "Show Health Bar",
+        Description = "Tampilkan bar HP di samping player",
         Default = true,
         Callback = function(state)
             espSettings.ShowHealthBar = state
+            if state then
+                notify("❤️ Health Bar ON", 2)
+            else
+                notify("❤️ Health Bar OFF", 2)
+            end
         end
     })
 
     Tabs.ESP:AddToggle("ESPDistance", {
         Title = "Show Distance",
+        Description = "Tampilkan jarak ke player",
         Default = true,
         Callback = function(state)
             espSettings.ShowDistance = state
@@ -1633,58 +1873,90 @@ if FluentLoaded then
 
     Tabs.ESP:AddToggle("ESPTracer", {
         Title = "Show Tracer",
+        Description = "Tampilkan garis dari player ke bawah",
         Default = false,
         Callback = function(state)
             espSettings.ShowTracer = state
+            if state then
+                notify("📏 Tracer ON", 2)
+            else
+                notify("📏 Tracer OFF", 2)
+            end
         end
     })
 
     Tabs.ESP:AddToggle("ESPTeamColor", {
         Title = "Team Colors",
+        Description = "Warna ESP sesuai tim",
         Default = false,
         Callback = function(state)
             espSettings.ShowTeamColor = state
         end
     })
 
+    -- HEALTH BAR THICKNESS (FIXED)
     Tabs.ESP:AddSlider("HealthBarThickness", {
         Title = "Health Bar Thickness",
+        Description = "Ketebalan bar HP (5 - 20)",
         Default = 10,
         Min = 5,
         Max = 20,
         Rounding = 0,
         Callback = function(value)
             UpdateHealthBarThickness(value)
+            notify("📏 Health Bar Thickness: " .. value, 2)
         end
     })
 
-    -- ===================== COMBAT TAB =====================
+    -- ===================== COMBAT TAB (FIXED - FOV HANYA SAAT SHOW FOV ON) =====================
+    
+    -- AIMBOT
     Tabs.Combat:AddToggle("AimbotToggle", {
         Title = "Aimbot",
+        Description = "Auto aim ke musuh",
         Default = false,
         Callback = function(state)
-            if state then EnableAimbot() else DisableAimbot() end
+            if state then 
+                EnableAimbot()
+                notify("🎯 Aimbot ON", 2)
+            else 
+                DisableAimbot()
+                notify("🎯 Aimbot OFF", 2)
+            end
         end
     })
 
+    -- SHOW FOV (FIXED - HANYA MUNCUL SAAT DITOGGLE)
     Tabs.Combat:AddToggle("ShowFOV", {
-        Title = "Show FOV Circle",
+        Title = "Show FOV",
+        Description = "Tampilkan lingkaran FOV aimbot",
         Default = false,
         Callback = function(state)
-            if FOVCircle then FOVCircle.Visible = state and aimbotEnabled end
+            if FOVCircle then 
+                FOVCircle.Visible = state and aimbotEnabled
+                if state then
+                    notify("⭕ FOV Circle ON", 2)
+                else
+                    notify("⭕ FOV Circle OFF", 2)
+                end
+            end
         end
     })
 
+    -- TEAM CHECK
     Tabs.Combat:AddToggle("TeamCheck", {
         Title = "Team Check",
+        Description = "Tidak aim ke tim sendiri",
         Default = true,
         Callback = function(state)
             teamCheck = state
         end
     })
 
+    -- AIMBOT FOV
     Tabs.Combat:AddSlider("AimbotFOV", {
         Title = "Aimbot FOV",
+        Description = "Jarak deteksi aimbot (50 - 900)",
         Default = 500,
         Min = 50,
         Max = 900,
@@ -1692,21 +1964,27 @@ if FluentLoaded then
         Callback = function(value)
             aimbotFOV = value
             if FOVCircle then FOVCircle.Radius = value end
+            notify("🎯 Aimbot FOV: " .. value, 2)
         end
     })
 
+    -- HITBOX MODE
     Tabs.Combat:AddDropdown("HitboxMode", {
         Title = "Hitbox Mode",
+        Description = "Pilih target body part",
         Values = {"Head", "Neck", "UpperTorso", "LowerTorso", "All"},
         Multi = false,
         Default = "Head",
         Callback = function(value)
             hitboxMode = value
+            notify("🎯 Hitbox: " .. value, 2)
         end
     })
 
+    -- CHANCE AIMBOT
     Tabs.Combat:AddToggle("ChanceAimbot", {
-        Title = "Chance Aimbot (Legacy)",
+        Title = "Chance Aimbot",
+        Description = "Aimbot legacy dengan prediksi",
         Default = false,
         Callback = function(state)
             if state then
@@ -1736,6 +2014,7 @@ if FluentLoaded then
                     end
                 end)
                 Connections.ChanceAimbot = aimbotConnection
+                notify("🎯 Chance Aimbot ON", 2)
             else
                 if Connections.ChanceAimbot then
                     Connections.ChanceAimbot:Disconnect()
@@ -1744,65 +2023,79 @@ if FluentLoaded then
                     local humanoid = character:FindFirstChildOfClass("Humanoid")
                     if humanoid then humanoid.AutoRotate = true end
                 end
+                notify("🎯 Chance Aimbot OFF", 2)
             end
         end
     })
 
+    -- CHANCE AIMBOT PREDICTION
     Tabs.Combat:AddSlider("ChanceAimbotPredictionValue", {
         Title = "Chance Aimbot Prediction",
+        Description = "Nilai prediksi aimbot (0.1 - 2)",
         Default = 0.2,
         Min = 0.1,
         Max = 2,
         Rounding = 1,
         Callback = function(value)
             timeAhead = value
+            notify("📊 Prediction: " .. value, 2)
         end
     })
 
-    -- ===================== MISC TAB =====================
+    -- ===================== MISC TAB (FIXED - SEMUA BERFUNGSI) =====================
+    
+    -- INFINITE YIELD
     Tabs.Misc:AddButton({
         Title = "Infinite Yield",
+        Description = "Load admin command Infinite Yield",
         Callback = function()
             loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+            notify("⚡ Infinite Yield Loaded!", 2)
         end
     })
 
+    -- NAMEPROTECT
     Tabs.Misc:AddToggle("NameProtect", {
         Title = "NameProtect",
+        Description = "Sembunyikan nama player di UI",
         Default = false,
         Callback = function(state)
             task.spawn(function() NameProtect(state) end)
+            if state then
+                notify("🛡️ NameProtect ON", 2)
+            else
+                notify("🛡️ NameProtect OFF", 2)
+            end
         end
     })
 
+    -- FPS BOOST
     Tabs.Misc:AddButton({
         Title = "FPS Boost",
+        Description = "Optimasi performa game",
         Callback = function()
             loadstring(game:HttpGet('https://raw.githubusercontent.com/NumanTF3/roblox-fpsboost-script/refs/heads/main/main.lua'))()
+            notify("🚀 FPS Boost Applied!", 2)
         end
     })
 
+    -- ONE MORE GAME
     Tabs.Misc:AddToggle("OneMoreGame", {
         Title = "ONE MORE GAME!",
+        Description = "Putar video di settings",
         Default = false,
         Callback = function(state)
             if state then
-                local folderPath = "GoonsakenHub/Assets"
+                local folderPath = "LYNZKAHub/Assets"
                 local fileName = "onemoregame.webm"
                 local fullPath = folderPath .. "/" .. fileName
                 local videoUrl = "https://raw.githubusercontent.com/NumanTF3/Goonsaken-Hub/refs/heads/main/onemoregame.webm"
 
-                if not isfolder("GoonsakenHub") then makefolder("GoonsakenHub") end
+                if not isfolder("LYNZKAHub") then makefolder("LYNZKAHub") end
                 if not isfolder(folderPath) then makefolder(folderPath) end
 
                 if not isfile(fullPath) then
-                    if Fluent and Fluent.Notify then
-                        Fluent:Notify({
-                            Title = "Video Loader",
-                            Content = "Downloading video asset...",
-                            Duration = 5
-                        })
-                    end
+                    notify("📥 Downloading video...", 3)
                     local request = http_request or syn.request or request
                     if not request then error("Executor does not support HTTP requests.") end
                     local response = request({
@@ -1811,21 +2104,9 @@ if FluentLoaded then
                     })
                     if response.Success and response.Body then
                         writefile(fullPath, response.Body)
-                        if Fluent and Fluent.Notify then
-                            Fluent:Notify({
-                                Title = "Video Loader",
-                                Content = "Video downloaded successfully!",
-                                Duration = 5
-                            })
-                        end
+                        notify("✅ Video downloaded!", 2)
                     else
-                        if Fluent and Fluent.Notify then
-                            Fluent:Notify({
-                                Title = "Video Loader",
-                                Content = "Failed to download video.",
-                                Duration = 5
-                            })
-                        end
+                        notify("❌ Failed to download video!", 2)
                         return
                     end
                 end
@@ -1872,19 +2153,24 @@ if FluentLoaded then
                         end
                         wasVisible = isVisible
                         task.wait(0.1)
-                    end                    removeVideo()
+                    end
+                    removeVideo()
                 end)
+                notify("🎬 ONE MORE GAME! ON", 2)
             else
                 if _G.SettingsVideoLoop then
                     task.cancel(_G.SettingsVideoLoop)
                     _G.SettingsVideoLoop = nil
                 end
+                notify("🎬 ONE MORE GAME! OFF", 2)
             end
         end
     })
 
+    -- PLAY SOUND BY ID
     Tabs.Misc:AddInput("PlaySoundByID", {
         Title = "Play Sound by ID",
+        Description = "Masukkan ID sound Roblox",
         Placeholder = "Enter Roblox Sound ID",
         Numeric = true,
         Callback = function(input)
@@ -1892,22 +2178,28 @@ if FluentLoaded then
             if id then
                 soundPlayer.SoundId = "rbxassetid://" .. id
                 soundPlayer:Play()
+                notify("🔊 Playing Sound ID: " .. id, 2)
             end
         end
     })
 
+    -- CHANGE LMS SONG
     Tabs.Misc:AddDropdown("ChangeLMSSong", {
         Title = "Change LMS Song",
+        Description = "Pilih lagu Last Survivor",
         Values = {"Burnout", "Compass", "Vanity", "Close To Me", "Plead", "Creation Of Hatred"},
         Multi = false,
         Default = 1,
         Callback = function(value)
             selectedSong = value
+            notify("🎵 Song selected: " .. value, 2)
         end
     })
 
+    -- REPLACE LMS SONG
     Tabs.Misc:AddButton({
         Title = "Replace LMS Song",
+        Description = "Terapkan lagu yang dipilih",
         Callback = function()
             local theme = Workspace:WaitForChild("Themes", 99999)
             if not theme then return end
@@ -1917,137 +2209,184 @@ if FluentLoaded then
             if songId then
                 lastSurvivor.SoundId = songId
                 lastSurvivor:Play()
+                notify("🎵 LMS Song Changed to: " .. selectedSong, 2)
             end
         end
     })
 
-    -- ===================== BLATANT TAB =====================
+    -- ===================== BLATANT TAB (FIXED) =====================
+    
+    -- DO ALL GENERATORS
     Tabs.Blatant:AddButton({
         Title = "Do All Generators",
+        Description = "Perbaiki semua generator sekaligus",
         Callback = function()
             generatorDoAll()
+            notify("⚡ Doing all generators!", 2)
         end
     })
 
+    -- GENERATOR SPEED (BLATANT)
     Tabs.Blatant:AddSlider("GenSpeedValue", {
         Title = "Generator Speed",
+        Description = "Kecepatan semua generator (3 - 10)",
         Default = 3,
         Min = 3,
         Max = 10,
         Rounding = 1,
         Callback = function(value)
             timebetweenpuzzles = value
+            notify("⚡ Gen Speed: " .. value, 2)
         end
     })
 
-    -- ===================== GUEST SETTINGS TAB =====================
+    -- ===================== GUEST SETTINGS TAB (FIXED - SEMUA BERFUNGSI) =====================
+    
     Tabs.GuestSettings:AddParagraph({
-        Title = "Credit To Skibisaken",
-        Content = "this entire tab is from the skibisaken script"
+        Title = "Guest 1337 Settings",
+        Content = "Fitur khusus untuk Guest 1337"
     })
 
+    -- CUSTOM CHARGE SPEED
     Tabs.GuestSettings:AddToggle("ChargeSpeedToggle", {
         Title = "Custom Charge Speed",
+        Description = "Aktifkan kecepatan charge kustom",
         Default = false,
         Callback = function(state)
-            RunService.Stepped:Connect(function()
-                if state then
-                    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
-                    local mult = speedMultipliers and speedMultipliers:FindFirstChild("Guest1337Charge")
-                    if mult and GuestChargeSpeed ~= nil then
-                        mult.Value = GuestChargeSpeed
-                    end
-                end
-            end)
+            ChargeSpeedLoop = state
+            if state then
+                notify("⚡ Custom Charge Speed ON", 2)
+            else
+                notify("⚡ Custom Charge Speed OFF", 2)
+            end
         end
     })
 
+    -- GUEST CHARGE SPEED
     Tabs.GuestSettings:AddSlider("GuestChargeSpeed", {
         Title = "Charge Speed",
+        Description = "Nilai kecepatan charge (2.833 - 15)",
         Default = 2.833,
         Min = 2.833,
         Max = 15,
         Rounding = 1,
         Callback = function(value)
             GuestChargeSpeed = value
+            notify("⚡ Charge Speed: " .. value, 2)
         end
     })
 
+    -- AUTO BLOCK
     Tabs.GuestSettings:AddToggle("GuestSettingsToggle", {
         Title = "Auto Block",
+        Description = "Auto block otomatis dari Guest",
         Default = false,
         Callback = function(value)
             GuestSettingsOn = value
+            if value then
+                notify("🛡️ Auto Block ON", 2)
+            else
+                notify("🛡️ Auto Block OFF", 2)
+            end
         end
     })
 
+    -- STRICT RANGE
     Tabs.GuestSettings:AddToggle("StrictRangeToggle", {
         Title = "Strict Range",
+        Description = "Hanya block dalam range ketat",
         Default = false,
         Callback = function(value)
             strictRangeOn = value
         end
     })
 
+    -- FACING CHECK
     Tabs.GuestSettings:AddDropdown("FacingCheckDropdown", {
         Title = "Facing Check",
+        Description = "Loose atau Strict facing check",
         Values = {"Loose", "Strict"},
         Multi = false,
         Default = "Loose",
         Callback = function(option)
             looseFacing = option == "Loose"
+            notify("👀 Facing: " .. option, 2)
         end
     })
 
+    -- DETECTION RANGE
     Tabs.GuestSettings:AddInput("DetectionRangeInput", {
         Title = "Detection Range",
+        Description = "Jarak deteksi Guest",
         Placeholder = "18",
         Numeric = true,
         Callback = function(text)
             detectionRange = tonumber(text) or detectionRange
+            notify("📏 Detection Range: " .. (tonumber(text) or detectionRange), 2)
         end
     })
 
+    -- BLOCK TP
     Tabs.GuestSettings:AddToggle("BlockTPToggle", {
         Title = "Block TP",
+        Description = "Teleport saat block",
         Default = false,
         Callback = function(value)
             blockTPEnabled = value
+            if value then
+                notify("📍 Block TP ON", 2)
+            else
+                notify("📍 Block TP OFF", 2)
+            end
         end
     })
 
+    -- PREDICTIVE AUTO BLOCK
     Tabs.GuestSettings:AddToggle("PredictiveBlockToggle", {
         Title = "Predictive Auto Block",
+        Description = "Auto block prediktif",
         Default = false,
         Callback = function(value)
             predictiveBlockOn = value
+            if value then
+                notify("🔮 Predictive Block ON", 2)
+            else
+                notify("🔮 Predictive Block OFF", 2)
+            end
         end
     })
 
+    -- PREDICTIVE DETECTION RANGE
     Tabs.GuestSettings:AddInput("PredictiveDetectionRange", {
-        Title = "Detection Range",
+        Title = "Predictive Detection Range",
+        Description = "Jarak deteksi prediktif",
         Placeholder = "10",
         Numeric = true,
         Callback = function(text)
             local num = tonumber(text)
             if num then detectionRange = num end
+            notify("📏 Predictive Range: " .. (num or detectionRange), 2)
         end
     })
 
+    -- EDGE KILLER DELAY
     Tabs.GuestSettings:AddSlider("EdgeKillerSlider", {
         Title = "Edge Killer Delay",
+        Description = "Delay auto block (0 - 7)",
         Default = 3,
         Min = 0,
         Max = 7,
         Rounding = 1,
         Callback = function(value)
             edgeKillerDelay = value
+            notify("⏱️ Edge Killer Delay: " .. value, 2)
         end
     })
 
+    -- LOAD FAKE BLOCK
     Tabs.GuestSettings:AddButton({
         Title = "Load Fake Block",
+        Description = "Load fake block GUI",
         Callback = function()
             pcall(function()
                 local fakeGui = PlayerGui:FindFirstChild("FakeBlockGui")
@@ -2056,29 +2395,45 @@ if FluentLoaded then
                 else
                     fakeGui.Enabled = true
                 end
+                notify("🎭 Fake Block Loaded!", 2)
             end)
         end
     })
 
+    -- FLING PUNCH
     Tabs.GuestSettings:AddToggle("FlingPunchToggle", {
         Title = "Fling Punch",
+        Description = "Fling saat punch",
         Default = false,
         Callback = function(value)
             flingPunchOn = value
+            if value then
+                notify("💥 Fling Punch ON", 2)
+            else
+                notify("💥 Fling Punch OFF", 2)
+            end
         end
     })
 
+    -- PUNCH AIMBOT
     Tabs.GuestSettings:AddToggle("PunchAimbotToggle", {
         Title = "Punch Aimbot",
+        Description = "Aimbot saat punch",
         Default = false,
         Callback = function(value)
             aimPunch = value
+            if value then
+                notify("🎯 Punch Aimbot ON", 2)
+            else
+                notify("🎯 Punch Aimbot OFF", 2)
+            end
         end
     })
 
-    local predictionValue = 4
+    -- AIM PREDICTION
     Tabs.GuestSettings:AddSlider("AimPredictionSlider", {
         Title = "Aim Prediction",
+        Description = "Nilai prediksi aim (0 - 10)",
         Default = 4,
         Min = 0,
         Max = 10,
@@ -2086,93 +2441,117 @@ if FluentLoaded then
         Suffix = "studs",
         Callback = function(value)
             predictionValue = value
+            notify("📊 Aim Prediction: " .. value, 2)
         end
     })
 
+    -- FLING POWER
     Tabs.GuestSettings:AddSlider("FlingPowerSlider", {
         Title = "Fling Power",
+        Description = "Kekuatan fling",
         Default = 10000,
         Min = 5000,
         Max = 50000000000000,
         Rounding = 0,
         Callback = function(value)
             flingPower = value
+            notify("💥 Fling Power: " .. value, 2)
         end
     })
 
-    -- ===================== CUSTOM ANIMATIONS TAB =====================
+    -- ===================== CUSTOM ANIMATIONS TAB (FIXED - SEMUA BERFUNGSI) =====================
+    
+    -- CUSTOM BLOCK ANIMATION
     Tabs.CustomAnimations:AddInput("CustomBlockAnim", {
         Title = "Custom Block Animation",
+        Description = "Masukkan ID animasi block",
         Placeholder = "AnimationId",
         Callback = function(text)
             customBlockAnimId = text
+            notify("🎭 Block Anim ID: " .. text, 2)
         end
     })
 
+    -- ENABLE CUSTOM BLOCK
     Tabs.CustomAnimations:AddToggle("EnableCustomBlockAnim", {
         Title = "Enable Custom Block",
+        Description = "Aktifkan animasi block kustom",
         Default = false,
         Callback = function(value)
             customBlockEnabled = value
+            if value then
+                notify("🎭 Custom Block ON", 2)
+            else
+                notify("🎭 Custom Block OFF", 2)
+            end
         end
     })
 
+    -- CUSTOM PUNCH ANIMATION
     Tabs.CustomAnimations:AddInput("CustomPunchAnim", {
         Title = "Custom Punch Animation",
+        Description = "Masukkan ID animasi punch",
         Placeholder = "AnimationId",
         Callback = function(text)
             customPunchAnimId = text
+            notify("🎭 Punch Anim ID: " .. text, 2)
         end
     })
 
+    -- ENABLE CUSTOM PUNCH
     Tabs.CustomAnimations:AddToggle("EnableCustomPunchAnim", {
         Title = "Enable Custom Punch",
+        Description = "Aktifkan animasi punch kustom",
         Default = false,
         Callback = function(value)
             customPunchEnabled = value
+            if value then
+                notify("🎭 Custom Punch ON", 2)
+            else
+                notify("🎭 Custom Punch OFF", 2)
+            end
         end
     })
 
+    -- CUSTOM CHARGE ANIMATION
     Tabs.CustomAnimations:AddInput("ChargeAnimID", {
         Title = "Charge Animation ID",
+        Description = "Masukkan ID animasi charge",
         Placeholder = "Animation ID",
         Callback = function(input)
             customChargeAnimId = input
+            notify("🎭 Charge Anim ID: " .. input, 2)
         end
     })
 
+    -- ENABLE CUSTOM CHARGE
     Tabs.CustomAnimations:AddToggle("EnableCustomChargeAnim", {
         Title = "Custom Charge Animation",
+        Description = "Aktifkan animasi charge kustom",
         Default = false,
         Callback = function(value)
             customChargeEnabled = value
+            if value then
+                notify("🎭 Custom Charge ON", 2)
+            else
+                notify("🎭 Custom Charge OFF", 2)
+            end
         end
     })
 
     -- ===================== DISCORD TAB =====================
     Tabs.Discord:AddButton({
         Title = "Copy Discord Invite Link",
+        Description = "Copy link Discord LYNZKA",
         Callback = function()
             setclipboard("https://discord.gg/aXNagEYb2f")
-            if Fluent and Fluent.Notify then
-                Fluent:Notify({
-                    Title = "Copied Discord Invite Link!",
-                    Content = "Discord link copied to clipboard!",
-                    Duration = 8
-                })
-            end
+            notify("📋 Discord link copied!", 2)
         end
     })
 
     -- ===================== FINALIZE =====================
     Window:SelectTab("Player")
-    if Fluent and Fluent.Notify then
-        Fluent:Notify({
-            Title = "Goonsaken Hub v3.6",
-            Content = "Shadow Style - Perfect Toggle!",
-            Duration = 8
-        })
-    end
+    notify("🔥 LYNZKA HUB v3.6 Loaded! - Shadow Style Perfect!", 4)
 
     hubLoaded = true
 end
@@ -2541,6 +2920,45 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
+-- ===================== NOCLIP LOOP =====================
+RunService.Stepped:Connect(function()
+    if toggleStates and toggleStates["Noclip"] then
+        local char = LocalPlayer.Character
+        if char then
+            for _, p in pairs(char:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    p.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- ===================== INFINITE JUMP =====================
+UserInputService.JumpRequest:Connect(function()
+    if toggleStates and toggleStates["InfiniteJump"] then
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end
+end)
+
+-- ===================== CHARGE SPEED LOOP =====================
+RunService.Stepped:Connect(function()
+    if ChargeSpeedLoop then
+        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
+        local mult = speedMultipliers and speedMultipliers:FindFirstChild("Guest1337Charge")
+        if mult and GuestChargeSpeed ~= nil then
+            mult.Value = GuestChargeSpeed
+        end
+    end
+end)
+
 -- ===================== SHADOW STYLE MENU TOGGLE (FIXED - ULTRA COMPACT) =====================
 task.spawn(function()
     -- Tunggu Fluent siap
@@ -2550,12 +2968,12 @@ task.spawn(function()
     local fluentScreenGui = Window.Root.Parent
     
     -- Hapus tombol lama jika ada
-    local oldGui = game.CoreGui:FindFirstChild("GoonHubToggleGui")
+    local oldGui = game.CoreGui:FindFirstChild("LYNZKAToggleGui")
     if oldGui then oldGui:Destroy() end
     
     -- Buat ScreenGui terpisah
     local toggleGui = Instance.new("ScreenGui")
-    toggleGui.Name = "GoonHubToggleGui"
+    toggleGui.Name = "LYNZKAToggleGui"
     toggleGui.ResetOnSpawn = false
     toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     toggleGui.Parent = game.CoreGui
@@ -2717,7 +3135,7 @@ task.spawn(function()
                 newY = math.clamp(newY, 0, maxY)
                 
                 buttonFrame.Position = UDim2.new(0, newX, 0, newY)
-                _G.GoonHubButtonPos = { X = newX, Y = newY }
+                _G.LYNZKAButtonPos = { X = newX, Y = newY }
             end
         end
     end)
@@ -2761,12 +3179,12 @@ task.spawn(function()
     end)
     
     -- Load posisi tersimpan
-    if _G.GoonHubButtonPos then
-        buttonFrame.Position = UDim2.new(0, _G.GoonHubButtonPos.X, 0, _G.GoonHubButtonPos.Y)
+    if _G.LYNZKAButtonPos then
+        buttonFrame.Position = UDim2.new(0, _G.LYNZKAButtonPos.X, 0, _G.LYNZKAButtonPos.Y)
     end
     
     -- Global API
-    _G.GoonHubToggle = {
+    _G.LYNZKAToggle = {
         Button = toggleButton,
         Frame = buttonFrame,
         Toggle = toggleMenu,
@@ -2784,7 +3202,7 @@ task.spawn(function()
         end
     }
     
-    print("[Goonsaken] ✅ Menu toggle siap!")
+    print("[LYNZKA HUB v3.6] ✅ Menu toggle siap!")
     print("💡 Klik tombol atau tekan '-' untuk toggle menu")
     print("💡 Drag tombol untuk memindahkan")
 end)
@@ -2792,6 +3210,6 @@ end)
 -- ===================== SAVE CONFIG =====================
 SaveManager:LoadAutoloadConfig()
 
-print("[Goonsaken Hub v3.6] Loaded successfully!")
+print("[LYNZKA HUB v3.6] Loaded successfully!")
 print("Click '-' to toggle menu (Shadow Style - Perfect!)")
 print("Drag the '-' button to move it anywhere!")
