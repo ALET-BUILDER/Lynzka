@@ -4,7 +4,7 @@
     ║   FULL SPAWNER - 3 MENU                ║
     ║   Pet | Tanaman | Settings             ║
     ║   KEY: - buka/tutup menu              ║
-    ║   100% SPAWN KE INVENTORY             ║
+    ║   GASKEUN 100% SPAWN!                 ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -16,9 +16,7 @@ local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 
 -- ===================== DATA LENGKAP =====================
@@ -71,13 +69,12 @@ local function notify(text, duration)
     end)
 end
 
--- ===================== CORE SPAWN ENGINE =====================
+-- ===================== CORE SPAWN =====================
 local function forceSpawn(itemName, itemType, isMutated)
     notify("⏳ Memproses " .. itemName .. "...", 2)
-    
     local success = false
     
-    -- METHOD 1: LANGSUNG KE INVENTORY PLAYER
+    -- INVENTORY
     pcall(function()
         local inv = LocalPlayer:FindFirstChild("Inventory")
         if not inv then
@@ -85,32 +82,29 @@ local function forceSpawn(itemName, itemType, isMutated)
             inv.Name = "Inventory"
             inv.Parent = LocalPlayer
         end
-        
         local item = Instance.new("StringValue")
         item.Name = itemName
         item.Value = isMutated and "Mutated" or "Normal"
         item.Parent = inv
         item:SetAttribute("Type", itemType)
         item:SetAttribute("Mutated", isMutated)
-        item:SetAttribute("Spawned", true)
         success = true
     end)
     
-    -- METHOD 2: REMOTE EVENT
+    -- REMOTE EVENT
     pcall(function()
         for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
             if child:IsA("RemoteEvent") then
                 pcall(function()
                     child:FireServer(itemName, isMutated)
                     child:FireServer(itemName, isMutated, "inventory")
-                    child:FireServer(itemName, isMutated, LocalPlayer)
                     success = true
                 end)
             end
         end
     end)
     
-    -- METHOD 3: REMOTE FUNCTION
+    -- REMOTE FUNCTION
     pcall(function()
         for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
             if child:IsA("RemoteFunction") then
@@ -122,7 +116,7 @@ local function forceSpawn(itemName, itemType, isMutated)
         end
     end)
     
-    -- METHOD 4: COMMAND
+    -- COMMAND
     pcall(function()
         local cmd = ReplicatedStorage:FindFirstChild("Commands")
         if cmd and cmd:IsA("RemoteEvent") then
@@ -132,7 +126,7 @@ local function forceSpawn(itemName, itemType, isMutated)
         end
     end)
     
-    -- METHOD 5: BACKPACK
+    -- BACKPACK
     pcall(function()
         local bp = LocalPlayer:FindFirstChild("Backpack")
         if bp then
@@ -145,30 +139,11 @@ local function forceSpawn(itemName, itemType, isMutated)
         end
     end)
     
-    -- METHOD 6: PLAYER DATA
-    pcall(function()
-        local data = LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("PlayerData")
-        if data then
-            local folder = data:FindFirstChild(itemType .. "s")
-            if not folder then
-                folder = Instance.new("Folder")
-                folder.Name = itemType .. "s"
-                folder.Parent = data
-            end
-            local item = Instance.new("StringValue")
-            item.Name = itemName
-            item.Value = isMutated and "Mutated" or "Normal"
-            item.Parent = folder
-            success = true
-        end
-    end)
-    
     if success then
         notify("✅ " .. itemName .. " BERHASIL!" .. (isMutated and " (MUTASI)" or ""), 3)
     else
-        notify("⚠️ " .. itemName .. " mungkin sudah ada!", 3)
+        notify("⚠️ " .. itemName .. " GAGAL! Coba lagi.", 3)
     end
-    
     return success
 end
 
@@ -180,10 +155,9 @@ local function createUI()
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "GardenSpawnerUI"
     screenGui.ResetOnSpawn = false
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.Parent = CoreGui
     
-    -- MAIN FRAME
+    -- MAIN FRAME (Kayak Lynzka)
     local mainFrame = Instance.new("Frame")
     mainFrame.Size = UDim2.new(0, 450, 0, 520)
     mainFrame.Position = UDim2.new(0.5, -225, 0.5, -260)
@@ -214,7 +188,7 @@ local function createUI()
     title.Font = Enum.Font.GothamBold
     title.Parent = header
     
-    -- CLOSE BUTTON
+    -- CLOSE
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 30, 0, 30)
     closeBtn.Position = UDim2.new(1, -40, 0, 10)
@@ -229,10 +203,9 @@ local function createUI()
     Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
     closeBtn.MouseButton1Click:Connect(function()
         screenGui:Destroy()
-        notify("❌ Menu ditutup!", 2)
     end)
     
-    -- ==================== TAB BUTTONS ====================
+    -- TAB BUTTONS
     local tabContainer = Instance.new("Frame")
     tabContainer.Size = UDim2.new(1, 0, 0, 45)
     tabContainer.Position = UDim2.new(0, 0, 0, 50)
@@ -259,7 +232,7 @@ local function createUI()
         tabButtons[tabName] = btn
     end
     
-    -- ==================== CONTENT FRAME ====================
+    -- CONTENT
     local contentFrame = Instance.new("Frame")
     contentFrame.Size = UDim2.new(1, -20, 1, -120)
     contentFrame.Position = UDim2.new(0, 10, 0, 100)
@@ -267,7 +240,7 @@ local function createUI()
     contentFrame.ClipsDescendants = true
     contentFrame.Parent = mainFrame
     
-    -- ==================== PET TAB ====================
+    -- PET TAB
     local petTab = Instance.new("ScrollingFrame")
     petTab.Size = UDim2.new(1, 0, 1, 0)
     petTab.BackgroundTransparency = 1
@@ -277,9 +250,7 @@ local function createUI()
     
     local function buildPetTab()
         for _, child in ipairs(petTab:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextButton") or child:IsA("ScrollingFrame") then 
-                child:Destroy() 
-            end
+            if child:IsA("Frame") or child:IsA("TextButton") then child:Destroy() end
         end
         
         local yPos = 0
@@ -332,16 +303,6 @@ local function createUI()
         Instance.new("UICorner", rarityList).CornerRadius = UDim.new(0, 6)
         
         local rarities = {"Common", "Uncommon", "Rare", "Legendary", "Mythical", "Divine", "Prismatic"}
-        local rarityColors = {
-            Common = Color3.fromRGB(200, 200, 200),
-            Uncommon = Color3.fromRGB(100, 200, 100),
-            Rare = Color3.fromRGB(100, 150, 255),
-            Legendary = Color3.fromRGB(255, 150, 50),
-            Mythical = Color3.fromRGB(200, 100, 255),
-            Divine = Color3.fromRGB(255, 215, 0),
-            Prismatic = Color3.fromRGB(255, 50, 150)
-        }
-        
         for i, rarityName in ipairs(rarities) do
             local item = Instance.new("TextButton")
             item.Size = UDim2.new(1, -10, 0, 30)
@@ -350,7 +311,7 @@ local function createUI()
             item.BackgroundTransparency = 0
             item.BorderSizePixel = 0
             item.Text = rarityName
-            item.TextColor3 = rarityColors[rarityName] or Color3.fromRGB(200, 200, 200)
+            item.TextColor3 = Color3.fromRGB(200, 200, 200)
             item.TextSize = 12
             item.Font = Enum.Font.GothamMedium
             item.TextXAlignment = Enum.TextXAlignment.Left
@@ -410,11 +371,10 @@ local function createUI()
                 petBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
                 notify("🖱️ Dipilih: " .. petName, 2)
             end)
-            
             yPos = yPos + 36
         end
         
-        -- Mutasi Toggle
+        -- Mutasi
         local mutasiFrame = Instance.new("Frame")
         mutasiFrame.Size = UDim2.new(1, -10, 0, 35)
         mutasiFrame.Position = UDim2.new(0, 5, 0, yPos)
@@ -457,7 +417,7 @@ local function createUI()
         
         yPos = yPos + 45
         
-        -- SPAWN BUTTON
+        -- SPAWN
         local spawnBtn = Instance.new("TextButton")
         spawnBtn.Size = UDim2.new(1, -10, 0, 45)
         spawnBtn.Position = UDim2.new(0, 5, 0, yPos)
@@ -483,7 +443,7 @@ local function createUI()
         petTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- ==================== TANAMAN TAB ====================
+    -- PLANT TAB (sama kaya Pet)
     local plantTab = Instance.new("ScrollingFrame")
     plantTab.Size = UDim2.new(1, 0, 1, 0)
     plantTab.BackgroundTransparency = 1
@@ -494,9 +454,7 @@ local function createUI()
     
     local function buildPlantTab()
         for _, child in ipairs(plantTab:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextButton") or child:IsA("ScrollingFrame") then 
-                child:Destroy() 
-            end
+            if child:IsA("Frame") or child:IsA("TextButton") then child:Destroy() end
         end
         
         local yPos = 0
@@ -504,7 +462,6 @@ local function createUI()
         local selectedPlant = nil
         local plantMutasi = false
         
-        -- Rarity Dropdown
         local rarityFrame = Instance.new("Frame")
         rarityFrame.Size = UDim2.new(1, 0, 0, 35)
         rarityFrame.Position = UDim2.new(0, 0, 0, yPos)
@@ -549,16 +506,6 @@ local function createUI()
         Instance.new("UICorner", rarityList).CornerRadius = UDim.new(0, 6)
         
         local rarities = {"Common", "Uncommon", "Rare", "Legendary", "Mythical", "Divine", "Prismatic"}
-        local rarityColors = {
-            Common = Color3.fromRGB(200, 200, 200),
-            Uncommon = Color3.fromRGB(100, 200, 100),
-            Rare = Color3.fromRGB(100, 150, 255),
-            Legendary = Color3.fromRGB(255, 150, 50),
-            Mythical = Color3.fromRGB(200, 100, 255),
-            Divine = Color3.fromRGB(255, 215, 0),
-            Prismatic = Color3.fromRGB(255, 50, 150)
-        }
-        
         for i, rarityName in ipairs(rarities) do
             local item = Instance.new("TextButton")
             item.Size = UDim2.new(1, -10, 0, 30)
@@ -567,7 +514,7 @@ local function createUI()
             item.BackgroundTransparency = 0
             item.BorderSizePixel = 0
             item.Text = rarityName
-            item.TextColor3 = rarityColors[rarityName] or Color3.fromRGB(200, 200, 200)
+            item.TextColor3 = Color3.fromRGB(200, 200, 200)
             item.TextSize = 12
             item.Font = Enum.Font.GothamMedium
             item.TextXAlignment = Enum.TextXAlignment.Left
@@ -589,7 +536,6 @@ local function createUI()
         
         yPos = yPos + 45
         
-        -- Plant List
         local plantList = PLANTS[selectedRarity] or {}
         for i, plantName in ipairs(plantList) do
             local plantBtn = Instance.new("TextButton")
@@ -627,11 +573,9 @@ local function createUI()
                 plantBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
                 notify("🖱️ Dipilih: " .. plantName, 2)
             end)
-            
             yPos = yPos + 36
         end
         
-        -- Mutasi Toggle
         local mutasiFrame = Instance.new("Frame")
         mutasiFrame.Size = UDim2.new(1, -10, 0, 35)
         mutasiFrame.Position = UDim2.new(0, 5, 0, yPos)
@@ -674,7 +618,6 @@ local function createUI()
         
         yPos = yPos + 45
         
-        -- SPAWN BUTTON
         local spawnBtn = Instance.new("TextButton")
         spawnBtn.Size = UDim2.new(1, -10, 0, 45)
         spawnBtn.Position = UDim2.new(0, 5, 0, yPos)
@@ -700,7 +643,7 @@ local function createUI()
         plantTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- ==================== SETTINGS TAB ====================
+    -- SETTINGS TAB
     local settingsTab = Instance.new("ScrollingFrame")
     settingsTab.Size = UDim2.new(1, 0, 1, 0)
     settingsTab.BackgroundTransparency = 1
@@ -711,9 +654,7 @@ local function createUI()
     
     local function buildSettingsTab()
         for _, child in ipairs(settingsTab:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextButton") or child:IsA("TextLabel") then 
-                child:Destroy() 
-            end
+            if child:IsA("Frame") or child:IsA("TextButton") or child:IsA("TextLabel") then child:Destroy() end
         end
         
         local yPos = 10
@@ -790,15 +731,14 @@ local function createUI()
         settingsTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- ==================== BUILD ALL ====================
+    -- ==================== BUILD ====================
     buildPetTab()
     buildPlantTab()
     buildSettingsTab()
     
-    -- ==================== TAB SWITCHING ====================
+    -- ==================== TAB SWITCH ====================
     local function switchTab(tabName)
         selectedTab = tabName
-        
         for name, btn in pairs(tabButtons) do
             if name == tabName then
                 btn.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
@@ -808,7 +748,6 @@ local function createUI()
                 btn.TextColor3 = Color3.fromRGB(180, 180, 200)
             end
         end
-        
         petTab.Visible = (tabName == "Pet")
         plantTab.Visible = (tabName == "Tanaman")
         settingsTab.Visible = (tabName == "Settings")
@@ -820,11 +759,10 @@ local function createUI()
         end)
     end
     
-    -- ==================== TOGGLE BUTTON (KAYAK LYNZKA) ====================
+    -- ==================== TOGGLE BUTTON (LYNZKA STYLE) ====================
     local toggleGui = Instance.new("ScreenGui")
     toggleGui.Name = "GardenToggleGui"
     toggleGui.ResetOnSpawn = false
-    toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     toggleGui.Parent = CoreGui
     
     local buttonFrame = Instance.new("Frame")
@@ -837,10 +775,7 @@ local function createUI()
     buttonFrame.ClipsDescendants = false
     buttonFrame.ZIndex = 9999
     buttonFrame.Parent = toggleGui
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = buttonFrame
+    Instance.new("UICorner", buttonFrame).CornerRadius = UDim.new(0, 12)
     
     local glow = Instance.new("Frame")
     glow.Name = "Glow"
@@ -851,9 +786,7 @@ local function createUI()
     glow.BorderSizePixel = 0
     glow.ZIndex = -1
     glow.Parent = buttonFrame
-    local glowCorner = Instance.new("UICorner")
-    glowCorner.CornerRadius = UDim.new(0, 16)
-    glowCorner.Parent = glow
+    Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 16)
     
     local toggleButton = Instance.new("TextButton")
     toggleButton.Name = "ToggleButton"
@@ -870,10 +803,7 @@ local function createUI()
     toggleButton.ZIndex = 9999
     toggleButton.AutoButtonColor = false
     toggleButton.Parent = buttonFrame
-    
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 10)
-    btnCorner.Parent = toggleButton
+    Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 10)
     
     local tooltip = Instance.new("TextLabel")
     tooltip.Name = "Tooltip"
@@ -890,9 +820,7 @@ local function createUI()
     tooltip.Visible = false
     tooltip.ZIndex = 9999
     tooltip.Parent = buttonFrame
-    local tooltipCorner = Instance.new("UICorner")
-    tooltipCorner.CornerRadius = UDim.new(0, 4)
-    tooltipCorner.Parent = tooltip
+    Instance.new("UICorner", tooltip).CornerRadius = UDim.new(0, 4)
     
     local menuVisible = true
     local dragData = { dragging = false, startPos = nil, startMouse = nil, isDragging = false }
@@ -907,14 +835,12 @@ local function createUI()
             glow.BackgroundColor3 = Color3.fromRGB(80, 200, 100)
             glow.BackgroundTransparency = 0.7
             toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            tooltip.Text = "Menu"
         else
             toggleButton.Text = "+"
             buttonFrame.BackgroundColor3 = Color3.fromRGB(45, 25, 25)
             glow.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
             glow.BackgroundTransparency = 0.6
             toggleButton.TextColor3 = Color3.fromRGB(255, 200, 200)
-            tooltip.Text = "Menu"
         end
     end
     
@@ -941,7 +867,6 @@ local function createUI()
             if delta.Magnitude > 3 then
                 dragData.isDragging = true
             end
-            
             if dragData.isDragging then
                 local newX = dragData.startPos.X.Offset + delta.X
                 local newY = dragData.startPos.Y.Offset + delta.Y
@@ -981,7 +906,7 @@ local function createUI()
         end
     end)
     
-    -- KEYBIND - (Minus)
+    -- KEYBIND -
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.Minus then
@@ -990,7 +915,7 @@ local function createUI()
     end)
     
     notify("🌱 GARDEN SPAWNER v4.0 LOADED!", 3)
-    notify("💡 Tekan '-' atau klik tombol untuk buka/tutup menu", 3)
+    notify("💡 Tekan '-' atau klik tombol", 3)
 end
 
 -- ==================== START ====================
@@ -998,5 +923,4 @@ task.spawn(function()
     createUI()
 end)
 
-print("[GARDEN SPAWNER] ✅ Loaded!")
-print("💡 Tekan '-' atau klik tombol untuk buka/tutup menu")
+print("[GARDEN SPAWNER] ✅ LOADED! GASKEUN!")
