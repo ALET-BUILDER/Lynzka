@@ -1,7 +1,7 @@
 --[[
     ╔══════════════════════════════════════════╗
     ║      🔥 GOONSAKEN HUB v3.2 🔥          ║
-    ║   Optimized ESP & Features              ║
+    ║   Mobile Friendly - Cat Button Fixed   ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -35,6 +35,14 @@ local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 
+-- ===================== DRAG SYSTEM (MOBILE FRIENDLY) =====================
+local catButtonData = {
+    dragging = false,
+    startPos = nil,
+    startMouse = nil,
+    object = nil
+}
+
 -- ===================== VARIABLES =====================
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
@@ -60,6 +68,7 @@ local timebetweenpuzzles = 3
 local running = false
 local animTrack = nil
 local existence = nil
+local menuVisible = true
 
 -- ===================== ESP SYSTEM (OPTIMIZED) =====================
 local EspObjects = {}
@@ -341,6 +350,13 @@ Players.PlayerRemoving:Connect(function(p)
     RemoveESP(p)
 end)
 
+-- ===================== ESP RENDER LOOP =====================
+RunService.RenderStepped:Connect(function()
+    for _, p in ipairs(Players:GetPlayers()) do
+        UpdateESP(p)
+    end
+end)
+
 -- ===================== AIMBOT SYSTEM =====================
 local aimbotEnabled = false
 local aimbotFOV = 500
@@ -422,7 +438,6 @@ local function EnableAimbot()
     CreateFOVCircle()
     
     aimbotConnection = RunService.RenderStepped:Connect(function()
-        -- Update FOV Circle
         if FOVCircle then
             local vp = Camera.ViewportSize
             FOVCircle.Position = Vector2.new(vp.X / 2, vp.Y / 2)
@@ -430,7 +445,6 @@ local function EnableAimbot()
             FOVCircle.Visible = aimbotEnabled
         end
         
-        -- Aimbot
         if aimbotEnabled then
             local target = GetBestTarget()
             if target then
@@ -454,13 +468,6 @@ local function DisableAimbot()
         FOVCircle = nil
     end
 end
-
--- ===================== ESP RENDER LOOP =====================
-RunService.RenderStepped:Connect(function()
-    for _, p in ipairs(Players:GetPlayers()) do
-        UpdateESP(p)
-    end
-end)
 
 -- ===================== FUNCTIONS =====================
 local function runEvery(interval, fn)
@@ -1087,7 +1094,6 @@ local frontflipObj = createFrontflip()()
 
 -- ===================== KILLER EMOTE GUI =====================
 function KillerEmoteGUI()
-    -- [Keeping original KillerEmoteGUI function intact]
     local KillerEmoteGUI = Instance.new("ScreenGui", PlayerGui)
     local Holder = Instance.new("Frame")
     local UICorner = Instance.new("UICorner")
@@ -1125,7 +1131,6 @@ function KillerEmoteGUI()
     WhereTheButtons.BorderSizePixel = 0
     WhereTheButtons.Size = UDim2.new(1, -40, 1, 0)
 
-    -- Create 8 button frames (simplified)
     local buttons = {}
     for i = 1, 8 do
         local frame = Instance.new("Frame")
@@ -1597,11 +1602,11 @@ local statsGui = createStatsTracker()
 if FluentLoaded then
     Window = Fluent:CreateWindow({
         Title = "Goonsaken Hub",
-        SubTitle = "v3.2 - Optimized",
+        SubTitle = "v3.2 - Mobile Friendly",
         TabWidth = 160,
         Size = UDim2.fromOffset(580, 460),
         Theme = "Dark",
-        MinimizeKeyBind = Enum.KeyCode.K
+        MinimizeKeyBind = nil  -- HAPUS keybind K
     })
 
     Tabs = {
@@ -2020,7 +2025,6 @@ if FluentLoaded then
         end
     })
 
-    -- Hitbox Mode Dropdown
     Tabs.Combat:AddDropdown("HitboxMode", {
         Title = "Hitbox Mode",
         Values = {"Head", "Neck", "UpperTorso", "LowerTorso", "All"},
@@ -2036,7 +2040,6 @@ if FluentLoaded then
         Default = false,
         Callback = function(state)
             if state then
-                -- Original Chance Aimbot
                 local aimbotConnection = RunService.Heartbeat:Connect(function()
                     local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
                     local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -2063,7 +2066,6 @@ if FluentLoaded then
                         end
                     end
                 end)
-                -- Store for cleanup
                 Connections.ChanceAimbot = aimbotConnection
             else
                 if Connections.ChanceAimbot then
@@ -2117,7 +2119,6 @@ if FluentLoaded then
         Title = "ONE MORE GAME!",
         Default = false,
         Callback = function(state)
-            -- [Keep original One More Game video logic]
             if state then
                 local folderPath = "GoonsakenHub/Assets"
                 local fileName = "onemoregame.webm"
@@ -2500,8 +2501,8 @@ if FluentLoaded then
 
     Fluent:Notify({
         Title = "IMPORTANT!!!",
-        Content = "Go to Settings, click minimize keybind and save config!",
-        Duration = 10
+        Content = "Click the cat icon to toggle menu!",
+        Duration = 5
     })
 
     hubLoaded = true
@@ -2875,7 +2876,7 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
--- ===================== GUI TOGGLE BUTTON =====================
+-- ===================== GUI TOGGLE BUTTON (FIXED - DRAGGABLE) =====================
 task.spawn(function()
     local toggleHolder = game.CoreGui:FindFirstChild("TopBarApp")
         and game.CoreGui.TopBarApp:FindFirstChild("TopBarApp")
@@ -2903,16 +2904,74 @@ task.spawn(function()
         imageButton.Image = "http://www.roblox.com/asset/?id=10385136549"
         imageButton.Parent = buttonFrame
 
+        -- === DRAG SYSTEM UNTUK TOMBOL KUCING ===
+        local catDragData = {
+            dragging = false,
+            startPos = nil,
+            startMouse = nil
+        }
+
+        -- Untuk drag (Mobile & PC)
+        local function onCatInputBegan(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+               input.UserInputType == Enum.UserInputType.Touch then
+                catDragData.dragging = true
+                catDragData.startPos = buttonFrame.Position
+                catDragData.startMouse = input.Position
+            end
+        end
+
+        local function onCatInputEnded(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+               input.UserInputType == Enum.UserInputType.Touch then
+                catDragData.dragging = false
+            end
+        end
+
+        local function onCatInputChanged(input)
+            if catDragData.dragging then
+                if input.UserInputType == Enum.UserInputType.MouseMovement or 
+                   input.UserInputType == Enum.UserInputType.Touch then
+                    local delta = input.Position - catDragData.startMouse
+                    local newPos = UDim2.new(
+                        catDragData.startPos.X.Scale,
+                        catDragData.startPos.X.Offset + delta.X,
+                        catDragData.startPos.Y.Scale,
+                        catDragData.startPos.Y.Offset + delta.Y
+                    )
+                    buttonFrame.Position = newPos
+                end
+            end
+        end
+
+        -- Connect events
+        imageButton.InputBegan:Connect(onCatInputBegan)
+        imageButton.InputEnded:Connect(onCatInputEnded)
+        UserInputService.InputChanged:Connect(onCatInputChanged)
+
+        -- === KLIK UNTUK TOGGLE MENU ===
         imageButton.Activated:Connect(function()
             if Window then
-                Window:Toggle()
+                if menuVisible then
+                    Window:Hide()
+                    menuVisible = false
+                else
+                    Window:Show()
+                    menuVisible = true
+                end
             end
         end)
 
+        -- Update posisi setiap frame
         while task.wait(0.03) do
             toggleHolder.Size = sSize
-            buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 48, 0, 0)
+            -- Jangan override posisi jika sedang di-drag
+            if not catDragData.dragging then
+                buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 48, 0, 0)
+            end
         end
+    else
+        warn("ToggleHolder not found, cat button not created.")
     end
 end)
 
@@ -2920,5 +2979,5 @@ end)
 SaveManager:LoadAutoloadConfig()
 
 print("[Goonsaken Hub v3.2] Loaded successfully!")
-print("Press K to toggle GUI")
+print("Click the cat icon to toggle menu!")
 print("ESP uses Drawing API for better performance")
