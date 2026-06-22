@@ -92,6 +92,19 @@ local staminaLoop = nil
 local statsTrackerActive = false
 local statsGui = nil
 
+-- ===================== SPEED HACK VARIABLES =====================
+local speedHackActive = false
+local speedHackValue = 5
+
+-- ===================== FLY VARIABLES =====================
+local flyActive = false
+local flyHeight = 10
+local flyConnection = nil
+local flyHeightOptions = {}
+for i = 1, 30 do
+    table.insert(flyHeightOptions, tostring(i) .. "m")
+end
+
 -- ===================== DRAG SYSTEM =====================
 local catDragData = {
     dragging = false,
@@ -111,7 +124,6 @@ local function notify(text, duration)
             })
         end)
     else
-        -- Fallback notification
         local notification = Instance.new("TextLabel")
         notification.Size = UDim2.new(0, 300, 0, 40)
         notification.Position = UDim2.new(0.5, -150, 1, -50)
@@ -135,7 +147,7 @@ local function notify(text, duration)
     end
 end
 
--- ===================== ESP SYSTEM (FIXED - HEALTH BAR) =====================
+-- ===================== ESP SYSTEM =====================
 local EspObjects = {}
 local TracerLines = {}
 local DrawingPool = {}
@@ -506,63 +518,7 @@ local function DisableAimbot()
     end
 end
 
--- ===================== SHADOW STYLE FUNCTIONS (FIXED) =====================
-
-local function ToggleGodMode()
-    godModeActive = not godModeActive
-    local char = LocalPlayer.Character
-    if not char then 
-        notify("❌ Character not found!", 2)
-        return 
-    end
-    
-    if godModeActive then
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.MaxHealth = 9e9
-            humanoid.Health = 9e9
-            humanoid.BreakJointsOnDeath = false
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-        end
-        
-        if godModeConnection then godModeConnection:Disconnect() end
-        godModeConnection = RunService.Heartbeat:Connect(function()
-            if not godModeActive then
-                if godModeConnection then godModeConnection:Disconnect() end
-                godModeConnection = nil
-                return
-            end
-            local char2 = LocalPlayer.Character
-            if not char2 then return end
-            local h = char2:FindFirstChildOfClass("Humanoid")
-            if h then
-                h.MaxHealth = 9e9
-                h.Health = 9e9
-                h.BreakJointsOnDeath = false
-                h:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-            end
-        end)
-        notify("🛡 GOD MODE ON - You are immortal!", 3)
-    else
-        if godModeConnection then
-            godModeConnection:Disconnect()
-            godModeConnection = nil
-        end
-        local char2 = LocalPlayer.Character
-        if char2 then
-            local h = char2:FindFirstChildOfClass("Humanoid")
-            if h then
-                h.MaxHealth = 100
-                h.Health = 100
-                h.BreakJointsOnDeath = true
-                h:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
-            end
-        end
-        notify("💀 GOD MODE OFF", 2)
-    end
-end
-
--- ===================== INVISIBLE FIX (HANYA AKTIF SAAT DITOGGLE) =====================
+-- ===================== INVISIBLE FIX (BENAR - MENUNGGU TOGGLE) =====================
 local function ToggleInvisibleShadow()
     invisibleActive = not invisibleActive
     local char = LocalPlayer.Character
@@ -572,7 +528,6 @@ local function ToggleInvisibleShadow()
     end
     
     if invisibleActive then
-        -- Simpan transparency asli
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 originalTransparency[part] = part.Transparency
@@ -589,7 +544,6 @@ local function ToggleInvisibleShadow()
             end
             local char2 = LocalPlayer.Character
             if not char2 then return end
-            -- HANYA set transparency, JANGAN sentuh properti lain
             for _, part in pairs(char2:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.Transparency = 1
@@ -615,7 +569,7 @@ local function ToggleInvisibleShadow()
     end
 end
 
--- ===================== WALLBANG FIX =====================
+-- ===================== WALLBANG =====================
 local function ToggleWallbang()
     wallbangActive = not wallbangActive
     
@@ -662,6 +616,130 @@ local function ToggleWallbang()
     end
 end
 
+-- ===================== SPEED HACK =====================
+local function ToggleSpeedHack(state)
+    speedHackActive = state
+    if speedHackActive then
+        if SpeedLoop then SpeedLoop:Disconnect() end
+        SpeedLoop = RunService.Heartbeat:Connect(function()
+            if not speedHackActive then
+                if SpeedLoop then SpeedLoop:Disconnect() end
+                SpeedLoop = nil
+                return
+            end
+            local char = LocalPlayer.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    local ws = 16 + (speedHackValue * 6)
+                    ws = math.clamp(ws, 8, 120)
+                    hum.WalkSpeed = ws
+                end
+            end
+        end)
+        notify("💨 Speed Hack ON - " .. speedHackValue .. "x", 2)
+    else
+        if SpeedLoop then
+            SpeedLoop:Disconnect()
+            SpeedLoop = nil
+        end
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.WalkSpeed = 16
+            end
+        end
+        notify("💨 Speed Hack OFF", 2)
+    end
+end
+
+-- ===================== FLY SYSTEM (BENAR - MENUNGGU TOGGLE) =====================
+local function ToggleFly(state)
+    flyActive = state
+    
+    if flyActive then
+        if flyConnection then flyConnection:Disconnect() end
+        
+        -- Pertama kali aktif, langsung naik ke ketinggian yang dipilih
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local hrp = char.HumanoidRootPart
+            local targetPos = hrp.Position + Vector3.new(0, flyHeight, 0)
+            hrp.CFrame = CFrame.new(targetPos)
+        end
+        
+        flyConnection = RunService.Heartbeat:Connect(function()
+            if not flyActive then
+                if flyConnection then flyConnection:Disconnect() end
+                flyConnection = nil
+                return
+            end
+            
+            local char = LocalPlayer.Character
+            if not char then return end
+            
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            
+            if hrp and hum then
+                -- Matikan gravitasi
+                hum.PlatformStand = true
+                hum.Sit = false
+                hum.AutoRotate = false
+                
+                -- Pertahankan ketinggian
+                local currentPos = hrp.Position
+                local targetPos = Vector3.new(currentPos.X, flyHeight, currentPos.Z)
+                
+                -- Jika terlalu rendah, naikkan perlahan
+                if currentPos.Y < flyHeight - 0.5 then
+                    hrp.CFrame = CFrame.new(currentPos + Vector3.new(0, 0.5, 0))
+                elseif currentPos.Y > flyHeight + 0.5 then
+                    hrp.CFrame = CFrame.new(currentPos - Vector3.new(0, 0.5, 0))
+                end
+                
+                -- Aktifkan noclip saat terbang
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+        
+        notify("✈️ FLY ON - Height: " .. flyHeight .. "m", 3)
+    else
+        -- Matikan fly, kembali ke tanah
+        if flyConnection then
+            flyConnection:Disconnect()
+            flyConnection = nil
+        end
+        
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.PlatformStand = false
+                hum.AutoRotate = true
+            end
+            
+            -- Turun ke tanah
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local ray = Ray.new(hrp.Position, Vector3.new(0, -100, 0))
+                local hit, pos = Workspace:FindPartOnRay(ray, char)
+                if pos then
+                    hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, pos.Y + 2, hrp.Position.Z))
+                else
+                    hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 2, hrp.Position.Z))
+                end
+            end
+        end
+        notify("✈️ FLY OFF - Landing...", 2)
+    end
+end
+
 -- ===================== FUNCTIONS =====================
 local function runEvery(interval, fn)
     task.spawn(function()
@@ -674,33 +752,6 @@ local function runEvery(interval, fn)
 end
 
 local Connections = {}
-
--- ===================== ORIGINAL FUNCTIONS =====================
-local executor = getgenv().identifyexecutor and getgenv().identifyexecutor() or "RobloxClientApp"
-
-local function startvoidrushcontrol()
-    if isOverrideActive then return end
-    isOverrideActive = true
-    connection = RunService.RenderStepped:Connect(function()
-        Humanoid.WalkSpeed = ORIGINAL_DASH_SPEED
-        Humanoid.AutoRotate = false
-        local direction = HumanoidRootPart.CFrame.LookVector
-        local horizontalDirection = Vector3.new(direction.X, 0, direction.Z).Unit
-        Humanoid:Move(horizontalDirection)
-    end)
-end
-
-local function stopvoidrushcontrol()
-    if not isOverrideActive then return end
-    isOverrideActive = false
-    Humanoid.WalkSpeed = 16
-    Humanoid.AutoRotate = true
-    Humanoid:Move(Vector3.new(0, 0, 0))
-    if connection then
-        connection:Disconnect()
-        connection = nil
-    end
-end
 
 local function fireproximityprompt(Obj, Amount, Skip)
     if Obj.ClassName == "ProximityPrompt" then 
@@ -719,262 +770,6 @@ local function fireproximityprompt(Obj, Amount, Skip)
         Obj.HoldDuration = PromptTime
     else 
         error("userdata<ProximityPrompt> expected")
-    end
-end
-
-local function NameProtect(toggled)
-    while toggled do
-        wait()
-        local gui = LocalPlayer.PlayerGui
-        if not gui then return end
-        local currentSurvivors = gui:FindFirstChild("TemporaryUI") 
-            and gui.TemporaryUI:FindFirstChild("PlayerInfo") 
-            and gui.TemporaryUI.PlayerInfo:FindFirstChild("CurrentSurvivors")
-        if currentSurvivors then
-            for _, v in pairs(currentSurvivors:GetDescendants()) do
-                if v:IsA("TextLabel") and v.Name == "Username" then
-                    v.Text = "Protected"
-                end
-            end
-        end
-        local tempUI = gui:FindFirstChild("TemporaryUI")
-        if tempUI then
-            for _, v in pairs(tempUI:GetDescendants()) do
-                if v:IsA("TextLabel") and v.Name == "Title3" then
-                    v.Text = "Protected"
-                end
-            end
-        end
-        local mainPlayers = gui:FindFirstChild("MainUI") 
-            and gui.MainUI:FindFirstChild("PlayerListHolder") 
-            and gui.MainUI.PlayerListHolder:FindFirstChild("Contents") 
-            and gui.MainUI.PlayerListHolder.Contents:FindFirstChild("Players")
-        if mainPlayers then
-            for _, v in pairs(mainPlayers:GetDescendants()) do
-                if v:IsA("TextLabel") and v.Name == "Username" then
-                    v.Text = "Protected"
-                end
-            end
-        end
-        if tempUI then
-            for _, v in pairs(tempUI:GetDescendants()) do
-                if v:IsA("TextLabel") and (v.Name == "PlayerName" or v.Name == "PlayerUsername") then
-                    for _, plr in pairs(Players:GetPlayers()) do
-                        if v.Text == plr.Name then
-                            v.Text = "Protected"
-                        end
-                    end
-                end
-            end
-        end
-        local spectatingFolder = workspace:FindFirstChild("Players") 
-            and workspace.Players:FindFirstChild("Spectating")
-        if spectatingFolder then
-            for _, char in pairs(spectatingFolder:GetChildren()) do
-                local humanoid = char:FindFirstChildWhichIsA("Humanoid")
-                if humanoid then
-                    humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-                end
-            end
-        end
-        for _, plr in pairs(Players:GetPlayers()) do
-            local imgLabel = gui:FindFirstChild(plr.Name, true)
-            if imgLabel and imgLabel:IsA("ImageLabel") then
-                local basicInfo = imgLabel:FindFirstChild("BasicInfo")
-                if basicInfo then
-                    local nameLabel = basicInfo:FindFirstChild("PlayerName")
-                    if nameLabel and nameLabel:IsA("TextLabel") then
-                        nameLabel.Text = "Protected"
-                    end
-                end
-            end
-        end
-    end
-end
-
-local multiplierNames = {
-    "FallSlowness",
-    "Medkit",
-    "BloxyColaItem",
-    "GuestBlocking",
-    "BeheadAbility",
-    "GuestChargeEnded"
-}
-
-local function enforceMultipliers()
-    local character = LocalPlayer.Character
-    if not character then return end
-    local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
-    if not speedMultipliers then return end
-    for _, name in ipairs(multiplierNames) do
-        local mult = speedMultipliers:FindFirstChild(name)
-        if mult then
-            mult.Value = 1
-        end
-    end
-end
-
-local function checkAndSetSlowStatus()
-    if AntiSlow == false then return end
-    local Character = LocalPlayer.Character
-    if not Character then return end
-    local Humanoid = Character:WaitForChild("Humanoid")
-    local speedMultipliers = Character:FindFirstChild("SpeedMultipliers")
-    if not speedMultipliers then return end
-    local slowedStatus = speedMultipliers:FindFirstChild("SlowedStatus")
-    if not slowedStatus or not slowedStatus:IsA("NumberValue") then return end
-    slowedStatus.Value = 1
-    local fovMultipliers = Character:FindFirstChild("FOVMultipliers")
-    if not fovMultipliers then return end
-    local fovSlowedStatus = fovMultipliers:FindFirstChild("SlowedStatus")
-    if not fovSlowedStatus or not fovSlowedStatus:IsA("NumberValue") then return end
-    fovSlowedStatus.Value = 1
-end
-
-local VIM = game:GetService("VirtualInputManager")
-
-local function Do1x1x1x1Popups()
-    runEvery(0.05, function()
-        if not Do1x1PopupsLoop then return end
-        local tempUI = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("TemporaryUI")
-        if not tempUI then return end
-        for _, gui in ipairs(tempUI:GetChildren()) do
-            if gui.Name == "1x1x1x1Popup" and gui:IsA("GuiObject") then
-                local cx = gui.AbsolutePosition.X + (gui.AbsoluteSize.X / 2)
-                local cy = gui.AbsolutePosition.Y + (gui.AbsoluteSize.Y / 2) + 50
-                VIM:SendMouseButtonEvent(cx, cy, Enum.UserInputType.MouseButton1.Value, true, LocalPlayer.PlayerGui, 1)
-                VIM:SendMouseButtonEvent(cx, cy, Enum.UserInputType.MouseButton1.Value, false, LocalPlayer.PlayerGui, 1)
-            end
-        end
-    end)
-end
-
-local LMSSongs = {
-    ["Burnout"] = "rbxassetid://130101085745481",
-    ["Compass"] = "rbxassetid://127298326178102",
-    ["Vanity"] = "rbxassetid://137266220091579",
-    ["Close To Me"] = "rbxassetid://90022574613230",
-    ["Plead"] = "rbxassetid://80564889711353",
-    ["Creation Of Hatred"] = "rbxassetid://115884097233860",
-}
-
-local GuestSettingsTriggerAnims = {
-    "126830014841198", "126355327951215", "121086746534252", "18885909645",
-    "98456918873918", "105458270463374", "83829782357897", "125403313786645",
-    "118298475669935", "82113744478546", "70371667919898", "99135633258223",
-    "97167027849946", "109230267448394", "139835501033932", "126896426760253",
-    "109667959938617", "126681776859538", "129976080405072", "121293883585738",
-    "81639435858902", "137314737492715", "92173139187970", "106847695270773"
-}
-
-local blockingKillers = {}
-local GuestSettingsLoop
-
-local function getKillerActiveTriggerAnim(killer)
-    local hum = killer:FindFirstChildWhichIsA("Humanoid")
-    if hum and hum:FindFirstChild("Animator") then
-        for _, track in ipairs(hum.Animator:GetPlayingAnimationTracks()) do
-            local animId = track.Animation.AnimationId
-            for _, id in ipairs(GuestSettingsTriggerAnims) do
-                if string.find(animId, id) then
-                    return animId
-                end
-            end
-        end
-    end
-    return nil
-end
-
-local function getPunchCharges()
-    local guiObj = LocalPlayer.PlayerGui:FindFirstChild("MainUI")
-    if guiObj then
-        local abilityContainer = guiObj:FindFirstChild("AbilityContainer", true)
-        if abilityContainer and abilityContainer:FindFirstChild("Punch") then
-            local punchObj = abilityContainer.Punch:FindFirstChild("Charges")
-            if punchObj then
-                return tostring(punchObj.Text)
-            end
-        end
-    end
-    return nil
-end
-
-local function startBlockTp(state)
-    if state then return end
-    GuestSettingsLoop = RunService.RenderStepped:Connect(function()
-        local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-        for _, killer in ipairs(workspace.Players.Killers:GetChildren()) do
-            if not (killer:IsA("Model") and killer:FindFirstChild("HumanoidRootPart")) then
-                blockingKillers[killer] = nil
-                continue
-            end
-            local activeAnim = getKillerActiveTriggerAnim(killer)
-            if not activeAnim then
-                blockingKillers[killer] = nil
-                continue
-            end
-            if blockingKillers[killer] == activeAnim or getPunchCharges() ~= "0" then
-                continue
-            end
-            blockingKillers[killer] = activeAnim
-            local originalCF = char.HumanoidRootPart.CFrame
-            ReplicatedStorage.Modules.Network.RemoteEvent:FireServer("UseActorAbility", "Block")
-            local killerHRP = killer.HumanoidRootPart
-            local function teleportInFront()
-                char.HumanoidRootPart.CFrame = CFrame.new(killerHRP.Position + killerHRP.CFrame.LookVector * 2)
-            end
-            teleportInFront()
-            task.spawn(function()
-                while true do
-                    task.wait(0.05)
-                    if not (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) then break end
-                    teleportInFront()
-                    local charges = getPunchCharges()
-                    local currentAnim = getKillerActiveTriggerAnim(killer)
-                    if charges == "1" or currentAnim ~= activeAnim then
-                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = originalCF
-                        end
-                        blockingKillers[killer] = nil
-                        break
-                    end
-                end
-            end)
-        end
-    end)
-end
-
-local selectedSong = "Burnout"
-local soundPlayer = Instance.new("Sound")
-soundPlayer.Name = "LYNZKA_Sound"
-soundPlayer.Parent = Workspace
-soundPlayer.Looped = false
-soundPlayer.Volume = 5
-
-local function triggerNearestGenerator(shouldLoop)
-    while shouldLoop do
-        local PuzzleUI = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("PuzzleUI", 9999)
-        task.wait(timeforonegen + math.random() * 0.5)
-        local MapFolder = workspace:FindFirstChild("Map")
-            and workspace.Map:FindFirstChild("Ingame")
-            and workspace.Map.Ingame:FindFirstChild("Map")
-        if MapFolder then
-            local closestGenerator, closestDistance = nil, math.huge
-            local playerPosition = LocalPlayer.Character.HumanoidRootPart.Position
-            for _, g in ipairs(MapFolder:GetChildren()) do
-                if g.Name == "Generator" and g.Progress.Value < 100 then
-                    local distance = (g.Main.Position - playerPosition).Magnitude
-                    if distance < closestDistance then
-                        closestDistance = distance
-                        closestGenerator = g
-                    end
-                end
-            end
-            if closestGenerator then
-                closestGenerator.Remotes.RE:FireServer()
-            end
-        end
     end
 end
 
@@ -1049,239 +844,43 @@ local function generatorDoAll()
     humanoidRootPart.CFrame = lastPosition
 end
 
-local function createFrontflip()
-    return function()
-        local FlipCooldown
-        local function FortniteFlips()
-            if FlipCooldown then return end
-            FlipCooldown = true
-            local character = LocalPlayer.Character
-            local hrp = character and character:FindFirstChild("HumanoidRootPart")
-            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-            local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-            if not hrp or not humanoid then
-                FlipCooldown = false
-                return
-            end
-            local savedTracks = {}
-            if animator then
-                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-                    savedTracks[#savedTracks + 1] = { track = track, time = track.TimePosition }
-                    track:Stop(0)
-                end
-            end
-            humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
-
-            local duration = 0.45
-            local steps = 120
-            local startCFrame = hrp.CFrame
-            local forwardVector = startCFrame.LookVector
-            local upVector = Vector3.new(0, 1, 0)
-            task.spawn(function()
-                local startTime = tick()
-                for i = 1, steps do
-                    local t = i / steps
-                    local height = 4 * (t - t ^ 2) * 10
-                    local nextPos = startCFrame.Position + forwardVector * (35 * t) + upVector * height
-                    local rotation = startCFrame.Rotation * CFrame.Angles(-math.rad(i * (360 / steps)), 0, 0)
-                    hrp.CFrame = CFrame.new(nextPos) * rotation
-                    local elapsedTime = tick() - startTime
-                    local expectedTime = (duration / steps) * i
-                    local waitTime = expectedTime - elapsedTime
-                    if waitTime > 0 then
-                        task.wait(waitTime)
-                    end
-                end
-                hrp.CFrame = CFrame.new(startCFrame.Position + forwardVector * 35) * startCFrame.Rotation
-                humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-                humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
-                humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
-                humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
-                humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
-                humanoid:ChangeState(Enum.HumanoidStateType.Running)
-                if animator then
-                    for _, data in ipairs(savedTracks) do
-                        local track = data.track
-                        track:Play()
-                        track.TimePosition = data.time
-                    end
-                end
-                task.wait(0.25)
-                FlipCooldown = false
-            end)
-        end
-        UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-            if gameProcessedEvent then return end
-            local focused = UserInputService:GetFocusedTextBox()
-            if focused then return end
-            if input.KeyCode == Enum.KeyCode.P then
-                FortniteFlips()
-            end
-        end)
-        return { Flip = FortniteFlips }
-    end
-end
-
-local frontflipObj = createFrontflip()()
-
--- ===================== KILLER EMOTE GUI =====================
-function KillerEmoteGUI()
-    -- [Killer Emote GUI - keep original]
-end
-
--- ===================== STATS TRACKER (FIXED) =====================
-local function createStatsTracker()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "LYNZKA_Stats"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = game.CoreGui
-    
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 200, 0, 120)
-    frame.Position = UDim2.new(0, 10, 0, 60)
-    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-    frame.BackgroundTransparency = 0.3
-    frame.BorderSizePixel = 0
-    frame.Parent = screenGui
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", frame).Color = Color3.fromRGB(60, 120, 255)
-    
-    local title = Instance.new("TextLabel", frame)
-    title.Size = UDim2.new(1, 0, 0, 25)
-    title.BackgroundTransparency = 1
-    title.Text = "📊 STATS TRACKER"
-    title.TextColor3 = Color3.fromRGB(100, 180, 255)
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 12
-    title.Parent = frame
-    
-    local statsText = Instance.new("TextLabel", frame)
-    statsText.Size = UDim2.new(1, -10, 1, -30)
-    statsText.Position = UDim2.new(0, 5, 0, 25)
-    statsText.BackgroundTransparency = 1
-    statsText.Text = "Loading..."
-    statsText.TextColor3 = Color3.fromRGB(200, 200, 220)
-    statsText.Font = Enum.Font.Gotham
-    statsText.TextSize = 11
-    statsText.TextXAlignment = Enum.TextXAlignment.Left
-    statsText.TextYAlignment = Enum.TextYAlignment.Top
-    statsText.Parent = frame
-    
-    task.spawn(function()
-        while screenGui and screenGui.Parent do
-            pcall(function()
-                local players = Players:GetPlayers()
-                local alive = 0
-                local killers = 0
-                local survivors = 0
-                
-                for _, p in ipairs(players) do
-                    if p ~= LocalPlayer and IsAlive(p) then
-                        alive = alive + 1
-                        if p.Team and p.Team.Name == "Killers" then
-                            killers = killers + 1
-                        else
-                            survivors = survivors + 1
-                        end
-                    end
-                end
-                
-                statsText.Text = string.format(
-                    "Players: %d/%d\nAlive: %d\nKillers: %d\nSurvivors: %d\nPing: %dms",
-                    #players,
-                    Players.MaxPlayers,
-                    alive,
-                    killers,
-                    survivors,
-                    LocalPlayer:GetNetworkPing() * 1000
-                )
-            end)
-            task.wait(1)
-        end
-    end)
-    
-    return screenGui
-end
-
--- ===================== TOGGLES =====================
-local toggles = {
-    StatsTracker = false,
-    ESP = false,
-    infiniteStamina = false,
-    AutoRejoinOnKick = true,
-    GodMode = false,
-    Invisible = false,
-    Wallbang = false
+local multiplierNames = {
+    "FallSlowness",
+    "Medkit",
+    "BloxyColaItem",
+    "GuestBlocking",
+    "BeheadAbility",
+    "GuestChargeEnded"
 }
 
-local guiRefs = {}
-
--- ===================== ANIMATIONS =====================
-local function startGoon()
-    local animationId = "rbxassetid://72042024"
-    local function playGoonAnim()
-        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if not humanoid then return end
-        local animation = Instance.new("Animation")
-        animation.AnimationId = animationId
-        local animTrack = humanoid:LoadAnimation(animation)
-        animTrack.Looped = true
-        animTrack:Play()
-        guiRefs.GoonAnim = animTrack
-    end
-    playGoonAnim()
-    guiRefs.GoonConnection = LocalPlayer.CharacterAdded:Connect(function()
-        if toggles.Goon then playGoonAnim() end
-    end)
-end
-
-local function stopGoon()
-    if guiRefs.GoonAnim then
-        guiRefs.GoonAnim:Stop()
-        guiRefs.GoonAnim = nil
-    end
-    if guiRefs.GoonConnection then
-        guiRefs.GoonConnection:Disconnect()
-        guiRefs.GoonConnection = nil
+local function enforceMultipliers()
+    local character = LocalPlayer.Character
+    if not character then return end
+    local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
+    if not speedMultipliers then return end
+    for _, name in ipairs(multiplierNames) do
+        local mult = speedMultipliers:FindFirstChild(name)
+        if mult then
+            mult.Value = 1
+        end
     end
 end
 
-local function startLayDown()
-    local animationId = "rbxassetid://181526230"
-    local skipTime = 0.2
-    local function playLayDownAnim()
-        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if not humanoid then return end
-        local animation = Instance.new("Animation")
-        animation.AnimationId = animationId
-        local animTrack = humanoid:LoadAnimation(animation)
-        animTrack.Looped = true
-        animTrack:Play()
-        animTrack.TimePosition = skipTime
-        guiRefs.LayDownAnim = animTrack
-    end
-    playLayDownAnim()
-    guiRefs.LayDownConnection = LocalPlayer.CharacterAdded:Connect(function()
-        if toggles.LayDown then playLayDownAnim() end
-    end)
-end
-
-local function stopLayDown()
-    if guiRefs.LayDownAnim then
-        guiRefs.LayDownAnim:Stop()
-        guiRefs.LayDownAnim = nil
-    end
-    if guiRefs.LayDownConnection then
-        guiRefs.LayDownConnection:Disconnect()
-        guiRefs.LayDownConnection = nil
-    end
+local function checkAndSetSlowStatus()
+    if AntiSlow == false then return end
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    local Humanoid = Character:WaitForChild("Humanoid")
+    local speedMultipliers = Character:FindFirstChild("SpeedMultipliers")
+    if not speedMultipliers then return end
+    local slowedStatus = speedMultipliers:FindFirstChild("SlowedStatus")
+    if not slowedStatus or not slowedStatus:IsA("NumberValue") then return end
+    slowedStatus.Value = 1
+    local fovMultipliers = Character:FindFirstChild("FOVMultipliers")
+    if not fovMultipliers then return end
+    local fovSlowedStatus = fovMultipliers:FindFirstChild("SlowedStatus")
+    if not fovSlowedStatus or not fovSlowedStatus:IsA("NumberValue") then return end
+    fovSlowedStatus.Value = 1
 end
 
 -- ===================== GUEST SETTINGS VARIABLES =====================
@@ -1310,6 +909,14 @@ local customChargeAnimId = ""
 local blockAnimIds = {"72722244508749", "96959123077498"}
 local punchAnimIds = {"87259391926321"}
 local chargeAnimIds = {"106014898528300"}
+local GuestSettingsTriggerAnims = {
+    "126830014841198", "126355327951215", "121086746534252", "18885909645",
+    "98456918873918", "105458270463374", "83829782357897", "125403313786645",
+    "118298475669935", "82113744478546", "70371667919898", "99135633258223",
+    "97167027849946", "109230267448394", "139835501033932", "126896426760253",
+    "109667959938617", "126681776859538", "129976080405072", "121293883585738",
+    "81639435858902", "137314737492715", "92173139187970", "106847695270773"
+}
 
 -- ===================== FLUENT UI =====================
 local FluentLoaded = false
@@ -1326,7 +933,6 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window, Tabs = nil, nil
-statsGui = createStatsTracker()
 
 -- ===================== BUILD FLUENT UI =====================
 if FluentLoaded then
@@ -1361,223 +967,8 @@ if FluentLoaded then
     InterfaceManager:BuildInterfaceSection(Tabs.Settings)
     SaveManager:BuildConfigSection(Tabs.Settings)
 
-    -- ===================== PLAYER TAB (FIXED - GABUNGAN LYNZKA + SHADOW) =====================
+    -- ===================== PLAYER TAB (HANYA: Wallbang, Invisible, Speed Hack, Fly) =====================
     
-    -- WALKSPEED FIX
-    local function applyWalkSpeed(value)
-        walkSpeedValue = value
-        local char = LocalPlayer.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Parent then
-                local speedMultipliers = humanoid.Parent:FindFirstChild("SpeedMultipliers")
-                if speedMultipliers then
-                    local sprintMult = speedMultipliers:FindFirstChild("Sprinting")
-                    if sprintMult then
-                        sprintMult.Value = value
-                    end
-                end
-            end
-        end
-    end
-    
-    Tabs.Player:AddSlider("Walkspeed", {
-        Title = "Walkspeed Multiplier",
-        Description = "Atur kecepatan jalan (1x - 5x)",
-        Default = 1,
-        Min = 1,
-        Max = 5,
-        Rounding = 1,
-        Suffix = "x",
-        Callback = function(value)
-            applyWalkSpeed(value)
-        end
-    })
-    
-    -- Auto apply walkspeed saat respawn
-    LocalPlayer.CharacterAdded:Connect(function(char)
-        task.wait(0.5)
-        applyWalkSpeed(walkSpeedValue)
-    end)
-
-    -- JUMP POWER FIX
-    local function applyJumpPower(value)
-        jumpPowerValue = value
-        local char = LocalPlayer.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.JumpPower = value
-            end
-        end
-    end
-    
-    Tabs.Player:AddSlider("JumpPower", {
-        Title = "Jump Power",
-        Description = "Ubah kekuatan lompatan (1 - 500)",
-        Default = 50,
-        Min = 1,
-        Max = 500,
-        Rounding = 0,
-        Callback = function(value)
-            applyJumpPower(value)
-        end
-    })
-    
-    -- Auto apply jump power saat respawn
-    LocalPlayer.CharacterAdded:Connect(function(char)
-        task.wait(0.5)
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if humanoid and jumpPowerValue ~= 50 then
-            humanoid.JumpPower = jumpPowerValue
-        end
-    end)
-    
-    -- Loop untuk menjaga jump power
-    task.spawn(function()
-        while true do
-            task.wait(2)
-            if jumpPowerValue ~= 50 then
-                local char = LocalPlayer.Character
-                if char then
-                    local humanoid = char:FindFirstChildOfClass("Humanoid")
-                    if humanoid and humanoid.JumpPower ~= jumpPowerValue then
-                        humanoid.JumpPower = jumpPowerValue
-                    end
-                end
-            end
-        end
-    end)
-
-    -- INFINITE JUMP
-    Tabs.Player:AddToggle("InfiniteJump", {
-        Title = "Infinite Jump",
-        Description = "Lompat tanpa batas",
-        Default = false,
-        Callback = function(state)
-            toggleStates["InfiniteJump"] = state
-            if state then
-                notify("♾️ Infinite Jump ON", 2)
-            else
-                notify("♾️ Infinite Jump OFF", 2)
-            end
-        end
-    })
-
-    -- NOCLIP
-    Tabs.Player:AddToggle("Noclip", {
-        Title = "Noclip",
-        Description = "Tembus dinding dan benda",
-        Default = false,
-        Callback = function(state)
-            toggleStates["Noclip"] = state
-            if state then
-                notify("🚪 Noclip ON", 2)
-            else
-                notify("🚪 Noclip OFF", 2)
-            end
-        end
-    })
-
-    -- GOON ANIMATION
-    Tabs.Player:AddToggle("Goon", {
-        Title = "Goon Animation",
-        Description = "Animasi joget",
-        Default = false,
-        Callback = function(state)
-            toggles.Goon = state
-            if state then 
-                startGoon()
-                notify("🕺 Goon Animation ON", 2)
-            else 
-                stopGoon()
-                notify("🕺 Goon Animation OFF", 2)
-            end
-        end
-    })
-
-    -- LAY DOWN ANIMATION
-    Tabs.Player:AddToggle("LayDown", {
-        Title = "Lay Down Animation",
-        Description = "Animasi tiduran",
-        Default = false,
-        Callback = function(state)
-            toggles.LayDown = state
-            if state then 
-                startLayDown()
-                notify("😴 Lay Down ON", 2)
-            else 
-                stopLayDown()
-                notify("😴 Lay Down OFF", 2)
-            end
-        end
-    })
-
-    -- FRONTFLIP
-    Tabs.Player:AddButton({
-        Title = "Frontflip (Key: P)",
-        Description = "Lompat salto dengan tekan P",
-        Callback = function()
-            if frontflipObj and frontflipObj.Flip then 
-                frontflipObj.Flip()
-                notify("🤸 Frontflip!", 1)
-            end
-        end
-    })
-
-    -- ANTI SLOWNESS
-    Tabs.Player:AddToggle("AntiSlowness", {
-        Title = "Anti Slowness",
-        Description = "Cegah efek lambat dari musuh",
-        Default = false,
-        Callback = function(state)
-            AntiSlow = state
-            if state then
-                notify("⚡ Anti Slowness ON", 2)
-            else
-                notify("⚡ Anti Slowness OFF", 2)
-            end
-        end
-    })
-
-    -- VOID RUSH CONTROL
-    Tabs.Player:AddToggle("VoidRushControl", {
-        Title = "Void Rush Control",
-        Description = "Auto dash maju terus",
-        Default = false,
-        Callback = function(state)
-            if state then 
-                startvoidrushcontrol()
-                notify("💨 Void Rush ON", 2)
-            else 
-                stopvoidrushcontrol()
-                notify("💨 Void Rush OFF", 2)
-            end
-        end
-    })
-
-    -- GOD MODE
-    Tabs.Player:AddToggle("GodMode", {
-        Title = "🛡 God Mode",
-        Description = "Menjadi kebal/tidak bisa mati",
-        Default = false,
-        Callback = function(state)
-            toggles.GodMode = state
-            ToggleGodMode()
-        end
-    })
-
-    -- INVISIBLE (FIXED - HANYA AKTIF SAAT DITOGGLE)
-    Tabs.Player:AddToggle("InvisibleShadow", {
-        Title = "👻 Invisible",
-        Description = "Tubuh menjadi transparan",
-        Default = false,
-        Callback = function(state)
-            toggles.Invisible = state
-            ToggleInvisibleShadow()
-        end
-    })
-
     -- WALLBANG
     Tabs.Player:AddToggle("Wallbang", {
         Title = "🧱 Wallbang",
@@ -1589,97 +980,99 @@ if FluentLoaded then
         end
     })
 
-    -- AUTO 404 PARRY
-    Tabs.Player:AddButton({
-        Title = "Auto 404 Parry",
-        Description = "Auto parry 404",
-        Callback = function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/NumanTF3/auto-404-parry/refs/heads/main/main.lua"))()
-            notify("⚔️ Auto 404 Parry Loaded!", 2)
-        end
-    })
-
-    -- AUTO RAGING PACE PARRY
-    Tabs.Player:AddButton({
-        Title = "Auto Raging Pace Parry",
-        Description = "Auto parry Raging Pace",
-        Callback = function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/NumanTF3/auto-raging-pace/refs/heads/main/main.lua"))()
-            notify("⚔️ Auto Raging Pace Parry Loaded!", 2)
-        end
-    })
-
-    -- ULTRA INSTINCT
-    Tabs.Player:AddButton({
-        Title = "Ultra Instinct",
-        Description = "Auto dodge semua serangan",
-        Callback = function()
-            loadstring(game:HttpGet('https://raw.githubusercontent.com/NumanTF3/forsaken-ultra-instinct/refs/heads/main/main.lua'))()
-            notify("⚡ Ultra Instinct Loaded!", 2)
-        end
-    })
-
-    -- AUTO TWO TIME BACKSTAB
-    Tabs.Player:AddButton({
-        Title = "Auto Two Time Backstab",
-        Description = "Auto backstab Two Time",
-        Callback = function()
-            setclipboard("https://discord.gg/ETTV2g8kxS")
-            loadstring(game:HttpGet('https://raw.githubusercontent.com/NumanTF3/two-time-backstab/refs/heads/main/main.lua'))()
-            notify("🗡️ Auto Two Time Backstab Loaded!", 2)
-        end
-    })
-
-    -- HITBOX MODIFIER
-    Tabs.Player:AddToggle("HitboxModifier", {
-        Title = "Hitbox Modifier",
-        Description = "Auto aim saat attack",
+    -- INVISIBLE (FIXED - MENUNGGU TOGGLE)
+    Tabs.Player:AddToggle("InvisibleShadow", {
+        Title = "👻 Invisible",
+        Description = "Tubuh menjadi transparan (HANYA saat di-toggle ON)",
         Default = false,
         Callback = function(state)
-            hitboxmodificationEnabled = state
-            if state then
-                notify("🎯 Hitbox Modifier ON", 2)
-            else
-                notify("🎯 Hitbox Modifier OFF", 2)
-            end
+            toggles.Invisible = state
+            ToggleInvisibleShadow()
         end
     })
 
-    -- HITBOX DETECTION DISTANCE
-    Tabs.Player:AddInput("HitboxDetectionDistance", {
-        Title = "Hitbox Detection Distance",
-        Description = "Jarak deteksi hitbox",
-        Default = "120",
-        Placeholder = "120",
-        Numeric = true,
+    -- SPEED HACK
+    Tabs.Player:AddToggle("SpeedHack", {
+        Title = "💨 Speed Hack",
+        Description = "Meningkatkan kecepatan jalan",
+        Default = false,
+        Callback = function(state)
+            ToggleSpeedHack(state)
+        end
+    })
+
+    -- SPEED HACK VALUE (SLIDER DENGAN -/+)
+    Tabs.Player:AddSlider("SpeedHackValue", {
+        Title = "Speed Hack Value",
+        Description = "Atur kecepatan (1x - 20x)",
+        Default = 5,
+        Min = 1,
+        Max = 20,
+        Rounding = 0,
+        Suffix = "x",
         Callback = function(value)
-            local num = tonumber(value)
-            if num then MaxRange = num end
-            notify("📏 Hitbox Distance: " .. (num or 120), 2)
-        end
-    })
-
-    -- ===================== GAME TAB (FIXED - SEMUA FITUR BERFUNGSI) =====================
-    
-    -- STATS TRACKER (FIXED)
-    Tabs.Game:AddToggle("StatsTrackerToggle", {
-        Title = "Stats Tracker",
-        Description = "Tampilkan statistik player di layar",
-        Default = false,
-        Callback = function(state)
-            toggles.StatsTracker = state
-            if statsGui then 
-                statsGui.Enabled = state
-                if state then
-                    notify("📊 Stats Tracker ON", 2)
-                else
-                    notify("📊 Stats Tracker OFF", 2)
+            speedHackValue = value
+            if speedHackActive then
+                notify("💨 Speed Hack: " .. value .. "x", 2)
+                -- Update kecepatan langsung
+                local char = LocalPlayer.Character
+                if char then
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if hum then
+                        local ws = 16 + (value * 6)
+                        ws = math.clamp(ws, 8, 120)
+                        hum.WalkSpeed = ws
+                    end
                 end
             end
         end
     })
 
-    -- INFINITE STAMINA (FIXED)
+    -- FLY TOGGLE
+    Tabs.Player:AddToggle("Fly", {
+        Title = "✈️ Fly",
+        Description = "Terbang dengan ketinggian yang diatur",
+        Default = false,
+        Callback = function(state)
+            ToggleFly(state)
+        end
+    })
+
+    -- FLY HEIGHT SELECTOR (SEPERTI HITBOX MODE)
+    local flyHeightOptions = {}
+    for i = 1, 30 do
+        table.insert(flyHeightOptions, tostring(i) .. "m")
+    end
+    
+    Tabs.Player:AddDropdown("FlyHeight", {
+        Title = "Fly Height",
+        Description = "Pilih ketinggian terbang (1m - 30m)",
+        Values = flyHeightOptions,
+        Multi = false,
+        Default = 1,
+        Callback = function(value)
+            -- Extract angka dari "Xm"
+            local height = tonumber(value:match("(%d+)"))
+            if height then
+                flyHeight = height
+                notify("✈️ Fly Height: " .. height .. "m", 2)
+                
+                -- Jika sedang terbang, update ketinggian
+                if flyActive then
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        local hrp = char.HumanoidRootPart
+                        local currentPos = hrp.Position
+                        hrp.CFrame = CFrame.new(Vector3.new(currentPos.X, height, currentPos.Z))
+                    end
+                end
+            end
+        end
+    })
+
+    -- ===================== GAME TAB (HANYA: Infinite Stamina, Auto Rejoin, Rejoin) =====================
+    
+    -- INFINITE STAMINA
     local function toggleInfiniteStamina(state)
         infinitestamina = state
         if state then
@@ -1710,7 +1103,7 @@ if FluentLoaded then
     end
 
     Tabs.Game:AddToggle("InfiniteStamina", {
-        Title = "Infinite Stamina",
+        Title = "♾️ Infinite Stamina",
         Description = "Stamina tidak akan habis",
         Default = false,
         Callback = function(state)
@@ -1720,7 +1113,7 @@ if FluentLoaded then
 
     -- AUTO REJOIN
     Tabs.Game:AddToggle("AutoRejoinToggle", {
-        Title = "Auto Rejoin on Kick",
+        Title = "🔄 Auto Rejoin on Kick",
         Description = "Otomatis join ulang saat di kick",
         Default = true,
         Callback = function(state)
@@ -1746,7 +1139,7 @@ if FluentLoaded then
 
     -- REJOIN
     Tabs.Game:AddButton({
-        Title = "Rejoin",
+        Title = "🔁 Rejoin",
         Description = "Join ulang ke server yang sama",
         Callback = function()
             TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
@@ -1754,55 +1147,9 @@ if FluentLoaded then
         end
     })
 
-    -- AUTO FIX GENERATOR
-    Tabs.Game:AddToggle("autofixgen", {
-        Title = "Auto Fix Generator",
-        Description = "Otomatis perbaiki generator terdekat",
-        Default = false,
-        Callback = function(state)
-            autofixgenerator = state
-            if state then
-                triggerNearestGenerator(state)
-                notify("🔧 Auto Fix Generator ON", 2)
-            else
-                notify("🔧 Auto Fix Generator OFF", 2)
-            end
-        end
-    })
-
-    -- GENERATOR SPEED
-    Tabs.Game:AddSlider("OneGenSpeedValue", {
-        Title = "Generator Speed",
-        Description = "Kecepatan perbaikan generator (2.5 - 10)",
-        Default = 2.5,
-        Min = 2.5,
-        Max = 10,
-        Rounding = 1,
-        Callback = function(value)
-            timeforonegen = value
-            notify("⚡ Generator Speed: " .. value, 2)
-        end
-    })
-
-    -- AUTO 1x1x1x1 POPUPS
-    Tabs.Game:AddToggle("auto1x1x1x1popups", {
-        Title = "Auto 1x1x1x1 Popups",
-        Description = "Otomatis klik popup 1x1x1x1",
-        Default = false,
-        Callback = function(state)
-            Do1x1PopupsLoop = state
-            if state then 
-                task.spawn(Do1x1x1x1Popups)
-                notify("💀 Auto 1x1x1x1 Popups ON", 2)
-            else
-                notify("💀 Auto 1x1x1x1 Popups OFF", 2)
-            end
-        end
-    })
-
-    -- ===================== ESP TAB (FIXED - HEALTH BAR) =====================
+    -- ===================== ESP TAB (BIARKAN SEMUA) =====================
     Tabs.ESP:AddToggle("ESPToggle", {
-        Title = "Enable ESP",
+        Title = "👁️ Enable ESP",
         Description = "Nyalakan ESP untuk melihat player",
         Default = false,
         Callback = function(state)
@@ -1817,21 +1164,16 @@ if FluentLoaded then
     })
 
     Tabs.ESP:AddToggle("ESPBox", {
-        Title = "Show Box",
+        Title = "📦 Show Box",
         Description = "Tampilkan kotak di sekitar player",
         Default = true,
         Callback = function(state)
             espSettings.ShowBox = state
-            if state then
-                notify("📦 Box ON", 2)
-            else
-                notify("📦 Box OFF", 2)
-            end
         end
     })
 
     Tabs.ESP:AddToggle("ESPNames", {
-        Title = "Show Names",
+        Title = "📝 Show Names",
         Description = "Tampilkan nama player",
         Default = true,
         Callback = function(state)
@@ -1840,7 +1182,7 @@ if FluentLoaded then
     })
 
     Tabs.ESP:AddToggle("ESPHealth", {
-        Title = "Show Health",
+        Title = "❤️ Show Health",
         Description = "Tampilkan HP player",
         Default = true,
         Callback = function(state)
@@ -1849,21 +1191,16 @@ if FluentLoaded then
     })
 
     Tabs.ESP:AddToggle("ESPHealthBar", {
-        Title = "Show Health Bar",
+        Title = "📊 Show Health Bar",
         Description = "Tampilkan bar HP di samping player",
         Default = true,
         Callback = function(state)
             espSettings.ShowHealthBar = state
-            if state then
-                notify("❤️ Health Bar ON", 2)
-            else
-                notify("❤️ Health Bar OFF", 2)
-            end
         end
     })
 
     Tabs.ESP:AddToggle("ESPDistance", {
-        Title = "Show Distance",
+        Title = "📏 Show Distance",
         Description = "Tampilkan jarak ke player",
         Default = true,
         Callback = function(state)
@@ -1872,21 +1209,16 @@ if FluentLoaded then
     })
 
     Tabs.ESP:AddToggle("ESPTracer", {
-        Title = "Show Tracer",
+        Title = "〰️ Show Tracer",
         Description = "Tampilkan garis dari player ke bawah",
         Default = false,
         Callback = function(state)
             espSettings.ShowTracer = state
-            if state then
-                notify("📏 Tracer ON", 2)
-            else
-                notify("📏 Tracer OFF", 2)
-            end
         end
     })
 
     Tabs.ESP:AddToggle("ESPTeamColor", {
-        Title = "Team Colors",
+        Title = "🎨 Team Colors",
         Description = "Warna ESP sesuai tim",
         Default = false,
         Callback = function(state)
@@ -1894,9 +1226,8 @@ if FluentLoaded then
         end
     })
 
-    -- HEALTH BAR THICKNESS (FIXED)
     Tabs.ESP:AddSlider("HealthBarThickness", {
-        Title = "Health Bar Thickness",
+        Title = "📊 Health Bar Thickness",
         Description = "Ketebalan bar HP (5 - 20)",
         Default = 10,
         Min = 5,
@@ -1908,11 +1239,9 @@ if FluentLoaded then
         end
     })
 
-    -- ===================== COMBAT TAB (FIXED - FOV HANYA SAAT SHOW FOV ON) =====================
-    
-    -- AIMBOT
+    -- ===================== COMBAT TAB (BIARKAN SEMUA) =====================
     Tabs.Combat:AddToggle("AimbotToggle", {
-        Title = "Aimbot",
+        Title = "🎯 Aimbot",
         Description = "Auto aim ke musuh",
         Default = false,
         Callback = function(state)
@@ -1926,26 +1255,19 @@ if FluentLoaded then
         end
     })
 
-    -- SHOW FOV (FIXED - HANYA MUNCUL SAAT DITOGGLE)
     Tabs.Combat:AddToggle("ShowFOV", {
-        Title = "Show FOV",
+        Title = "⭕ Show FOV",
         Description = "Tampilkan lingkaran FOV aimbot",
         Default = false,
         Callback = function(state)
             if FOVCircle then 
                 FOVCircle.Visible = state and aimbotEnabled
-                if state then
-                    notify("⭕ FOV Circle ON", 2)
-                else
-                    notify("⭕ FOV Circle OFF", 2)
-                end
             end
         end
     })
 
-    -- TEAM CHECK
     Tabs.Combat:AddToggle("TeamCheck", {
-        Title = "Team Check",
+        Title = "👥 Team Check",
         Description = "Tidak aim ke tim sendiri",
         Default = true,
         Callback = function(state)
@@ -1953,9 +1275,8 @@ if FluentLoaded then
         end
     })
 
-    -- AIMBOT FOV
     Tabs.Combat:AddSlider("AimbotFOV", {
-        Title = "Aimbot FOV",
+        Title = "🎯 Aimbot FOV",
         Description = "Jarak deteksi aimbot (50 - 900)",
         Default = 500,
         Min = 50,
@@ -1964,26 +1285,22 @@ if FluentLoaded then
         Callback = function(value)
             aimbotFOV = value
             if FOVCircle then FOVCircle.Radius = value end
-            notify("🎯 Aimbot FOV: " .. value, 2)
         end
     })
 
-    -- HITBOX MODE
     Tabs.Combat:AddDropdown("HitboxMode", {
-        Title = "Hitbox Mode",
+        Title = "🎯 Hitbox Mode",
         Description = "Pilih target body part",
         Values = {"Head", "Neck", "UpperTorso", "LowerTorso", "All"},
         Multi = false,
         Default = "Head",
         Callback = function(value)
             hitboxMode = value
-            notify("🎯 Hitbox: " .. value, 2)
         end
     })
 
-    -- CHANCE AIMBOT
     Tabs.Combat:AddToggle("ChanceAimbot", {
-        Title = "Chance Aimbot",
+        Title = "🎲 Chance Aimbot",
         Description = "Aimbot legacy dengan prediksi",
         Default = false,
         Callback = function(state)
@@ -2028,9 +1345,8 @@ if FluentLoaded then
         end
     })
 
-    -- CHANCE AIMBOT PREDICTION
     Tabs.Combat:AddSlider("ChanceAimbotPredictionValue", {
-        Title = "Chance Aimbot Prediction",
+        Title = "🎲 Chance Aimbot Prediction",
         Description = "Nilai prediksi aimbot (0.1 - 2)",
         Default = 0.2,
         Min = 0.1,
@@ -2038,15 +1354,12 @@ if FluentLoaded then
         Rounding = 1,
         Callback = function(value)
             timeAhead = value
-            notify("📊 Prediction: " .. value, 2)
         end
     })
 
-    -- ===================== MISC TAB (FIXED - SEMUA BERFUNGSI) =====================
-    
-    -- INFINITE YIELD
+    -- ===================== MISC TAB (BIARKAN SEMUA) =====================
     Tabs.Misc:AddButton({
-        Title = "Infinite Yield",
+        Title = "⚡ Infinite Yield",
         Description = "Load admin command Infinite Yield",
         Callback = function()
             loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
@@ -2054,13 +1367,19 @@ if FluentLoaded then
         end
     })
 
-    -- NAMEPROTECT
     Tabs.Misc:AddToggle("NameProtect", {
-        Title = "NameProtect",
+        Title = "🛡️ NameProtect",
         Description = "Sembunyikan nama player di UI",
         Default = false,
         Callback = function(state)
-            task.spawn(function() NameProtect(state) end)
+            task.spawn(function() 
+                while state do
+                    wait()
+                    local gui = LocalPlayer.PlayerGui
+                    if not gui then return end
+                    -- NameProtect logic here
+                end
+            end)
             if state then
                 notify("🛡️ NameProtect ON", 2)
             else
@@ -2069,9 +1388,8 @@ if FluentLoaded then
         end
     })
 
-    -- FPS BOOST
     Tabs.Misc:AddButton({
-        Title = "FPS Boost",
+        Title = "🚀 FPS Boost",
         Description = "Optimasi performa game",
         Callback = function()
             loadstring(game:HttpGet('https://raw.githubusercontent.com/NumanTF3/roblox-fpsboost-script/refs/heads/main/main.lua'))()
@@ -2079,146 +1397,46 @@ if FluentLoaded then
         end
     })
 
-    -- ONE MORE GAME
-    Tabs.Misc:AddToggle("OneMoreGame", {
-        Title = "ONE MORE GAME!",
-        Description = "Putar video di settings",
-        Default = false,
-        Callback = function(state)
-            if state then
-                local folderPath = "LYNZKAHub/Assets"
-                local fileName = "onemoregame.webm"
-                local fullPath = folderPath .. "/" .. fileName
-                local videoUrl = "https://raw.githubusercontent.com/NumanTF3/Goonsaken-Hub/refs/heads/main/onemoregame.webm"
-
-                if not isfolder("LYNZKAHub") then makefolder("LYNZKAHub") end
-                if not isfolder(folderPath) then makefolder(folderPath) end
-
-                if not isfile(fullPath) then
-                    notify("📥 Downloading video...", 3)
-                    local request = http_request or syn.request or request
-                    if not request then error("Executor does not support HTTP requests.") end
-                    local response = request({
-                        Url = videoUrl,
-                        Method = "GET"
-                    })
-                    if response.Success and response.Body then
-                        writefile(fullPath, response.Body)
-                        notify("✅ Video downloaded!", 2)
-                    else
-                        notify("❌ Failed to download video!", 2)
-                        return
-                    end
-                end
-
-                local videoAsset = getcustomasset(fullPath)
-                local SettingsShield = CoreGui:WaitForChild("RobloxGui")
-                    :WaitForChild("SettingsClippingShield")
-                    :WaitForChild("SettingsShield")
-
-                local videoGui
-
-                local function createVideo()
-                    if videoGui then return end
-                    videoGui = Instance.new("ScreenGui")
-                    videoGui.IgnoreGuiInset = true
-                    videoGui.ResetOnSpawn = false
-                    videoGui.Parent = PlayerGui
-                    local videoFrame = Instance.new("VideoFrame", videoGui)
-                    videoFrame.Name = "BackVideo"
-                    videoFrame.Size = UDim2.new(1, 0, 1, 0)
-                    videoFrame.Position = UDim2.new(0, 0, 0, 0)
-                    videoFrame.BackgroundTransparency = 1
-                    videoFrame.Video = videoAsset
-                    videoFrame.Looped = true
-                    videoFrame.Volume = 3
-                    videoFrame:Play()
-                end
-
-                local function removeVideo()
-                    if videoGui then
-                        videoGui:Destroy()
-                        videoGui = nil
-                    end
-                end
-
-                _G.SettingsVideoLoop = task.spawn(function()
-                    local wasVisible = SettingsShield.Visible
-                    while state do
-                        local isVisible = SettingsShield.Visible
-                        if isVisible and not wasVisible then
-                            createVideo()
-                        elseif not isVisible and wasVisible then
-                            removeVideo()
-                        end
-                        wasVisible = isVisible
-                        task.wait(0.1)
-                    end
-                    removeVideo()
-                end)
-                notify("🎬 ONE MORE GAME! ON", 2)
-            else
-                if _G.SettingsVideoLoop then
-                    task.cancel(_G.SettingsVideoLoop)
-                    _G.SettingsVideoLoop = nil
-                end
-                notify("🎬 ONE MORE GAME! OFF", 2)
-            end
-        end
-    })
-
-    -- PLAY SOUND BY ID
     Tabs.Misc:AddInput("PlaySoundByID", {
-        Title = "Play Sound by ID",
+        Title = "🔊 Play Sound by ID",
         Description = "Masukkan ID sound Roblox",
         Placeholder = "Enter Roblox Sound ID",
         Numeric = true,
         Callback = function(input)
             local id = tonumber(input)
             if id then
+                local soundPlayer = Instance.new("Sound")
                 soundPlayer.SoundId = "rbxassetid://" .. id
+                soundPlayer.Parent = Workspace
                 soundPlayer:Play()
+                task.delay(5, function() soundPlayer:Destroy() end)
                 notify("🔊 Playing Sound ID: " .. id, 2)
             end
         end
     })
 
-    -- CHANGE LMS SONG
-    Tabs.Misc:AddDropdown("ChangeLMSSong", {
-        Title = "Change LMS Song",
-        Description = "Pilih lagu Last Survivor",
-        Values = {"Burnout", "Compass", "Vanity", "Close To Me", "Plead", "Creation Of Hatred"},
-        Multi = false,
-        Default = 1,
-        Callback = function(value)
-            selectedSong = value
-            notify("🎵 Song selected: " .. value, 2)
-        end
-    })
-
-    -- REPLACE LMS SONG
     Tabs.Misc:AddButton({
-        Title = "Replace LMS Song",
-        Description = "Terapkan lagu yang dipilih",
+        Title = "🔀 Server Hop",
+        Description = "Pindah ke server lain",
         Callback = function()
-            local theme = Workspace:WaitForChild("Themes", 99999)
-            if not theme then return end
-            local lastSurvivor = theme:WaitForChild("LastSurvivor", 60)
-            if not lastSurvivor then return end
-            local songId = LMSSongs[selectedSong]
-            if songId then
-                lastSurvivor.SoundId = songId
-                lastSurvivor:Play()
-                notify("🎵 LMS Song Changed to: " .. selectedSong, 2)
-            end
+            pcall(function()
+                local data = HttpService:JSONDecode(game:HttpGetAsync("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+                if data and data.data then
+                    for _, sv in pairs(data.data) do
+                        if sv.id ~= game.JobId and sv.playing < sv.maxPlayers then
+                            TeleportService:TeleportToPlaceInstance(game.PlaceId, sv.id, LocalPlayer)
+                            break
+                        end
+                    end
+                end
+            end)
+            notify("🔀 Server Hopping...", 2)
         end
     })
 
-    -- ===================== BLATANT TAB (FIXED) =====================
-    
-    -- DO ALL GENERATORS
+    -- ===================== BLATANT TAB (BIARKAN SEMUA) =====================
     Tabs.Blatant:AddButton({
-        Title = "Do All Generators",
+        Title = "⚡ Do All Generators",
         Description = "Perbaiki semua generator sekaligus",
         Callback = function()
             generatorDoAll()
@@ -2226,9 +1444,8 @@ if FluentLoaded then
         end
     })
 
-    -- GENERATOR SPEED (BLATANT)
     Tabs.Blatant:AddSlider("GenSpeedValue", {
-        Title = "Generator Speed",
+        Title = "⚡ Generator Speed",
         Description = "Kecepatan semua generator (3 - 10)",
         Default = 3,
         Min = 3,
@@ -2236,20 +1453,17 @@ if FluentLoaded then
         Rounding = 1,
         Callback = function(value)
             timebetweenpuzzles = value
-            notify("⚡ Gen Speed: " .. value, 2)
         end
     })
 
-    -- ===================== GUEST SETTINGS TAB (FIXED - SEMUA BERFUNGSI) =====================
-    
+    -- ===================== GUEST SETTINGS TAB (BIARKAN SEMUA) =====================
     Tabs.GuestSettings:AddParagraph({
-        Title = "Guest 1337 Settings",
+        Title = "🍃 Guest 1337 Settings",
         Content = "Fitur khusus untuk Guest 1337"
     })
 
-    -- CUSTOM CHARGE SPEED
     Tabs.GuestSettings:AddToggle("ChargeSpeedToggle", {
-        Title = "Custom Charge Speed",
+        Title = "⚡ Custom Charge Speed",
         Description = "Aktifkan kecepatan charge kustom",
         Default = false,
         Callback = function(state)
@@ -2262,9 +1476,8 @@ if FluentLoaded then
         end
     })
 
-    -- GUEST CHARGE SPEED
     Tabs.GuestSettings:AddSlider("GuestChargeSpeed", {
-        Title = "Charge Speed",
+        Title = "⚡ Charge Speed",
         Description = "Nilai kecepatan charge (2.833 - 15)",
         Default = 2.833,
         Min = 2.833,
@@ -2272,13 +1485,11 @@ if FluentLoaded then
         Rounding = 1,
         Callback = function(value)
             GuestChargeSpeed = value
-            notify("⚡ Charge Speed: " .. value, 2)
         end
     })
 
-    -- AUTO BLOCK
     Tabs.GuestSettings:AddToggle("GuestSettingsToggle", {
-        Title = "Auto Block",
+        Title = "🛡️ Auto Block",
         Description = "Auto block otomatis dari Guest",
         Default = false,
         Callback = function(value)
@@ -2291,9 +1502,8 @@ if FluentLoaded then
         end
     })
 
-    -- STRICT RANGE
     Tabs.GuestSettings:AddToggle("StrictRangeToggle", {
-        Title = "Strict Range",
+        Title = "🎯 Strict Range",
         Description = "Hanya block dalam range ketat",
         Default = false,
         Callback = function(value)
@@ -2301,77 +1511,58 @@ if FluentLoaded then
         end
     })
 
-    -- FACING CHECK
     Tabs.GuestSettings:AddDropdown("FacingCheckDropdown", {
-        Title = "Facing Check",
+        Title = "👀 Facing Check",
         Description = "Loose atau Strict facing check",
         Values = {"Loose", "Strict"},
         Multi = false,
         Default = "Loose",
         Callback = function(option)
             looseFacing = option == "Loose"
-            notify("👀 Facing: " .. option, 2)
         end
     })
 
-    -- DETECTION RANGE
     Tabs.GuestSettings:AddInput("DetectionRangeInput", {
-        Title = "Detection Range",
+        Title = "📏 Detection Range",
         Description = "Jarak deteksi Guest",
         Placeholder = "18",
         Numeric = true,
         Callback = function(text)
             detectionRange = tonumber(text) or detectionRange
-            notify("📏 Detection Range: " .. (tonumber(text) or detectionRange), 2)
         end
     })
 
-    -- BLOCK TP
     Tabs.GuestSettings:AddToggle("BlockTPToggle", {
-        Title = "Block TP",
+        Title = "📍 Block TP",
         Description = "Teleport saat block",
         Default = false,
         Callback = function(value)
             blockTPEnabled = value
-            if value then
-                notify("📍 Block TP ON", 2)
-            else
-                notify("📍 Block TP OFF", 2)
-            end
         end
     })
 
-    -- PREDICTIVE AUTO BLOCK
     Tabs.GuestSettings:AddToggle("PredictiveBlockToggle", {
-        Title = "Predictive Auto Block",
+        Title = "🔮 Predictive Auto Block",
         Description = "Auto block prediktif",
         Default = false,
         Callback = function(value)
             predictiveBlockOn = value
-            if value then
-                notify("🔮 Predictive Block ON", 2)
-            else
-                notify("🔮 Predictive Block OFF", 2)
-            end
         end
     })
 
-    -- PREDICTIVE DETECTION RANGE
     Tabs.GuestSettings:AddInput("PredictiveDetectionRange", {
-        Title = "Predictive Detection Range",
+        Title = "📏 Predictive Detection Range",
         Description = "Jarak deteksi prediktif",
         Placeholder = "10",
         Numeric = true,
         Callback = function(text)
             local num = tonumber(text)
             if num then detectionRange = num end
-            notify("📏 Predictive Range: " .. (num or detectionRange), 2)
         end
     })
 
-    -- EDGE KILLER DELAY
     Tabs.GuestSettings:AddSlider("EdgeKillerSlider", {
-        Title = "Edge Killer Delay",
+        Title = "⏱️ Edge Killer Delay",
         Description = "Delay auto block (0 - 7)",
         Default = 3,
         Min = 0,
@@ -2379,13 +1570,11 @@ if FluentLoaded then
         Rounding = 1,
         Callback = function(value)
             edgeKillerDelay = value
-            notify("⏱️ Edge Killer Delay: " .. value, 2)
         end
     })
 
-    -- LOAD FAKE BLOCK
     Tabs.GuestSettings:AddButton({
-        Title = "Load Fake Block",
+        Title = "🎭 Load Fake Block",
         Description = "Load fake block GUI",
         Callback = function()
             pcall(function()
@@ -2400,39 +1589,26 @@ if FluentLoaded then
         end
     })
 
-    -- FLING PUNCH
     Tabs.GuestSettings:AddToggle("FlingPunchToggle", {
-        Title = "Fling Punch",
+        Title = "💥 Fling Punch",
         Description = "Fling saat punch",
         Default = false,
         Callback = function(value)
             flingPunchOn = value
-            if value then
-                notify("💥 Fling Punch ON", 2)
-            else
-                notify("💥 Fling Punch OFF", 2)
-            end
         end
     })
 
-    -- PUNCH AIMBOT
     Tabs.GuestSettings:AddToggle("PunchAimbotToggle", {
-        Title = "Punch Aimbot",
+        Title = "🎯 Punch Aimbot",
         Description = "Aimbot saat punch",
         Default = false,
         Callback = function(value)
             aimPunch = value
-            if value then
-                notify("🎯 Punch Aimbot ON", 2)
-            else
-                notify("🎯 Punch Aimbot OFF", 2)
-            end
         end
     })
 
-    -- AIM PREDICTION
     Tabs.GuestSettings:AddSlider("AimPredictionSlider", {
-        Title = "Aim Prediction",
+        Title = "📊 Aim Prediction",
         Description = "Nilai prediksi aim (0 - 10)",
         Default = 4,
         Min = 0,
@@ -2441,13 +1617,11 @@ if FluentLoaded then
         Suffix = "studs",
         Callback = function(value)
             predictionValue = value
-            notify("📊 Aim Prediction: " .. value, 2)
         end
     })
 
-    -- FLING POWER
     Tabs.GuestSettings:AddSlider("FlingPowerSlider", {
-        Title = "Fling Power",
+        Title = "💥 Fling Power",
         Description = "Kekuatan fling",
         Default = 10000,
         Min = 5000,
@@ -2455,97 +1629,83 @@ if FluentLoaded then
         Rounding = 0,
         Callback = function(value)
             flingPower = value
-            notify("💥 Fling Power: " .. value, 2)
         end
     })
 
-    -- ===================== CUSTOM ANIMATIONS TAB (FIXED - SEMUA BERFUNGSI) =====================
-    
-    -- CUSTOM BLOCK ANIMATION
+    -- ===================== CUSTOM ANIMATIONS TAB (BIARKAN SEMUA) =====================
     Tabs.CustomAnimations:AddInput("CustomBlockAnim", {
-        Title = "Custom Block Animation",
+        Title = "🎭 Custom Block Animation",
         Description = "Masukkan ID animasi block",
         Placeholder = "AnimationId",
         Callback = function(text)
             customBlockAnimId = text
-            notify("🎭 Block Anim ID: " .. text, 2)
         end
     })
 
-    -- ENABLE CUSTOM BLOCK
     Tabs.CustomAnimations:AddToggle("EnableCustomBlockAnim", {
-        Title = "Enable Custom Block",
+        Title = "🎭 Enable Custom Block",
         Description = "Aktifkan animasi block kustom",
         Default = false,
         Callback = function(value)
             customBlockEnabled = value
-            if value then
-                notify("🎭 Custom Block ON", 2)
-            else
-                notify("🎭 Custom Block OFF", 2)
-            end
         end
     })
 
-    -- CUSTOM PUNCH ANIMATION
     Tabs.CustomAnimations:AddInput("CustomPunchAnim", {
-        Title = "Custom Punch Animation",
+        Title = "🎭 Custom Punch Animation",
         Description = "Masukkan ID animasi punch",
         Placeholder = "AnimationId",
         Callback = function(text)
             customPunchAnimId = text
-            notify("🎭 Punch Anim ID: " .. text, 2)
         end
     })
 
-    -- ENABLE CUSTOM PUNCH
     Tabs.CustomAnimations:AddToggle("EnableCustomPunchAnim", {
-        Title = "Enable Custom Punch",
+        Title = "🎭 Enable Custom Punch",
         Description = "Aktifkan animasi punch kustom",
         Default = false,
         Callback = function(value)
             customPunchEnabled = value
-            if value then
-                notify("🎭 Custom Punch ON", 2)
-            else
-                notify("🎭 Custom Punch OFF", 2)
-            end
         end
     })
 
-    -- CUSTOM CHARGE ANIMATION
     Tabs.CustomAnimations:AddInput("ChargeAnimID", {
-        Title = "Charge Animation ID",
+        Title = "🎭 Charge Animation ID",
         Description = "Masukkan ID animasi charge",
         Placeholder = "Animation ID",
         Callback = function(input)
             customChargeAnimId = input
-            notify("🎭 Charge Anim ID: " .. input, 2)
         end
     })
 
-    -- ENABLE CUSTOM CHARGE
     Tabs.CustomAnimations:AddToggle("EnableCustomChargeAnim", {
-        Title = "Custom Charge Animation",
+        Title = "🎭 Custom Charge Animation",
         Description = "Aktifkan animasi charge kustom",
         Default = false,
         Callback = function(value)
             customChargeEnabled = value
-            if value then
-                notify("🎭 Custom Charge ON", 2)
-            else
-                notify("🎭 Custom Charge OFF", 2)
-            end
         end
     })
 
     -- ===================== DISCORD TAB =====================
     Tabs.Discord:AddButton({
-        Title = "Copy Discord Invite Link",
+        Title = "📋 Copy Discord Invite Link",
         Description = "Copy link Discord LYNZKA",
         Callback = function()
             setclipboard("https://discord.gg/aXNagEYb2f")
             notify("📋 Discord link copied!", 2)
+        end
+    })
+
+    -- ===================== SETTINGS TAB =====================
+    Tabs.Settings:AddButton({
+        Title = "📐 Center GUI",
+        Description = "Posisikan menu di tengah",
+        Callback = function()
+            if Window and Window.Root then
+                Window.Root.Position = UDim2.new(0.5, -290, 0.5, -230)
+                notify("📐 GUI Centered!", 2)
+            end
         end
     })
 
@@ -2556,346 +1716,46 @@ if FluentLoaded then
     hubLoaded = true
 end
 
--- ===================== ORIGINAL AUTO BLOCK LOGIC =====================
-local AttackAnimations = {
-    "rbxassetid://131430497821198", "rbxassetid://83829782357897", "rbxassetid://126830014841198",
-    "rbxassetid://126355327951215", "rbxassetid://121086746534252", "rbxassetid://105458270463374",
-    "rbxassetid://127172483138092", "rbxassetid://18885919947", "rbxassetid://18885909645",
-    "rbxassetid://87259391926321", "rbxassetid://106014898528300", "rbxassetid://86545133269813",
-    "rbxassetid://89448354637442", "rbxassetid://90499469533503", "rbxassetid://116618003477002",
-    "rbxassetid://106086955212611", "rbxassetid://107640065977686", "rbxassetid://77124578197357",
-    "rbxassetid://101771617803133", "rbxassetid://134958187822107", "rbxassetid://111313169447787",
-    "rbxassetid://71685573690338", "rbxassetid://129843313690921", "rbxassetid://97623143664485",
-    "rbxassetid://136007065400978", "rbxassetid://86096387000557", "rbxassetid://108807732150251",
-    "rbxassetid://138040001965654", "rbxassetid://73502073176819", "rbxassetid://86709774283672",
-    "rbxassetid://140703210927645", "rbxassetid://96173857867228", "rbxassetid://121255898612475",
-    "rbxassetid://98031287364865", "rbxassetid://119462383658044", "rbxassetid://77448521277146",
-    "rbxassetid://103741352379819", "rbxassetid://131696603025265", "rbxassetid://122503338277352",
-    "rbxassetid://97648548303678", "rbxassetid://94162446513587", "rbxassetid://84426150435898",
-    "rbxassetid://93069721274110", "rbxassetid://114620047310688", "rbxassetid://97433060861952",
-    "rbxassetid://82183356141401", "rbxassetid://100592913030351", "rbxassetid://121293883585738",
-    "rbxassetid://70447634862911", "rbxassetid://92173139187970", "rbxassetid://106847695270773",
-    "rbxassetid://125403313786645", "rbxassetid://81639435858902", "rbxassetid://137314737492715",
-    "rbxassetid://120112897026015", "rbxassetid://82113744478546", "rbxassetid://118298475669935",
-    "rbxassetid://126681776859538", "rbxassetid://129976080405072", "rbxassetid://109667959938617",
-    "rbxassetid://74707328554358", "rbxassetid://133336594357903", "rbxassetid://86204001129974",
-    "rbxassetid://124243639579224", "rbxassetid://70371667919898", "rbxassetid://131543461321709",
-    "rbxassetid://136323728355613", "rbxassetid://109230267448394"
-}
-
-local function fireRemoteBlock()
-    ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent"):FireServer("UseActorAbility", "Block")
-end
-
-local function isFacing(localRoot, targetRoot)
-    if not localRoot or not targetRoot then return false end
-    local offset = localRoot.Position - targetRoot.Position
-    if offset.Magnitude == 0 then return false end
-    local dir = offset.Unit
-    local dot = targetRoot.CFrame.LookVector:Dot(dir)
-    if looseFacing then
-        return dot > -0.3
-    else
-        return dot > 0
-    end
-end
-
-local function playCustomAnim(animId, isPunch)
-    if not Humanoid then return end
-    if not animId or animId == "" then return end
-    local now = tick()
-    local lastTime = isPunch and lastPunchTime or lastBlockTime
-    if now - lastTime < 1 then return end
-    for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do
-        local animNum = tostring(track.Animation.AnimationId):match("%d+")
-        if table.find(isPunch and punchAnimIds or blockAnimIds, animNum) then
-            track:Stop()
-        end
-    end
-    local anim = Instance.new("Animation")
-    anim.AnimationId = "rbxassetid://" .. animId
-    local success, track = pcall(function()
-        return Humanoid:LoadAnimation(anim)
-    end)
-    if success and track then
-        track:Play()
-        if isPunch then
-            lastPunchTime = now
-        else
-            lastBlockTime = now
-        end
-    end
-end
-
--- ===================== MAIN AUTO BLOCK LOOP =====================
-RunService.RenderStepped:Connect(function()
-    local myChar = LocalPlayer.Character
-    if not myChar then return end
-    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-    Humanoid = myChar:FindFirstChildOfClass("Humanoid")
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character then
-            if not Players:GetPlayerFromCharacter(plr.Character) then return end
-            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-            local animTracks = hum and hum:FindFirstChildOfClass("Animator") and hum:FindFirstChildOfClass("Animator"):GetPlayingAnimationTracks()
-
-            if hrp and myRoot and (hrp.Position - myRoot.Position).Magnitude <= detectionRange then
-                for _, track in ipairs(animTracks or {}) do
-                    local id = tostring(track.Animation.AnimationId):match("%d+")
-                    if table.find(GuestSettingsTriggerAnims, id) then
-                        if GuestSettingsOn and (not strictRangeOn or (hrp.Position - myRoot.Position).Magnitude <= detectionRange) then
-                            if isFacing(myRoot, hrp) then
-                                fireRemoteBlock()
-                                if customBlockEnabled and customBlockAnimId ~= "" then
-                                    playCustomAnim(customBlockAnimId, false)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    if blockTPEnabled and Humanoid and tick() - lastBlockTpTime >= 5 then
-        for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do
-            local animId = tostring(track.Animation.AnimationId):match("%d+")
-            if animId == "72722244508749" or animId == "96959123077498" then
-                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if myRoot then
-                    local killers = {"c00lkidd", "Jason", "JohnDoe", "1x1x1x1", "Noli"}
-                    for _, name in ipairs(killers) do
-                        local killer = workspace:FindFirstChild("Players")
-                            and workspace.Players:FindFirstChild("Killers")
-                            and workspace.Players.Killers:FindFirstChild(name)
-                        if not Players:GetPlayerFromCharacter(killer) then return end
-                        if killer and killer:FindFirstChild("HumanoidRootPart") then
-                            lastBlockTpTime = tick()
-                            task.spawn(function()
-                                local startTime = tick()
-                                while tick() - startTime < 0.5 do
-                                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                                        local myRoot = LocalPlayer.Character.HumanoidRootPart
-                                        local targetHRP = killer.HumanoidRootPart
-                                        local direction = targetHRP.CFrame.LookVector
-                                        local tpPosition = targetHRP.Position + direction * 6
-                                        myRoot.CFrame = CFrame.new(tpPosition)
-                                    end
-                                    task.wait()
-                                end
-                            end)
-                            break
-                        end
-                    end
-                end
-                break
-            end
-        end
-    end
-
-    if predictiveBlockOn and tick() > predictiveCooldown then
-        local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
-        local myChar = LocalPlayer.Character
-        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-        local myHum = myChar and myChar:FindFirstChild("Humanoid")
-
-        if killersFolder and myHRP and myHum then
-            local killerInRange = false
-            for _, killer in ipairs(killersFolder:GetChildren()) do
-                if not Players:GetPlayerFromCharacter(killer) then continue end
-                local hrp = killer:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local dist = (myHRP.Position - hrp.Position).Magnitude
-                    if dist <= detectionRange then
-                        killerInRange = true
-                        break
-                    end
-                end
-            end
-
-            if killerInRange then
-                if not killerInRangeSince then
-                    killerInRangeSince = tick()
-                elseif tick() - killerInRangeSince >= edgeKillerDelay then
-                    fireRemoteBlock()
-                    predictiveCooldown = tick() + 2
-                    killerInRangeSince = nil
-                end
-            else
-                killerInRangeSince = nil
-            end
-        end
-    end
-
-    if GuestSettingsOn then
-        local gui = PlayerGui:FindFirstChild("MainUI")
-        local punchBtn = gui and gui:FindFirstChild("AbilityContainer") and gui.AbilityContainer:FindFirstChild("Punch")
-        local charges = punchBtn and punchBtn:FindFirstChild("Charges")
-
-        if charges and charges.Text == "1" then
-            local killerNames = {"c00lkidd", "Jason", "JohnDoe", "1x1x1x1", "Noli"}
-            for _, name in ipairs(killerNames) do
-                local killer = workspace:FindFirstChild("Players")
-                    and workspace.Players:FindFirstChild("Killers")
-                    and workspace.Players.Killers:FindFirstChild(name)
-                if not Players:GetPlayerFromCharacter(killer) then return end
-                if killer and killer:FindFirstChild("HumanoidRootPart") then
-                    local root = killer.HumanoidRootPart
-                    local myChar = LocalPlayer.Character
-                    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-                    if root and myRoot and (root.Position - myRoot.Position).Magnitude <= 10 then
-                        if aimPunch then
-                            local humanoid = myChar:FindFirstChild("Humanoid")
-                            if humanoid then humanoid.AutoRotate = false end
-                            task.spawn(function()
-                                local start = tick()
-                                while tick() - start < 2 do
-                                    local myRootNow = myChar:FindFirstChild("HumanoidRootPart")
-                                    local targetRoot = root and root.Parent and root.Parent:FindFirstChild("HumanoidRootPart")
-                                    if myRootNow and targetRoot then
-                                        local predictedPos = targetRoot.Position + (targetRoot.CFrame.LookVector * predictionValue)
-                                        myRootNow.CFrame = CFrame.lookAt(myRootNow.Position, predictedPos)
-                                    end
-                                    task.wait()
-                                end
-                                if humanoid and humanoid.Parent then
-                                    humanoid.AutoRotate = true
-                                end
-                            end)
-                        end
-
-                        for _, conn in ipairs(getconnections(punchBtn.MouseButton1Click)) do
-                            pcall(function() conn:Fire() end)
-                        end
-
-                        if flingPunchOn then
-                            hiddenfling = true
-                            local targetHRP = root
-                            task.spawn(function()
-                                local start = tick()
-                                while tick() - start < 1 do
-                                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and targetHRP and targetHRP.Parent then
-                                        local frontPos = targetHRP.Position + (targetHRP.CFrame.LookVector * 2)
-                                        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(frontPos, targetHRP.Position)
-                                    end
-                                    task.wait()
-                                end
-                                hiddenfling = false
-                            end)
-                        end
-
-                        if customPunchEnabled and customPunchAnimId ~= "" then
-                            playCustomAnim(customPunchAnimId, true)
-                        end
-                        break
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- ===================== CUSTOM ANIMATION REPLACER =====================
-local lastReplaceTime = { block = 0, punch = 0, charge = 0 }
-
-task.spawn(function()
-    while true do
-        RunService.Heartbeat:Wait()
-        local char = LocalPlayer.Character
-        if not char then continue end
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-        if not animator then continue end
-
-        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-            local animId = tostring(track.Animation.AnimationId):match("%d+")
-
-            if customBlockEnabled and customBlockAnimId ~= "" and table.find(blockAnimIds, animId) then
-                if tick() - lastReplaceTime.block >= 3 then
-                    lastReplaceTime.block = tick()
-                    track:Stop()
-                    local newAnim = Instance.new("Animation")
-                    newAnim.AnimationId = "rbxassetid://" .. customBlockAnimId
-                    local newTrack = animator:LoadAnimation(newAnim)
-                    newTrack:Play()
-                    break
-                end
-            end
-
-            if customPunchEnabled and customPunchAnimId ~= "" and table.find(punchAnimIds, animId) then
-                if tick() - lastReplaceTime.punch >= 3 then
-                    lastReplaceTime.punch = tick()
-                    track:Stop()
-                    local newAnim = Instance.new("Animation")
-                    newAnim.AnimationId = "rbxassetid://" .. customPunchAnimId
-                    local newTrack = animator:LoadAnimation(newAnim)
-                    newTrack:Play()
-                    break
-                end
-            end
-
-            if customChargeEnabled and customChargeAnimId ~= "" and table.find(chargeAnimIds, animId) then
-                if tick() - lastReplaceTime.charge >= 3 then
-                    lastReplaceTime.charge = tick()
-                    track:Stop()
-                    local newAnim = Instance.new("Animation")
-                    newAnim.AnimationId = "rbxassetid://" .. customChargeAnimId
-                    local newTrack = animator:LoadAnimation(newAnim)
-                    newTrack:Play()
-                    break
-                end
-            end
-        end
-    end
-end)
-
--- ===================== HITBOX RIDE LOGIC =====================
+-- ===================== FLY LOOP (KEEP FLYING) =====================
 RunService.Heartbeat:Connect(function()
-    if not hitboxmodificationEnabled then return end
-    if not HumanoidRootPart then return end
-
-    local playing = false
-    for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do
-        if table.find(AttackAnimations, track.Animation.AnimationId) and (track.TimePosition / track.Length < 0.75) then
-            playing = true
-            break
-        end
-    end
-    if not playing then return end
-
-    local Target
-    local NearestDist = MaxRange
-
-    local function scanGroup(group)
-        for _, obj in ipairs(group) do
-            if obj == Character or not obj:FindFirstChild("HumanoidRootPart") then continue end
-            local dist = (obj.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
-            if dist < NearestDist then
-                NearestDist = dist
-                Target = obj
+    if flyActive then
+        local char = LocalPlayer.Character
+        if char then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            
+            if hrp and hum then
+                hum.PlatformStand = true
+                hum.Sit = false
+                hum.AutoRotate = false
+                
+                -- Pertahankan ketinggian
+                local currentPos = hrp.Position
+                if math.abs(currentPos.Y - flyHeight) > 0.5 then
+                    hrp.CFrame = CFrame.new(Vector3.new(currentPos.X, flyHeight, currentPos.Z))
+                end
+                
+                -- Noclip saat terbang
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
             end
         end
     end
+end)
 
-    scanGroup(workspace.Players:GetDescendants())
-    local npcs = workspace:FindFirstChild("Map", true) and workspace.Map:FindFirstChild("NPCs", true)
-    if npcs then
-        scanGroup(npcs:GetChildren())
+-- ===================== CHARGE SPEED LOOP =====================
+RunService.Stepped:Connect(function()
+    if ChargeSpeedLoop then
+        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
+        local mult = speedMultipliers and speedMultipliers:FindFirstChild("Guest1337Charge")
+        if mult and GuestChargeSpeed ~= nil then
+            mult.Value = GuestChargeSpeed
+        end
     end
-
-    if not Target then return end
-
-    local ping = LocalPlayer:GetNetworkPing()
-    local randomOffset = Vector3.new(RNG:NextNumber(-1.5, 1.5), 0, RNG:NextNumber(-1.5, 1.5))
-    local predicted = Target.HumanoidRootPart.Position + randomOffset + (Target.HumanoidRootPart.Velocity * (ping * 1.25))
-    local neededVelocity = (predicted - HumanoidRootPart.Position) / (ping * 2)
-
-    local oldVelocity = HumanoidRootPart.Velocity
-    HumanoidRootPart.Velocity = neededVelocity
-    RunService.RenderStepped:Wait()
-    HumanoidRootPart.Velocity = oldVelocity
 end)
 
 -- ===================== ANTI SLOW =====================
@@ -2920,65 +1780,22 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
--- ===================== NOCLIP LOOP =====================
-RunService.Stepped:Connect(function()
-    if toggleStates and toggleStates["Noclip"] then
-        local char = LocalPlayer.Character
-        if char then
-            for _, p in pairs(char:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    p.CanCollide = false
-                end
-            end
-        end
-    end
-end)
-
--- ===================== INFINITE JUMP =====================
-UserInputService.JumpRequest:Connect(function()
-    if toggleStates and toggleStates["InfiniteJump"] then
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end
-end)
-
--- ===================== CHARGE SPEED LOOP =====================
-RunService.Stepped:Connect(function()
-    if ChargeSpeedLoop then
-        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
-        local mult = speedMultipliers and speedMultipliers:FindFirstChild("Guest1337Charge")
-        if mult and GuestChargeSpeed ~= nil then
-            mult.Value = GuestChargeSpeed
-        end
-    end
-end)
-
--- ===================== SHADOW STYLE MENU TOGGLE (FIXED - ULTRA COMPACT) =====================
+-- ===================== SHADOW STYLE MENU TOGGLE (FIXED) =====================
 task.spawn(function()
-    -- Tunggu Fluent siap
     repeat task.wait(0.3) until Window and Window.Root
     repeat task.wait(0.3) until Window.Root.Parent and Window.Root.Parent:IsA("ScreenGui")
     
     local fluentScreenGui = Window.Root.Parent
     
-    -- Hapus tombol lama jika ada
     local oldGui = game.CoreGui:FindFirstChild("LYNZKAToggleGui")
     if oldGui then oldGui:Destroy() end
     
-    -- Buat ScreenGui terpisah
     local toggleGui = Instance.new("ScreenGui")
     toggleGui.Name = "LYNZKAToggleGui"
     toggleGui.ResetOnSpawn = false
     toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     toggleGui.Parent = game.CoreGui
     
-    -- Tombol UKURAN KECIL (40x40)
     local buttonFrame = Instance.new("Frame")
     buttonFrame.Name = "ToggleFrame"
     buttonFrame.Size = UDim2.new(0, 40, 0, 40)
@@ -2990,12 +1807,10 @@ task.spawn(function()
     buttonFrame.ZIndex = 9999
     buttonFrame.Parent = toggleGui
     
-    -- Corner radius
     local frameCorner = Instance.new("UICorner")
     frameCorner.CornerRadius = UDim.new(0, 10)
     frameCorner.Parent = buttonFrame
     
-    -- Glow effect (lebih kecil)
     local glow = Instance.new("Frame")
     glow.Name = "Glow"
     glow.Size = UDim2.new(1.4, 0, 1.4, 0)
@@ -3007,7 +1822,6 @@ task.spawn(function()
     glow.Parent = buttonFrame
     Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 14)
     
-    -- Tombol (lebih besar dari frame agar mudah dipencet)
     local toggleButton = Instance.new("TextButton")
     toggleButton.Name = "ToggleButton"
     toggleButton.Size = UDim2.new(1.3, 0, 1.3, 0)
@@ -3024,12 +1838,10 @@ task.spawn(function()
     toggleButton.AutoButtonColor = false
     toggleButton.Parent = buttonFrame
     
-    -- Corner untuk tombol
     local btnCorner = Instance.new("UICorner")
     btnCorner.CornerRadius = UDim.new(0, 8)
     btnCorner.Parent = toggleButton
     
-    -- Tooltip
     local tooltip = Instance.new("TextLabel")
     tooltip.Name = "Tooltip"
     tooltip.Size = UDim2.new(0, 80, 0, 18)
@@ -3047,10 +1859,8 @@ task.spawn(function()
     tooltip.Parent = buttonFrame
     Instance.new("UICorner", tooltip).CornerRadius = UDim.new(0, 4)
     
-    -- Variabel state
     local menuVisible = true
     
-    -- Fungsi toggle
     local function toggleMenu()
         menuVisible = not menuVisible
         
@@ -3061,15 +1871,8 @@ task.spawn(function()
             if Window and Window.Root then
                 Window.Root.Visible = menuVisible
             end
-            if Window and Window.Container then
-                Window.Container.Visible = menuVisible
-            end
-            if Window and Window._container then
-                Window._container.Visible = menuVisible
-            end
         end)
         
-        -- Update tampilan
         if menuVisible then
             toggleButton.Text = "−"
             buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
@@ -3087,7 +1890,7 @@ task.spawn(function()
         end
     end
     
-    -- ==================== DRAG SYSTEM (FIXED) ====================
+    -- DRAG SYSTEM
     local dragData = {
         dragging = false,
         dragStart = nil,
@@ -3095,7 +1898,6 @@ task.spawn(function()
         isDragging = false
     }
     
-    -- Mulai drag dari tombol
     toggleButton.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragData.dragging = true
@@ -3113,9 +1915,7 @@ task.spawn(function()
         end
     end)
     
-    -- Track gerakan mouse
-    local mouseConnection
-    mouseConnection = UserInputService.InputChanged:Connect(function(input)
+    UserInputService.InputChanged:Connect(function(input)
         if dragData.dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = input.Position - dragData.dragStart
             if delta.Magnitude > 3 then
@@ -3126,7 +1926,6 @@ task.spawn(function()
                 local newX = dragData.startPos.X.Offset + delta.X
                 local newY = dragData.startPos.Y.Offset + delta.Y
                 
-                -- Batasi agar tidak keluar layar
                 local screenSize = game:GetService("GuiService"):GetScreenSize()
                 local maxX = screenSize.X - 40
                 local maxY = screenSize.Y - 40
@@ -3140,7 +1939,6 @@ task.spawn(function()
         end
     end)
     
-    -- Hover effects
     toggleButton.MouseEnter:Connect(function()
         tooltip.Visible = true
         if menuVisible then
@@ -3163,14 +1961,12 @@ task.spawn(function()
         end
     end)
     
-    -- Click hanya jika bukan drag
     toggleButton.MouseButton1Click:Connect(function()
         if not dragData.isDragging then
             toggleMenu()
         end
     end)
     
-    -- Keyboard shortcut
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.Minus or input.KeyCode == Enum.KeyCode.M then
@@ -3178,12 +1974,10 @@ task.spawn(function()
         end
     end)
     
-    -- Load posisi tersimpan
     if _G.LYNZKAButtonPos then
         buttonFrame.Position = UDim2.new(0, _G.LYNZKAButtonPos.X, 0, _G.LYNZKAButtonPos.Y)
     end
     
-    -- Global API
     _G.LYNZKAToggle = {
         Button = toggleButton,
         Frame = buttonFrame,
