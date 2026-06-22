@@ -2137,4 +2137,4 @@ end
 
 print("[LYNZKA HUB v3.6.8] ✅ Loaded successfully!")
 print("💡 Klik '-' atau tekan '-' di keyboard untuk toggle menu")
-print("🎯 ESP & Aimbot FIXED!")menu")
+print("🎯 ESP & Aimbot FIXED!")
