@@ -1,8 +1,8 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║      🔥 LYNZKA HUB v3.6.8 🔥           ║
+    ║      🔥 LYNZKA HUB v3.6.10 🔥          ║
     ║   Shadow Style - Perfect Toggle        ║
-    ║   ESP & AIMBOT FIXED!                 ║
+    ║   ESP HEALTH FIXED!                   ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -245,6 +245,7 @@ local EspObjects = {}
 local TracerLines = {}
 local DrawingPool = {}
 local healthBarThickness = 10
+local espUpdateCounter = 0
 
 local espSettings = {
     Enabled = false,
@@ -286,18 +287,20 @@ local function ClearDrawings()
     TracerLines = {}
 end
 
+-- GET HEALTH DENGAN AMAN
 local function GetHealth(p)
-    local success = pcall(function()
+    local hp, mhp = 0, 100
+    pcall(function()
         local c = p.Character
-        if not c then return 0, 100 end
-        local h = c:FindFirstChildOfClass("Humanoid")
-        if not h then return 0, 100 end
-        return math.floor(h.Health), math.floor(h.MaxHealth)
+        if c then
+            local h = c:FindFirstChildOfClass("Humanoid")
+            if h then
+                hp = math.floor(h.Health)
+                mhp = math.floor(h.MaxHealth)
+            end
+        end
     end)
-    if success then
-        return GetHealth(p)
-    end
-    return 0, 100
+    return hp, mhp
 end
 
 local function WorldToScreen(pos)
@@ -324,16 +327,17 @@ local function GetBBox(char)
 end
 
 local function IsAlive(p)
-    local success = pcall(function()
+    local alive = false
+    pcall(function()
         local c = p.Character
-        if not c then return false end
-        local h = c:FindFirstChildOfClass("Humanoid")
-        return h and h.Health > 0
+        if c then
+            local h = c:FindFirstChildOfClass("Humanoid")
+            if h and h.Health > 0 then
+                alive = true
+            end
+        end
     end)
-    if success then
-        return IsAlive(p)
-    end
-    return false
+    return alive
 end
 
 local function GetTeamColor(p)
@@ -391,8 +395,14 @@ local function UpdateHealthBarThickness(thickness)
     end
 end
 
+-- UPDATE ESP - OPTIMIZED
 local function UpdateESP(player)
+    -- Skip update setiap 2 frame biar ga lag
+    espUpdateCounter = espUpdateCounter + 1
+    if espUpdateCounter % 2 == 0 then return end
+    
     pcall(function()
+        -- Skip kalo player = LocalPlayer
         if player == LocalPlayer then
             if EspObjects[player] then HideESP(EspObjects[player]) end
             if TracerLines[player] then 
@@ -401,6 +411,7 @@ local function UpdateESP(player)
             return
         end
         
+        -- Buat ESP kalo belum ada
         if not EspObjects[player] then 
             CreateESP(player) 
         end
@@ -410,6 +421,7 @@ local function UpdateESP(player)
         
         local tracer = TracerLines[player]
         
+        -- Hide kalo ESP mati
         if not espSettings.Enabled then
             HideESP(obj)
             if tracer then 
@@ -492,24 +504,27 @@ local function UpdateESP(player)
             obj.name.Visible = false
         end
         
-        -- HEALTH
+        -- HEALTH - FIXED
         if espSettings.ShowHealth and obj.health then
             local hp, mhp = GetHealth(player)
             local healthPercent = hp / mhp
-            local greenHealth = Color3.fromRGB(
-                math.floor(255 * (1 - healthPercent * 0.3)),
-                math.floor(255 * (0.6 + healthPercent * 0.4)),
-                math.floor(100 * healthPercent + 50)
+            
+            -- Warna hijau ke merah berdasarkan HP
+            local healthColor = Color3.fromRGB(
+                math.floor(255 * (1 - healthPercent)),
+                math.floor(255 * healthPercent),
+                50
             )
+            
             obj.health.Text = hp .. "/" .. mhp
             obj.health.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 27)
-            obj.health.Color = greenHealth
+            obj.health.Color = healthColor
             obj.health.Visible = true
         elseif obj.health then
             obj.health.Visible = false
         end
         
-        -- HEALTH BAR
+        -- HEALTH BAR - FIXED
         if espSettings.ShowHealthBar and obj.healthBar then
             local hp, mhp = GetHealth(player)
             local healthPercent = hp / mhp
@@ -517,13 +532,17 @@ local function UpdateESP(player)
             local barY = bbox.y0
             local barHeight = bbox.y1 - bbox.y0
             local fillHeight = barHeight * healthPercent
-            obj.healthBar.From = Vector2.new(barX, barY + barHeight - fillHeight)
-            obj.healthBar.To = Vector2.new(barX, barY + barHeight)
-            obj.healthBar.Color = Color3.fromRGB(
+            
+            -- Warna berdasarkan HP
+            local barColor = Color3.fromRGB(
                 math.floor(255 * (1 - healthPercent)),
                 math.floor(255 * healthPercent),
                 50
             )
+            
+            obj.healthBar.From = Vector2.new(barX, barY + barHeight - fillHeight)
+            obj.healthBar.To = Vector2.new(barX, barY + barHeight)
+            obj.healthBar.Color = barColor
             obj.healthBar.Thickness = healthBarThickness
             obj.healthBar.Visible = true
         elseif obj.healthBar then
@@ -576,7 +595,7 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
--- ===================== AIMBOT - FIXED =====================
+-- ===================== AIMBOT =====================
 local aimbotEnabled = false
 local aimbotFOV = 500
 local hitboxMode = "Head"
@@ -619,7 +638,6 @@ local function GetBestTarget()
             
             if teamCheck and LocalPlayer.Team and p.Team and LocalPlayer.Team == p.Team then return end
             
-            -- TARGET PARTS
             local targetParts = {}
             if hitboxMode == "Head" then
                 local head = char:FindFirstChild("Head")
@@ -638,7 +656,6 @@ local function GetBestTarget()
                 if head then table.insert(targetParts, head) end
             end
             
-            -- Jika tidak ada target parts, coba pake HumanoidRootPart
             if #targetParts == 0 then
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 if hrp then table.insert(targetParts, hrp) end
@@ -1052,7 +1069,7 @@ local Window, Tabs = nil, nil
 if FluentLoaded then
     Window = Fluent:CreateWindow({
         Title = "LYNZKA HUB",
-        SubTitle = "v3.6.8 - ESP & Aimbot Fixed!",
+        SubTitle = "v3.6.10 - ESP Health Fixed!",
         TabWidth = 160,
         Size = UDim2.fromOffset(580, 460),
         Theme = "Dark",
@@ -1194,7 +1211,7 @@ if FluentLoaded then
         end
     })
 
-    -- ===================== ESP TAB - FIXED =====================
+    -- ===================== ESP TAB =====================
     Tabs.ESP:AddToggle("ESPToggle", {
         Title = "👁️ Enable ESP",
         Description = "Nyalakan ESP untuk melihat player",
@@ -1238,7 +1255,7 @@ if FluentLoaded then
 
     Tabs.ESP:AddToggle("ESPHealth", {
         Title = "❤️ Show Health",
-        Description = "Tampilkan HP player",
+        Description = "Tampilkan HP player (100/100)",
         Default = true,
         Callback = function(state)
             pcall(function()
@@ -1306,7 +1323,7 @@ if FluentLoaded then
         end
     })
 
-    -- ===================== COMBAT TAB - FIXED =====================
+    -- ===================== COMBAT TAB =====================
     Tabs.Combat:AddToggle("AimbotToggle", {
         Title = "🎯 Aimbot",
         Description = "Auto aim ke musuh",
@@ -1854,7 +1871,7 @@ if FluentLoaded then
 
     -- ===================== FINALIZE =====================
     Window:SelectTab("Player")
-    notify("🔥 LYNZKA HUB v3.6.8 - ESP & Aimbot Fixed!", 4)
+    notify("🔥 LYNZKA HUB v3.6.10 - ESP Health Fixed!", 4)
 
     hubLoaded = true
 end
@@ -2135,6 +2152,6 @@ if SaveManager then
     end)
 end
 
-print("[LYNZKA HUB v3.6.8] ✅ Loaded successfully!")
+print("[LYNZKA HUB v3.6.10] ✅ Loaded successfully!")
 print("💡 Klik '-' atau tekan '-' di keyboard untuk toggle menu")
-print("🎯 ESP & Aimbot FIXED!")
+print("❤️ ESP Health 100/100 FIXED!")
