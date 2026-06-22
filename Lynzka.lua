@@ -2635,35 +2635,74 @@ task.spawn(function()
     -- Click
     toggleButton.MouseButton1Click:Connect(toggleMenu)
     
-    -- ==================== DRAG SYSTEM ====================
-    local dragData = {
-        dragging = false,
-        startPos = nil,
-        startMouse = nil
-    }
-    
-    -- Drag dari frame (bisa drag dari mana saja di frame)
-    buttonFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragData.dragging = true
-            dragData.startPos = buttonFrame.Position
-            dragData.startMouse = input.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragData.dragging = false
-                end
-            end)
+-- ==================== DRAG SYSTEM (FIXED - Lebih Responsif) ====================
+local dragData = {
+    dragging = false,
+    dragStart = nil,
+    startPos = nil,
+    isDragging = false
+}
+
+-- Deteksi drag dari tombol (bukan frame)
+toggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragData.dragging = true
+        dragData.dragStart = input.Position
+        dragData.startPos = buttonFrame.Position
+        dragData.isDragging = false
+    end
+end)
+
+toggleButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragData.dragging = false
+        -- Jika tidak ada pergerakan, berarti klik biasa
+        task.wait(0.05)
+        dragData.isDragging = false
+    end
+end)
+
+-- Track mouse movement
+local mouseConnection
+mouseConnection = UserInputService.InputChanged:Connect(function(input)
+    if dragData.dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragData.dragStart
+        -- Deteksi jika ada pergerakan (bukan klik)
+        if delta.Magnitude > 5 then
+            dragData.isDragging = true
         end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragData.dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragData.startMouse
-            local newX = math.clamp(dragData.startPos.X.Offset + delta.X, 0, 800)
-            local newY = math.clamp(dragData.startPos.Y.Offset + delta.Y, 0, 600)
+        
+        if dragData.isDragging then
+            -- Hitung posisi baru
+            local newX = dragData.startPos.X.Offset + delta.X
+            local newY = dragData.startPos.Y.Offset + delta.Y
+            
+            -- Batasi agar tidak keluar layar
+            local screenSize = game:GetService("GuiService"):GetScreenSize()
+            local maxX = screenSize.X - 70
+            local maxY = screenSize.Y - 70
+            
+            newX = math.clamp(newX, 0, maxX)
+            newY = math.clamp(newY, 0, maxY)
+            
+            -- Terapkan posisi baru
             buttonFrame.Position = UDim2.new(0, newX, 0, newY)
+            
+            -- Simpan posisi
+            _G.GoonHubButtonPos = { X = newX, Y = newY }
         end
-    end)
+    end
+end)
+
+-- Cleanup saat tombol dihapus
+toggleButton.AncestryChanged:Connect(function()
+    if not toggleButton.Parent then
+        if mouseConnection then
+            mouseConnection:Disconnect()
+            mouseConnection = nil
+        end
+    end
+end)
     
     -- ==================== KEYBOARD SHORTCUT ====================
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
