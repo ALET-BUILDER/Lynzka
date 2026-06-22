@@ -240,12 +240,11 @@ local function PlaySoundByID(id)
     end)
 end
 
--- ===================== ESP SYSTEM - FIXED =====================
+-- ===================== ESP SYSTEM - FULLY FIXED (ALL PLAYERS) =====================
 local EspObjects = {}
 local TracerLines = {}
 local DrawingPool = {}
 local healthBarThickness = 10
-local espUpdateCounter = 0
 
 local espSettings = {
     Enabled = false,
@@ -349,6 +348,11 @@ end
 
 local function CreateESP(player)
     pcall(function()
+        -- HAPUS YANG LAMA DULU KALAU ADA
+        if EspObjects[player] then
+            RemoveESP(player)
+        end
+        
         EspObjects[player] = {
             top = NewDrawing("Line", {Thickness = 1, Color = Color3.fromRGB(255,255,255)}),
             bottom = NewDrawing("Line", {Thickness = 1, Color = Color3.fromRGB(255,255,255)}),
@@ -395,205 +399,276 @@ local function UpdateHealthBarThickness(thickness)
     end
 end
 
--- UPDATE ESP - OPTIMIZED
+-- UPDATE ESP - PASTIKAN SEMUA PLAYER KENA
 local function UpdateESP(player)
-    -- Skip update setiap 2 frame biar ga lag
-    espUpdateCounter = espUpdateCounter + 1
-    if espUpdateCounter % 2 == 0 then return end
+    -- SKIP LOCAL PLAYER
+    if player == LocalPlayer then
+        if EspObjects[player] then HideESP(EspObjects[player]) end
+        if TracerLines[player] then 
+            pcall(function() TracerLines[player].Visible = false end)
+        end
+        return
+    end
     
-    pcall(function()
-        -- Skip kalo player = LocalPlayer
-        if player == LocalPlayer then
-            if EspObjects[player] then HideESP(EspObjects[player]) end
-            if TracerLines[player] then 
-                pcall(function() TracerLines[player].Visible = false end)
+    -- PASTIKAN ESP ADA UNTUK SEMUA PLAYER (TERMASUK YANG BARU MASUK)
+    if not EspObjects[player] then 
+        CreateESP(player) 
+    end
+    
+    local obj = EspObjects[player]
+    if not obj then return end
+    
+    local tracer = TracerLines[player]
+    
+    -- Hide kalo ESP mati
+    if not espSettings.Enabled then
+        HideESP(obj)
+        if tracer then 
+            pcall(function() tracer.Visible = false end)
+        end
+        return
+    end
+    
+    local char = player.Character
+    if not char then
+        HideESP(obj)
+        if tracer then 
+            pcall(function() tracer.Visible = false end)
+        end
+        return
+    end
+    
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then
+        HideESP(obj)
+        if tracer then 
+            pcall(function() tracer.Visible = false end)
+        end
+        return
+    end
+    
+    local bbox = GetBBox(char)
+    if not bbox then
+        HideESP(obj)
+        if tracer then 
+            pcall(function() tracer.Visible = false end)
+        end
+        return
+    end
+    
+    local color = GetTeamColor(player)
+    
+    -- BOX
+    if espSettings.ShowBox then
+        pcall(function()
+            if obj.top then
+                obj.top.From = Vector2.new(bbox.x0, bbox.y0)
+                obj.top.To = Vector2.new(bbox.x1, bbox.y0)
+                obj.top.Color = color
+                obj.top.Visible = true
             end
-            return
-        end
-        
-        -- Buat ESP kalo belum ada
-        if not EspObjects[player] then 
-            CreateESP(player) 
-        end
-        
-        local obj = EspObjects[player]
-        if not obj then return end
-        
-        local tracer = TracerLines[player]
-        
-        -- Hide kalo ESP mati
-        if not espSettings.Enabled then
-            HideESP(obj)
-            if tracer then 
-                pcall(function() tracer.Visible = false end)
+            if obj.bottom then
+                obj.bottom.From = Vector2.new(bbox.x0, bbox.y1)
+                obj.bottom.To = Vector2.new(bbox.x1, bbox.y1)
+                obj.bottom.Color = color
+                obj.bottom.Visible = true
             end
-            return
-        end
-        
-        local char = player.Character
-        if not char then
-            HideESP(obj)
-            if tracer then 
-                pcall(function() tracer.Visible = false end)
+            if obj.left then
+                obj.left.From = Vector2.new(bbox.x0, bbox.y0)
+                obj.left.To = Vector2.new(bbox.x0, bbox.y1)
+                obj.left.Color = color
+                obj.left.Visible = true
             end
-            return
-        end
-        
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hum or hum.Health <= 0 then
-            HideESP(obj)
-            if tracer then 
-                pcall(function() tracer.Visible = false end)
+            if obj.right then
+                obj.right.From = Vector2.new(bbox.x1, bbox.y0)
+                obj.right.To = Vector2.new(bbox.x1, bbox.y1)
+                obj.right.Color = color
+                obj.right.Visible = true
             end
-            return
-        end
+        end)
+    else
+        if obj.top then obj.top.Visible = false end
+        if obj.bottom then obj.bottom.Visible = false end
+        if obj.left then obj.left.Visible = false end
+        if obj.right then obj.right.Visible = false end
+    end
+    
+    -- NAMES
+    if espSettings.ShowNames and obj.name then
+        obj.name.Text = player.Name
+        obj.name.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 15)
+        obj.name.Color = color
+        obj.name.Visible = true
+    elseif obj.name then
+        obj.name.Visible = false
+    end
+    
+    -- HEALTH
+    if espSettings.ShowHealth and obj.health then
+        local hp, mhp = GetHealth(player)
+        local healthPercent = hp / mhp
         
-        local bbox = GetBBox(char)
-        if not bbox then
-            HideESP(obj)
-            if tracer then 
-                pcall(function() tracer.Visible = false end)
-            end
-            return
-        end
+        local healthColor = Color3.fromRGB(
+            math.floor(255 * (1 - healthPercent)),
+            math.floor(255 * healthPercent),
+            50
+        )
         
-        local color = GetTeamColor(player)
+        obj.health.Text = hp .. "/" .. mhp
+        obj.health.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 27)
+        obj.health.Color = healthColor
+        obj.health.Visible = true
+    elseif obj.health then
+        obj.health.Visible = false
+    end
+    
+    -- HEALTH BAR
+    if espSettings.ShowHealthBar and obj.healthBar then
+        local hp, mhp = GetHealth(player)
+        local healthPercent = hp / mhp
+        local barX = bbox.x1 + 3
+        local barY = bbox.y0
+        local barHeight = bbox.y1 - bbox.y0
+        local fillHeight = barHeight * healthPercent
         
-        -- BOX
-        if espSettings.ShowBox then
-            pcall(function()
-                if obj.top then
-                    obj.top.From = Vector2.new(bbox.x0, bbox.y0)
-                    obj.top.To = Vector2.new(bbox.x1, bbox.y0)
-                    obj.top.Color = color
-                    obj.top.Visible = true
-                end
-                if obj.bottom then
-                    obj.bottom.From = Vector2.new(bbox.x0, bbox.y1)
-                    obj.bottom.To = Vector2.new(bbox.x1, bbox.y1)
-                    obj.bottom.Color = color
-                    obj.bottom.Visible = true
-                end
-                if obj.left then
-                    obj.left.From = Vector2.new(bbox.x0, bbox.y0)
-                    obj.left.To = Vector2.new(bbox.x0, bbox.y1)
-                    obj.left.Color = color
-                    obj.left.Visible = true
-                end
-                if obj.right then
-                    obj.right.From = Vector2.new(bbox.x1, bbox.y0)
-                    obj.right.To = Vector2.new(bbox.x1, bbox.y1)
-                    obj.right.Color = color
-                    obj.right.Visible = true
-                end
-            end)
+        local barColor = Color3.fromRGB(
+            math.floor(255 * (1 - healthPercent)),
+            math.floor(255 * healthPercent),
+            50
+        )
+        
+        obj.healthBar.From = Vector2.new(barX, barY + barHeight - fillHeight)
+        obj.healthBar.To = Vector2.new(barX, barY + barHeight)
+        obj.healthBar.Color = barColor
+        obj.healthBar.Thickness = healthBarThickness
+        obj.healthBar.Visible = true
+    elseif obj.healthBar then
+        obj.healthBar.Visible = false
+    end
+    
+    -- DISTANCE
+    if espSettings.ShowDistance and obj.distance then
+        local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local targetPos = char:FindFirstChild("HumanoidRootPart")
+        if myPos and targetPos then
+            local distStuds = (myPos.Position - targetPos.Position).Magnitude
+            local distMeters = distStuds * 0.28
+            obj.distance.Text = string.format("%.1f m", distMeters)
+            obj.distance.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1 + 12)
+            obj.distance.Color = Color3.fromRGB(255, 255, 0)
+            obj.distance.Size = 11
+            obj.distance.Visible = true
         else
-            if obj.top then obj.top.Visible = false end
-            if obj.bottom then obj.bottom.Visible = false end
-            if obj.left then obj.left.Visible = false end
-            if obj.right then obj.right.Visible = false end
-        end
-        
-        -- NAMES
-        if espSettings.ShowNames and obj.name then
-            obj.name.Text = player.Name
-            obj.name.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 15)
-            obj.name.Color = color
-            obj.name.Visible = true
-        elseif obj.name then
-            obj.name.Visible = false
-        end
-        
-        -- HEALTH - FIXED
-        if espSettings.ShowHealth and obj.health then
-            local hp, mhp = GetHealth(player)
-            local healthPercent = hp / mhp
-            
-            -- Warna hijau ke merah berdasarkan HP
-            local healthColor = Color3.fromRGB(
-                math.floor(255 * (1 - healthPercent)),
-                math.floor(255 * healthPercent),
-                50
-            )
-            
-            obj.health.Text = hp .. "/" .. mhp
-            obj.health.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 27)
-            obj.health.Color = healthColor
-            obj.health.Visible = true
-        elseif obj.health then
-            obj.health.Visible = false
-        end
-        
-        -- HEALTH BAR - FIXED
-        if espSettings.ShowHealthBar and obj.healthBar then
-            local hp, mhp = GetHealth(player)
-            local healthPercent = hp / mhp
-            local barX = bbox.x1 + 3
-            local barY = bbox.y0
-            local barHeight = bbox.y1 - bbox.y0
-            local fillHeight = barHeight * healthPercent
-            
-            -- Warna berdasarkan HP
-            local barColor = Color3.fromRGB(
-                math.floor(255 * (1 - healthPercent)),
-                math.floor(255 * healthPercent),
-                50
-            )
-            
-            obj.healthBar.From = Vector2.new(barX, barY + barHeight - fillHeight)
-            obj.healthBar.To = Vector2.new(barX, barY + barHeight)
-            obj.healthBar.Color = barColor
-            obj.healthBar.Thickness = healthBarThickness
-            obj.healthBar.Visible = true
-        elseif obj.healthBar then
-            obj.healthBar.Visible = false
-        end
-        
-        -- DISTANCE
-        if espSettings.ShowDistance and obj.distance then
-            local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local targetPos = char:FindFirstChild("HumanoidRootPart")
-            if myPos and targetPos then
-                local distStuds = (myPos.Position - targetPos.Position).Magnitude
-                local distMeters = distStuds * 0.28
-                obj.distance.Text = string.format("%.1f m", distMeters)
-                obj.distance.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1 + 12)
-                obj.distance.Color = Color3.fromRGB(255, 255, 0)
-                obj.distance.Size = 11
-                obj.distance.Visible = true
-            else
-                obj.distance.Visible = false
-            end
-        elseif obj.distance then
             obj.distance.Visible = false
         end
-        
-        -- TRACER
-        if espSettings.ShowTracer and tracer and bbox then
-            local vp = Camera.ViewportSize
-            local footPos = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1)
-            local bottomCenter = Vector2.new(vp.X / 2, vp.Y)
-            tracer.From = footPos
-            tracer.To = bottomCenter
-            tracer.Color = color
-            tracer.Visible = true
-        elseif tracer then
-            tracer.Visible = false
+    elseif obj.distance then
+        obj.distance.Visible = false
+    end
+    
+    -- TRACER
+    if espSettings.ShowTracer and tracer and bbox then
+        local vp = Camera.ViewportSize
+        local footPos = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1)
+        local bottomCenter = Vector2.new(vp.X / 2, vp.Y)
+        tracer.From = footPos
+        tracer.To = bottomCenter
+        tracer.Color = color
+        tracer.Visible = true
+    elseif tracer then
+        tracer.Visible = false
+    end
+end
+
+-- ===== FUNGSI UNTUK MEMASTIKAN SEMUA PLAYER DAPAT ESP =====
+local function EnsureAllPlayersHaveESP()
+    pcall(function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                if not EspObjects[p] then
+                    CreateESP(p)
+                end
+            end
         end
     end)
 end
+
+-- BUAT ESP UNTUK SEMUA PLAYER YANG SUDAH ADA
+EnsureAllPlayersHaveESP()
+
+-- DETEKSI PLAYER BARU
+Players.PlayerAdded:Connect(function(p)
+    if p ~= LocalPlayer then
+        -- Tunggu sebentar agar player siap
+        task.wait(0.3)
+        CreateESP(p)
+        print("[ESP] Player baru terdeteksi: " .. p.Name)
+    end
+end)
+
+-- DETEKSI KARAKTER PLAYER BARU DI-LOAD
+local function OnCharacterAdded(p)
+    if p ~= LocalPlayer then
+        task.wait(0.2)
+        -- Pastikan ESP tetap ada
+        if not EspObjects[p] then
+            CreateESP(p)
+        end
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then
+        p.CharacterAdded:Connect(function()
+            OnCharacterAdded(p)
+        end)
+    end
+end
+
+-- DETEKSI PLAYER BARU + KARAKTERNYA
+Players.PlayerAdded:Connect(function(p)
+    if p ~= LocalPlayer then
+        p.CharacterAdded:Connect(function()
+            OnCharacterAdded(p)
+        end)
+    end
+end)
 
 Players.PlayerRemoving:Connect(function(p)
     RemoveESP(p)
 end)
 
+-- UPDATE LOOP - SETIAP FRAME UNTUK SEMUA PLAYER
 RunService.RenderStepped:Connect(function()
     pcall(function()
+        -- PASTIKAN SEMUA PLAYER PUNYA ESP
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and not EspObjects[p] then
+                CreateESP(p)
+            end
+        end
+        
+        -- UPDATE SEMUA PLAYER
         for _, p in ipairs(Players:GetPlayers()) do
             UpdateESP(p)
         end
     end)
 end)
+
+-- CHECK SETIAP 5 DETIK UNTUK MEMASTIKAN TIDAK ADA YANG TERLEWAT
+task.spawn(function()
+    while task.wait(5) do
+        pcall(function()
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and not EspObjects[p] then
+                    CreateESP(p)
+                    print("[ESP] Recovery: Player " .. p.Name .. " dibuatkan ESP")
+                end
+            end
+        end)
+    end
+end)
+
+print("[ESP] ✅ SEMUA PLAYER di server akan kena ESP!")
 
 -- ===================== AIMBOT =====================
 local aimbotEnabled = false
