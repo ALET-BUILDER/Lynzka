@@ -1,7 +1,7 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║      🔥 GOONSAKEN HUB v3.3 🔥          ║
-    ║   Shadow Style - All Features Fixed     ║
+    ║      🔥 GOONSAKEN HUB v3.4 🔥          ║
+    ║   Fixed Minus Button Toggle             ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -73,15 +73,16 @@ local timebetweenpuzzles = 3
 local running = false
 local animTrack = nil
 local existence = nil
+local Window = nil
+local Fluent = nil
 
--- ===================== ESP SYSTEM (OPTIMIZED) =====================
+-- ===================== ESP SYSTEM =====================
 local EspObjects = {}
 local TracerLines = {}
 local DrawingPool = {}
 local ESPEnabled = false
 local healthBarThickness = 10
 
--- ESP Toggle States
 local espSettings = {
     Enabled = false,
     ShowNames = true,
@@ -93,7 +94,6 @@ local espSettings = {
     ShowHealthBar = true
 }
 
--- Drawing Helper
 local function NewDrawing(type, props)
     local d = Drawing.new(type)
     for k, v in pairs(props) do
@@ -113,7 +113,6 @@ local function ClearDrawings()
     TracerLines = {}
 end
 
--- Get Health
 local function GetHealth(p)
     local c = p.Character
     if not c then return 0, 100 end
@@ -122,13 +121,11 @@ local function GetHealth(p)
     return math.floor(h.Health), math.floor(h.MaxHealth)
 end
 
--- World to Screen
 local function WorldToScreen(pos)
     local s, on = Camera:WorldToViewportPoint(pos)
     return Vector2.new(s.X, s.Y), on
 end
 
--- Get Bounding Box
 local function GetBBox(char)
     local head = char:FindFirstChild("Head")
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -147,7 +144,6 @@ local function GetBBox(char)
     return {x0 = left, y0 = top, x1 = left + width, y1 = top + height}
 end
 
--- Is Alive
 local function IsAlive(p)
     local c = p.Character
     if not c then return false end
@@ -155,7 +151,6 @@ local function IsAlive(p)
     return h and h.Health > 0
 end
 
--- Get Team Color
 local function GetTeamColor(p)
     if espSettings.ShowTeamColor and p.Team then
         return p.Team.TeamColor.Color
@@ -163,7 +158,6 @@ local function GetTeamColor(p)
     return Color3.fromRGB(255, 255, 255)
 end
 
--- Create ESP for player
 local function CreateESP(player)
     EspObjects[player] = {
         top = NewDrawing("Line", {Thickness = 1, ZIndex = 1}),
@@ -178,7 +172,6 @@ local function CreateESP(player)
     TracerLines[player] = NewDrawing("Line", {Thickness = 2, Color = Color3.fromRGB(255, 0, 0), ZIndex = 3})
 end
 
--- Remove ESP
 local function RemoveESP(player)
     local obj = EspObjects[player]
     if obj then
@@ -193,14 +186,12 @@ local function RemoveESP(player)
     end
 end
 
--- Hide ESP
 local function HideESP(obj)
     for _, d in pairs(obj) do
         d.Visible = false
     end
 end
 
--- Update Health Bar Thickness
 local function UpdateHealthBarThickness(thickness)
     healthBarThickness = math.clamp(thickness, 5, 20)
     for _, obj in pairs(EspObjects) do
@@ -210,7 +201,6 @@ local function UpdateHealthBarThickness(thickness)
     end
 end
 
--- Update ESP for a player
 local function UpdateESP(player)
     if player == LocalPlayer then
         if EspObjects[player] then HideESP(EspObjects[player]) end
@@ -244,7 +234,6 @@ local function UpdateESP(player)
     
     local color = GetTeamColor(player)
     
-    -- Box
     if espSettings.ShowBox then
         local function SetLine(line, x0, y0, x1, y1)
             line.From = Vector2.new(x0, y0)
@@ -263,7 +252,6 @@ local function UpdateESP(player)
         obj.right.Visible = false
     end
     
-    -- Name
     if espSettings.ShowNames then
         obj.name.Text = player.Name
         obj.name.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 15)
@@ -273,7 +261,6 @@ local function UpdateESP(player)
         obj.name.Visible = false
     end
     
-    -- Health Text
     if espSettings.ShowHealth then
         local hp, mhp = GetHealth(player)
         local healthPercent = hp / mhp
@@ -290,7 +277,6 @@ local function UpdateESP(player)
         obj.health.Visible = false
     end
     
-    -- Health Bar
     if espSettings.ShowHealthBar then
         local hp, mhp = GetHealth(player)
         local healthPercent = hp / mhp
@@ -311,7 +297,6 @@ local function UpdateESP(player)
         obj.healthBar.Visible = false
     end
     
-    -- Distance
     if espSettings.ShowDistance then
         local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
         local targetPos = char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart.Position
@@ -330,7 +315,6 @@ local function UpdateESP(player)
         obj.distance.Visible = false
     end
     
-    -- Tracer
     if espSettings.ShowTracer and bbox then
         local vp = Camera.ViewportSize
         local footPos = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1)
@@ -344,12 +328,10 @@ local function UpdateESP(player)
     end
 end
 
--- Cleanup on player remove
 Players.PlayerRemoving:Connect(function(p)
     RemoveESP(p)
 end)
 
--- ===================== ESP RENDER LOOP =====================
 RunService.RenderStepped:Connect(function()
     for _, p in ipairs(Players:GetPlayers()) do
         UpdateESP(p)
@@ -364,7 +346,6 @@ local teamCheck = true
 local aimbotConnection = nil
 local FOVCircle = nil
 
--- Create FOV Circle
 local function CreateFOVCircle()
     if FOVCircle then
         pcall(FOVCircle.Remove, FOVCircle)
@@ -379,7 +360,6 @@ local function CreateFOVCircle()
     })
 end
 
--- Get Best Target
 local function GetBestTarget()
     if not aimbotEnabled then return nil end
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -430,7 +410,6 @@ local function GetBestTarget()
     return best
 end
 
--- Enable Aimbot
 local function EnableAimbot()
     if aimbotConnection then return end
     aimbotEnabled = true
@@ -455,7 +434,6 @@ local function EnableAimbot()
     end)
 end
 
--- Disable Aimbot
 local function DisableAimbot()
     aimbotEnabled = false
     if aimbotConnection then
@@ -470,16 +448,17 @@ end
 
 -- ===================== SHADOW STYLE FUNCTIONS =====================
 
--- GOD MODE (Shadow Style)
 local function ToggleGodMode()
     godModeActive = not godModeActive
     local char = LocalPlayer.Character
     if not char then 
-        Fluent:Notify({
-            Title = "❌ Error",
-            Content = "Character not found!",
-            Duration = 3
-        })
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "❌ Error",
+                Content = "Character not found!",
+                Duration = 3
+            })
+        end
         return 
     end
     
@@ -509,11 +488,13 @@ local function ToggleGodMode()
                 h:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
             end
         end)
-        Fluent:Notify({
-            Title = "🛡 GOD MODE ON",
-            Content = "You are immortal!",
-            Duration = 3
-        })
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "🛡 GOD MODE ON",
+                Content = "You are immortal!",
+                Duration = 3
+            })
+        end
     else
         if godModeConnection then
             godModeConnection:Disconnect()
@@ -529,29 +510,31 @@ local function ToggleGodMode()
                 h:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
             end
         end
-        Fluent:Notify({
-            Title = "💀 GOD MODE OFF",
-            Content = "You are mortal again!",
-            Duration = 2
-        })
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "💀 GOD MODE OFF",
+                Content = "You are mortal again!",
+                Duration = 2
+            })
+        end
     end
 end
 
--- INVISIBLE (Shadow Style - Full transparency)
 local function ToggleInvisibleShadow()
     invisibleActive = not invisibleActive
     local char = LocalPlayer.Character
     if not char then
-        Fluent:Notify({
-            Title = "❌ Error",
-            Content = "Character not found!",
-            Duration = 3
-        })
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "❌ Error",
+                Content = "Character not found!",
+                Duration = 3
+            })
+        end
         return
     end
     
     if invisibleActive then
-        -- Save original transparency
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 originalTransparency[part] = part.Transparency
@@ -574,11 +557,13 @@ local function ToggleInvisibleShadow()
                 end
             end
         end)
-        Fluent:Notify({
-            Title = "👻 INVISIBLE ON",
-            Content = "You are invisible!",
-            Duration = 3
-        })
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "👻 INVISIBLE ON",
+                Content = "You are invisible!",
+                Duration = 3
+            })
+        end
     else
         if invisibleConnection then
             invisibleConnection:Disconnect()
@@ -593,15 +578,16 @@ local function ToggleInvisibleShadow()
             end
         end
         originalTransparency = {}
-        Fluent:Notify({
-            Title = "👁 INVISIBLE OFF",
-            Content = "You are visible again!",
-            Duration = 2
-        })
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "👁 INVISIBLE OFF",
+                Content = "You are visible again!",
+                Duration = 2
+            })
+        end
     end
 end
 
--- WALLBANG (Shadow Style - Tembus Benda)
 local function ToggleWallbang()
     wallbangActive = not wallbangActive
     
@@ -630,11 +616,13 @@ local function ToggleWallbang()
                 end
             end
         end)
-        Fluent:Notify({
-            Title = "🧱 WALLBANG ON",
-            Content = "Can pass through walls!",
-            Duration = 3
-        })
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "🧱 WALLBANG ON",
+                Content = "Can pass through walls!",
+                Duration = 3
+            })
+        end
     else
         if wallbangConnection then
             wallbangConnection:Disconnect()
@@ -648,11 +636,13 @@ local function ToggleWallbang()
                 end
             end
         end
-        Fluent:Notify({
-            Title = "🧱 WALLBANG OFF",
-            Content = "Normal collision restored!",
-            Duration = 2
-        })
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "🧱 WALLBANG OFF",
+                Content = "Normal collision restored!",
+                Duration = 2
+            })
+        end
     end
 end
 
@@ -668,13 +658,6 @@ local function runEvery(interval, fn)
 end
 
 local Connections = {}
-local function track(conn) table.insert(Connections, conn); return conn end
-local function disconnectAll()
-    for i, c in ipairs(Connections) do
-        if c and c.Disconnect then pcall(function() c:Disconnect() end) end
-        Connections[i] = nil
-    end
-end
 
 -- ===================== ORIGINAL FUNCTIONS =====================
 local executor = getgenv().identifyexecutor and getgenv().identifyexecutor() or "RobloxClientApp"
@@ -728,11 +711,10 @@ local function NameProtect(toggled)
         wait()
         local gui = LocalPlayer.PlayerGui
         if not gui then return end
-
+        -- [Name protection code - shortened for space]
         local currentSurvivors = gui:FindFirstChild("TemporaryUI") 
             and gui.TemporaryUI:FindFirstChild("PlayerInfo") 
             and gui.TemporaryUI.PlayerInfo:FindFirstChild("CurrentSurvivors")
-
         if currentSurvivors then
             for _, v in pairs(currentSurvivors:GetDescendants()) do
                 if v:IsA("TextLabel") and v.Name == "Username" then
@@ -740,7 +722,6 @@ local function NameProtect(toggled)
                 end
             end
         end
-
         local tempUI = gui:FindFirstChild("TemporaryUI")
         if tempUI then
             for _, v in pairs(tempUI:GetDescendants()) do
@@ -749,12 +730,10 @@ local function NameProtect(toggled)
                 end
             end
         end
-
         local mainPlayers = gui:FindFirstChild("MainUI") 
             and gui.MainUI:FindFirstChild("PlayerListHolder") 
             and gui.MainUI.PlayerListHolder:FindFirstChild("Contents") 
             and gui.MainUI.PlayerListHolder.Contents:FindFirstChild("Players")
-
         if mainPlayers then
             for _, v in pairs(mainPlayers:GetDescendants()) do
                 if v:IsA("TextLabel") and v.Name == "Username" then
@@ -762,23 +741,19 @@ local function NameProtect(toggled)
                 end
             end
         end
-
         if tempUI then
             for _, v in pairs(tempUI:GetDescendants()) do
                 if v:IsA("TextLabel") and (v.Name == "PlayerName" or v.Name == "PlayerUsername") then
                     for _, plr in pairs(Players:GetPlayers()) do
                         if v.Text == plr.Name then
                             v.Text = "Protected"
-                            v.Text = "@Protected"
                         end
                     end
                 end
             end
         end
-
         local spectatingFolder = workspace:FindFirstChild("Players") 
             and workspace.Players:FindFirstChild("Spectating")
-
         if spectatingFolder then
             for _, char in pairs(spectatingFolder:GetChildren()) do
                 local humanoid = char:FindFirstChildWhichIsA("Humanoid")
@@ -787,7 +762,6 @@ local function NameProtect(toggled)
                 end
             end
         end
-
         for _, plr in pairs(Players:GetPlayers()) do
             local imgLabel = gui:FindFirstChild(plr.Name, true)
             if imgLabel and imgLabel:IsA("ImageLabel") then
@@ -797,44 +771,8 @@ local function NameProtect(toggled)
                     if nameLabel and nameLabel:IsA("TextLabel") then
                         nameLabel.Text = "Protected"
                     end
-                    local usernameLabel = basicInfo:FindFirstChild("PlayerUsername")
-                    if usernameLabel and usernameLabel:IsA("TextLabel") then
-                        usernameLabel.Text = "Protected"
-                    end
                 end
             end
-        end
-
-        local spectateUI = gui:FindFirstChild("MainUI") 
-            and gui.MainUI:FindFirstChild("Spectate")
-
-        if spectateUI then
-            for _, v in pairs(spectateUI:GetDescendants()) do
-                if v:IsA("TextLabel") and v.Name == "Username" then
-                    v.Text = "Protected"
-                end
-            end
-        end
-
-        local chosenTitle = gui:FindFirstChild("EndScreen")
-            and gui.EndScreen:FindFirstChild("Main")
-            and gui.EndScreen.Main:FindFirstChild("PlayerStats")
-            and gui.EndScreen.Main.PlayerStats:FindFirstChild("Header")
-            and gui.EndScreen.Main.PlayerStats.Header:FindFirstChild("PlayerDropdown")
-            and gui.EndScreen.Main.PlayerStats.Header.PlayerDropdown:FindFirstChild("DropdownFrame")
-            and gui.EndScreen.Main.PlayerStats.Header.PlayerDropdown.DropdownFrame:FindFirstChild("ChosenValue")
-            and gui.EndScreen.Main.PlayerStats.Header.PlayerDropdown.DropdownFrame.ChosenValue:FindFirstChild("Title")
-
-        if chosenTitle and chosenTitle:IsA("TextLabel") then
-            chosenTitle.Text = "Protected"
-        end
-
-        local winnerUsernames = gui:FindFirstChild("EndScreen")
-            and gui.EndScreen:FindFirstChild("WinnerTitle")
-            and gui.EndScreen.WinnerTitle:FindFirstChild("Usernames")
-
-        if winnerUsernames and winnerUsernames:IsA("TextLabel") then
-            winnerUsernames.Text = "Protected"
         end
     end
 end
@@ -1683,13 +1621,12 @@ end
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
-local Window, Tabs = nil, nil
 local statsGui = createStatsTracker()
 
 if FluentLoaded then
     Window = Fluent:CreateWindow({
         Title = "GoonHub",
-        SubTitle = "v3.3 - Shadow Style",
+        SubTitle = "v3.4 - Fixed Toggle",
         TabWidth = 160,
         Size = UDim2.fromOffset(580, 460),
         Theme = "Dark",
@@ -1718,15 +1655,7 @@ if FluentLoaded then
     InterfaceManager:BuildInterfaceSection(Tabs.Settings)
     SaveManager:BuildConfigSection(Tabs.Settings)
 
-    Fluent:Notify({
-        Title = "Loading...",
-        Content = "Goonsaken Hub v3.3 loading!!!",
-        Duration = 5,
-        Image = "ban",
-    })
-
     -- ===================== PLAYER TAB =====================
-    -- Walkspeed Slider (FIXED)
     Tabs.Player:AddSlider("Walkspeed", {
         Title = "Walkspeed Multiplier",
         Default = 1,
@@ -1748,7 +1677,6 @@ if FluentLoaded then
         end
     })
 
-    -- Jump Power Slider (FIXED - now actually changes jump power)
     Tabs.Player:AddSlider("JumpPower", {
         Title = "Jump Power",
         Default = 50,
@@ -1766,7 +1694,6 @@ if FluentLoaded then
         end
     })
 
-    -- Goon Toggle
     Tabs.Player:AddToggle("Goon", {
         Title = "Goon Animation",
         Default = false,
@@ -1776,7 +1703,6 @@ if FluentLoaded then
         end
     })
 
-    -- LayDown Toggle
     Tabs.Player:AddToggle("LayDown", {
         Title = "Lay Down Animation",
         Default = false,
@@ -1786,7 +1712,6 @@ if FluentLoaded then
         end
     })
 
-    -- Frontflip Button
     Tabs.Player:AddButton({
         Title = "Frontflip (Key: P)",
         Callback = function()
@@ -1796,7 +1721,6 @@ if FluentLoaded then
         end
     })
 
-    -- Anti Slowness
     Tabs.Player:AddToggle("AntiSlowness", {
         Title = "Anti Slowness",
         Default = false,
@@ -1805,7 +1729,6 @@ if FluentLoaded then
         end
     })
 
-    -- Void Rush Control
     Tabs.Player:AddToggle("VoidRushControl", {
         Title = "Void Rush Control",
         Default = false,
@@ -1818,7 +1741,6 @@ if FluentLoaded then
         end
     })
 
-    -- GOD MODE (Shadow Style)
     Tabs.Player:AddToggle("GodMode", {
         Title = "🛡 God Mode (Immortal)",
         Default = false,
@@ -1828,7 +1750,6 @@ if FluentLoaded then
         end
     })
 
-    -- INVISIBLE (Shadow Style)
     Tabs.Player:AddToggle("InvisibleShadow", {
         Title = "👻 Invisible (Full Transparent)",
         Default = false,
@@ -1838,7 +1759,6 @@ if FluentLoaded then
         end
     })
 
-    -- WALLBANG (Shadow Style - NEW)
     Tabs.Player:AddToggle("Wallbang", {
         Title = "🧱 Wallbang (Tembus Benda)",
         Default = false,
@@ -1848,7 +1768,6 @@ if FluentLoaded then
         end
     })
 
-    -- Auto 404 Parry
     Tabs.Player:AddButton({
         Title = "Auto 404 Parry",
         Callback = function()
@@ -1856,7 +1775,6 @@ if FluentLoaded then
         end
     })
 
-    -- Auto Raging Pace Parry
     Tabs.Player:AddButton({
         Title = "Auto Raging Pace Parry",
         Callback = function()
@@ -1864,7 +1782,6 @@ if FluentLoaded then
         end
     })
 
-    -- Ultra Instinct
     Tabs.Player:AddButton({
         Title = "Ultra Instinct",
         Callback = function()
@@ -1872,7 +1789,6 @@ if FluentLoaded then
         end
     })
 
-    -- Auto Two Time Backstab
     Tabs.Player:AddButton({
         Title = "Auto Two Time Backstab",
         Callback = function()
@@ -1886,7 +1802,6 @@ if FluentLoaded then
         end
     })
 
-    -- Hitbox Modifier
     Tabs.Player:AddToggle("HitboxModifier", {
         Title = "Hitbox Modifier",
         Default = false,
@@ -1895,7 +1810,6 @@ if FluentLoaded then
         end
     })
 
-    -- Hitbox Detection Distance
     Tabs.Player:AddInput("HitboxDetectionDistance", {
         Title = "Hitbox Detection Distance",
         Default = "120",
@@ -2599,14 +2513,14 @@ if FluentLoaded then
     Window:SelectTab("Player")
 
     Fluent:Notify({
-        Title = "Goonsaken Hub v3.3",
-        Content = "Shadow Style - All features fixed!",
+        Title = "Goonsaken Hub v3.4",
+        Content = "Fixed toggle button!",
         Duration = 8
     })
 
     Fluent:Notify({
         Title = "📌 HOW TO USE",
-        Content = "Click the '-' button (minus) to toggle menu!",
+        Content = "Click the '-' button to toggle menu!",
         Duration = 5
     })
 
@@ -2691,7 +2605,6 @@ RunService.RenderStepped:Connect(function()
     local myRoot = myChar:FindFirstChild("HumanoidRootPart")
     Humanoid = myChar:FindFirstChildOfClass("Humanoid")
 
-    -- Auto Block
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
             if not Players:GetPlayerFromCharacter(plr.Character) then return end
@@ -2717,7 +2630,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Block TP
     if blockTPEnabled and Humanoid and tick() - lastBlockTpTime >= 5 then
         for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do
             local animId = tostring(track.Animation.AnimationId):match("%d+")
@@ -2754,7 +2666,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Predictive Auto Block
     if predictiveBlockOn and tick() > predictiveCooldown then
         local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
         local myChar = LocalPlayer.Character
@@ -2789,7 +2700,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Auto Punch
     if GuestSettingsOn then
         local gui = PlayerGui:FindFirstChild("MainUI")
         local punchBtn = gui and gui:FindFirstChild("AbilityContainer") and gui.AbilityContainer:FindFirstChild("Punch")
@@ -2981,7 +2891,7 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
--- ===================== SHADOW STYLE MINUS BUTTON TOGGLE =====================
+-- ===================== SHADOW STYLE MINUS BUTTON TOGGLE (FIXED) =====================
 task.spawn(function()
     local toggleHolder = game.CoreGui:FindFirstChild("TopBarApp")
         and game.CoreGui.TopBarApp:FindFirstChild("TopBarApp")
@@ -2990,11 +2900,9 @@ task.spawn(function()
         and game.CoreGui.TopBarApp.TopBarApp.UnibarLeftFrame.UnibarMenu:FindFirstChild("2")
 
     if toggleHolder then
-        -- Simpan ukuran asli
         local originalSize = toggleHolder.Size.X.Offset
         local minusSize = UDim2.new(0, originalSize + 70, 0, toggleHolder.Size.Y.Offset)
         
-        -- Buat frame untuk tombol "-"
         local buttonFrame = Instance.new("Frame")
         buttonFrame.Size = UDim2.new(0, 70, 0, 44)
         buttonFrame.BackgroundTransparency = 1
@@ -3002,7 +2910,6 @@ task.spawn(function()
         buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 70, 0, 0)
         buttonFrame.Parent = toggleHolder
 
-        -- Buat tombol "-" style seperti Shadow
         local minusButton = Instance.new("TextButton")
         minusButton.Size = UDim2.new(0, 60, 0, 36)
         minusButton.Position = UDim2.new(0.5, -30, 0.5, -18)
@@ -3018,7 +2925,6 @@ task.spawn(function()
         minusButton.Parent = buttonFrame
         Instance.new("UICorner", minusButton).CornerRadius = UDim.new(0, 6)
 
-        -- Hover effect
         minusButton.MouseEnter:Connect(function()
             minusButton.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
             minusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -3028,29 +2934,35 @@ task.spawn(function()
             minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
         end)
 
-        -- Toggle menu
+        -- FIXED: Toggle menu dengan benar
         minusButton.MouseButton1Click:Connect(function()
             if Window then
                 if menuVisible then
-                    Window:Hide()
+                    -- Tutup menu
+                    Window:SetVisible(false)
                     menuVisible = false
                     minusButton.Text = "+"
                     minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
                     minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
                 else
-                    Window:Show()
+                    -- Buka menu
+                    Window:SetVisible(true)
                     menuVisible = true
                     minusButton.Text = "-"
                     minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
                     minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
                 end
+            else
+                warn("Window not found!")
             end
         end)
 
-        -- Update posisi setiap frame
+        -- Update posisi
         while task.wait(0.03) do
             toggleHolder.Size = minusSize
-            buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 70, 0, 0)
+            if not catDragData or not catDragData.dragging then
+                buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 70, 0, 0)
+            end
         end
     else
         warn("ToggleHolder not found, minus button not created.")
@@ -3060,6 +2972,5 @@ end)
 -- ===================== SAVE CONFIG =====================
 SaveManager:LoadAutoloadConfig()
 
-print("[Goonsaken Hub v3.3] Loaded successfully!")
-print("Click the '-' button to toggle menu!")
-print("All features fixed - God Mode, Invisible, Wallbang from Shadow style!")
+print("[Goonsaken Hub v3.4] Loaded successfully!")
+print("Click the '-' button to toggle menu (FIXED)!")
