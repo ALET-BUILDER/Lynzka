@@ -1,9 +1,8 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║      🔥 LYNZKA HUB v3.6.6 🔥           ║
+    ║      🔥 LYNZKA HUB v3.6.7 🔥           ║
     ║   Shadow Style - Perfect Toggle        ║
-    ║   NOCLIP = Anti Tanah SAJA!           ║
-    ║   DISCORD TAB = REMOVED               ║
+    ║   ALL ERRORS FIXED!                   ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -63,8 +62,10 @@ local wallbangConnection = nil
 local SpeedLoop = nil
 local nameProtectActive = false
 local originalName = ""
+local soundActive = false
+local currentSound = nil
 
--- ===================== NOCLIP - ANTI MASUK TANAH SAJA (BUKAN TEMBOK) =====================
+-- ===================== NOCLIP - FIXED =====================
 local noclipActive = false
 local noclipConnection = nil
 
@@ -72,49 +73,44 @@ local function ToggleNoclip(state)
     noclipActive = state
     
     if noclipActive then
-        if noclipConnection then noclipConnection:Disconnect() end
+        if noclipConnection then
+            pcall(function() noclipConnection:Disconnect() end)
+            noclipConnection = nil
+        end
         
-        -- Loop buat cegah masuk tanah
         noclipConnection = RunService.Heartbeat:Connect(function()
             if not noclipActive then
                 if noclipConnection then
-                    noclipConnection:Disconnect()
+                    pcall(function() noclipConnection:Disconnect() end)
                     noclipConnection = nil
                 end
                 return
             end
             
-            local char = LocalPlayer.Character
-            if not char then return end
-            
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            
-            -- CEK APAKAH KITA MASUK TANAH
-            local ray = Ray.new(hrp.Position, Vector3.new(0, -1, 0))
-            local hit, hitPos = Workspace:FindPartOnRay(ray, char)
-            
-            -- KALAU KEPALA ATAU BADAN MASUK TANAH, DORONG KE ATAS
-            if hit and hitPos then
-                local head = char:FindFirstChild("Head")
-                if head then
-                    local headPos = head.Position
-                    -- Cek apakah kepala di bawah tanah
-                    if headPos.Y < 0 then
-                        hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 5, hrp.Position.Z))
-                    end
+            pcall(function()
+                local char = LocalPlayer.Character
+                if not char then return end
+                
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+                
+                -- CEK JIKA POSISI DI BAWAH TANAH
+                if hrp.Position.Y < 2 then
+                    -- Teleport ke atas tanah
+                    hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 5, hrp.Position.Z))
                 end
-            end
-            
-            -- NOCLIP KHUSUS TANAH: KALAU TERJEBAK DI BAWAH TANAH, TELEPORT KE ATAS
-            if hrp.Position.Y < 0 then
-                hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 5, hrp.Position.Z))
-            end
+                
+                -- CEK KEPALA MASUK TANAH
+                local head = char:FindFirstChild("Head")
+                if head and head.Position.Y < 0 then
+                    hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 5, hrp.Position.Z))
+                end
+            end)
         end)
         notify("🚫 NOCLIP ON - Ga bakal masuk tanah!", 2)
     else
         if noclipConnection then
-            noclipConnection:Disconnect()
+            pcall(function() noclipConnection:Disconnect() end)
             noclipConnection = nil
         end
         notify("🚫 NOCLIP OFF", 2)
@@ -131,85 +127,124 @@ local staminaLoop = nil
 -- ===================== NOTIFICATION =====================
 local function notify(text, duration)
     duration = duration or 3
-    if Fluent and Fluent.Notify then
-        pcall(function()
+    pcall(function()
+        if Fluent and Fluent.Notify then
             Fluent:Notify({
                 Title = "LYNZKA HUB",
                 Content = text,
                 Duration = duration
             })
-        end)
-    else
-        local notification = Instance.new("TextLabel")
-        notification.Size = UDim2.new(0, 300, 0, 40)
-        notification.Position = UDim2.new(0.5, -150, 1, -50)
-        notification.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-        notification.BackgroundTransparency = 0
-        notification.TextColor3 = Color3.fromRGB(100, 180, 255)
-        notification.Font = Enum.Font.GothamBold
-        notification.TextSize = 14
-        notification.Text = "LYNZKA HUB: " .. text
-        notification.Parent = game.CoreGui
-        Instance.new("UICorner", notification).CornerRadius = UDim.new(0, 8)
-        TweenService:Create(notification, TweenInfo.new(0.5), {
-            Position = UDim2.new(0.5, -150, 1, -60)
-        }):Play()
-        task.delay(duration, function()
-            TweenService:Create(notification, TweenInfo.new(0.4), {
-                Position = UDim2.new(0.5, -150, 1, 10)
+        else
+            local notification = Instance.new("TextLabel")
+            notification.Size = UDim2.new(0, 300, 0, 40)
+            notification.Position = UDim2.new(0.5, -150, 1, -50)
+            notification.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+            notification.BackgroundTransparency = 0
+            notification.TextColor3 = Color3.fromRGB(100, 180, 255)
+            notification.Font = Enum.Font.GothamBold
+            notification.TextSize = 14
+            notification.Text = "LYNZKA HUB: " .. text
+            notification.Parent = game.CoreGui
+            Instance.new("UICorner", notification).CornerRadius = UDim.new(0, 8)
+            TweenService:Create(notification, TweenInfo.new(0.5), {
+                Position = UDim2.new(0.5, -150, 1, -60)
             }):Play()
-            task.delay(0.5, function() notification:Destroy() end)
-        end)
-    end
+            task.delay(duration, function()
+                pcall(function()
+                    TweenService:Create(notification, TweenInfo.new(0.4), {
+                        Position = UDim2.new(0.5, -150, 1, 10)
+                    }):Play()
+                    task.delay(0.5, function() pcall(function() notification:Destroy() end) end)
+                end)
+            end)
+        end
+    end)
 end
 
--- ===================== NAMEPROTECT (FIXED - PROTEKSI NAMA KITA) =====================
+-- ===================== NAMEPROTECT - FIXED =====================
 local function ToggleNameProtect(state)
     nameProtectActive = state
     
-    if state then
-        originalName = LocalPlayer.Name
-        
-        local success, err = pcall(function()
-            LocalPlayer.Name = "???"
-        end)
-        
-        if not success then
-            notify("⚠️ Gagal mengganti nama: " .. tostring(err), 3)
-        end
-        
-        if Connections.NameProtectListener then
-            pcall(function()
-                Connections.NameProtectListener:Disconnect()
+    pcall(function()
+        if state then
+            originalName = LocalPlayer.Name
+            
+            local success, err = pcall(function()
+                LocalPlayer.Name = "???"
             end)
-            Connections.NameProtectListener = nil
-        end
-        
-        Connections.NameProtectListener = LocalPlayer:GetPropertyChangedSignal("Name"):Connect(function()
-            if nameProtectActive and LocalPlayer.Name ~= "???" then
+            
+            if not success then
+                notify("⚠️ Gagal mengganti nama: " .. tostring(err), 3)
+            end
+            
+            if Connections.NameProtectListener then
                 pcall(function()
-                    LocalPlayer.Name = "???"
+                    Connections.NameProtectListener:Disconnect()
+                end)
+                Connections.NameProtectListener = nil
+            end
+            
+            Connections.NameProtectListener = LocalPlayer:GetPropertyChangedSignal("Name"):Connect(function()
+                pcall(function()
+                    if nameProtectActive and LocalPlayer.Name ~= "???" then
+                        LocalPlayer.Name = "???"
+                    end
+                end)
+            end)
+            
+            notify("🛡️ NameProtect ON - Namamu disembunyikan!", 3)
+        else
+            if Connections.NameProtectListener then
+                pcall(function()
+                    Connections.NameProtectListener:Disconnect()
+                end)
+                Connections.NameProtectListener = nil
+            end
+            
+            if originalName and originalName ~= "" then
+                pcall(function()
+                    LocalPlayer.Name = originalName
                 end)
             end
+            
+            notify("🛡️ NameProtect OFF - Namamu kembali!", 2)
+        end
+    end)
+end
+
+-- ===================== PLAY SOUND - FIXED + VOLUME MAX =====================
+local function PlaySoundByID(id)
+    pcall(function()
+        -- Hapus sound lama
+        if currentSound then
+            pcall(function() currentSound:Destroy() end)
+            currentSound = nil
+        end
+        
+        -- Buat sound baru
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://" .. tostring(id)
+        sound.Volume = 1 -- MAX VOLUME
+        sound.PlaybackSpeed = 1
+        sound.Looped = false
+        sound.Parent = Workspace
+        
+        -- Play
+        sound:Play()
+        currentSound = sound
+        
+        -- Auto destroy setelah selesai
+        task.delay(10, function()
+            pcall(function()
+                if currentSound then
+                    currentSound:Destroy()
+                    currentSound = nil
+                end
+            end)
         end)
         
-        notify("🛡️ NameProtect ON - Namamu disembunyikan!", 3)
-    else
-        if Connections.NameProtectListener then
-            pcall(function()
-                Connections.NameProtectListener:Disconnect()
-            end)
-            Connections.NameProtectListener = nil
-        end
-        
-        if originalName and originalName ~= "" then
-            pcall(function()
-                LocalPlayer.Name = originalName
-            end)
-        end
-        
-        notify("🛡️ NameProtect OFF - Namamu kembali!", 2)
-    end
+        notify("🔊 Playing Sound ID: " .. tostring(id), 2)
+    end)
 end
 
 -- ===================== ESP SYSTEM =====================
@@ -230,13 +265,15 @@ local espSettings = {
 }
 
 local function NewDrawing(type, props)
-    local d = Drawing.new(type)
-    for k, v in pairs(props) do
-        d[k] = v
-    end
-    d.Visible = false
-    table.insert(DrawingPool, d)
-    return d
+    pcall(function()
+        local d = Drawing.new(type)
+        for k, v in pairs(props) do
+            d[k] = v
+        end
+        d.Visible = false
+        table.insert(DrawingPool, d)
+        return d
+    end)
 end
 
 local function ClearDrawings()
@@ -249,11 +286,14 @@ local function ClearDrawings()
 end
 
 local function GetHealth(p)
-    local c = p.Character
-    if not c then return 0, 100 end
-    local h = c:FindFirstChildOfClass("Humanoid")
-    if not h then return 0, 100 end
-    return math.floor(h.Health), math.floor(h.MaxHealth)
+    pcall(function()
+        local c = p.Character
+        if not c then return 0, 100 end
+        local h = c:FindFirstChildOfClass("Humanoid")
+        if not h then return 0, 100 end
+        return math.floor(h.Health), math.floor(h.MaxHealth)
+    end)
+    return 0, 100
 end
 
 local function WorldToScreen(pos)
@@ -280,10 +320,13 @@ local function GetBBox(char)
 end
 
 local function IsAlive(p)
-    local c = p.Character
-    if not c then return false end
-    local h = c:FindFirstChildOfClass("Humanoid")
-    return h and h.Health > 0
+    pcall(function()
+        local c = p.Character
+        if not c then return false end
+        local h = c:FindFirstChildOfClass("Humanoid")
+        return h and h.Health > 0
+    end)
+    return false
 end
 
 local function GetTeamColor(p)
@@ -337,130 +380,132 @@ local function UpdateHealthBarThickness(thickness)
 end
 
 local function UpdateESP(player)
-    if player == LocalPlayer then
-        if EspObjects[player] then HideESP(EspObjects[player]) end
-        if TracerLines[player] then TracerLines[player].Visible = false end
-        return
-    end
-    
-    if not EspObjects[player] then CreateESP(player) end
-    local obj = EspObjects[player]
-    local tracer = TracerLines[player]
-    
-    if not espSettings.Enabled or not IsAlive(player) then
-        HideESP(obj)
-        if tracer then tracer.Visible = false end
-        return
-    end
-    
-    local char = player.Character
-    if not char then
-        HideESP(obj)
-        if tracer then tracer.Visible = false end
-        return
-    end
-    
-    local bbox = GetBBox(char)
-    if not bbox then
-        HideESP(obj)
-        if tracer then tracer.Visible = false end
-        return
-    end
-    
-    local color = GetTeamColor(player)
-    
-    if espSettings.ShowBox then
-        local function SetLine(line, x0, y0, x1, y1)
-            line.From = Vector2.new(x0, y0)
-            line.To = Vector2.new(x1, y1)
-            line.Color = color
-            line.Visible = true
+    pcall(function()
+        if player == LocalPlayer then
+            if EspObjects[player] then HideESP(EspObjects[player]) end
+            if TracerLines[player] then TracerLines[player].Visible = false end
+            return
         end
-        SetLine(obj.top, bbox.x0, bbox.y0, bbox.x1, bbox.y0)
-        SetLine(obj.bottom, bbox.x0, bbox.y1, bbox.x1, bbox.y1)
-        SetLine(obj.left, bbox.x0, bbox.y0, bbox.x0, bbox.y1)
-        SetLine(obj.right, bbox.x1, bbox.y0, bbox.x1, bbox.y1)
-    else
-        obj.top.Visible = false
-        obj.bottom.Visible = false
-        obj.left.Visible = false
-        obj.right.Visible = false
-    end
-    
-    if espSettings.ShowNames then
-        obj.name.Text = player.Name
-        obj.name.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 15)
-        obj.name.Color = color
-        obj.name.Visible = true
-    else
-        obj.name.Visible = false
-    end
-    
-    if espSettings.ShowHealth then
-        local hp, mhp = GetHealth(player)
-        local healthPercent = hp / mhp
-        local greenHealth = Color3.fromRGB(
-            math.floor(255 * (1 - healthPercent * 0.3)),
-            math.floor(255 * (0.6 + healthPercent * 0.4)),
-            math.floor(100 * healthPercent + 50)
-        )
-        obj.health.Text = hp .. "/" .. mhp
-        obj.health.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 27)
-        obj.health.Color = greenHealth
-        obj.health.Visible = true
-    else
-        obj.health.Visible = false
-    end
-    
-    if espSettings.ShowHealthBar then
-        local hp, mhp = GetHealth(player)
-        local healthPercent = hp / mhp
-        local barX = bbox.x1 + 3
-        local barY = bbox.y0
-        local barHeight = bbox.y1 - bbox.y0
-        local fillHeight = barHeight * healthPercent
-        obj.healthBar.From = Vector2.new(barX, barY + barHeight - fillHeight)
-        obj.healthBar.To = Vector2.new(barX, barY + barHeight)
-        obj.healthBar.Color = Color3.fromRGB(
-            math.floor(255 * (1 - healthPercent)),
-            math.floor(255 * healthPercent),
-            50
-        )
-        obj.healthBar.Thickness = healthBarThickness
-        obj.healthBar.Visible = true
-    else
-        obj.healthBar.Visible = false
-    end
-    
-    if espSettings.ShowDistance then
-        local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
-        local targetPos = char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart.Position
-        if myPos and targetPos then
-            local distStuds = (myPos - targetPos).Magnitude
-            local distMeters = distStuds * 0.28
-            obj.distance.Text = string.format("%.1f m", distMeters)
-            obj.distance.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1 + 12)
-            obj.distance.Color = Color3.fromRGB(255, 255, 0)
-            obj.distance.Size = 11
-            obj.distance.Visible = true
+        
+        if not EspObjects[player] then CreateESP(player) end
+        local obj = EspObjects[player]
+        local tracer = TracerLines[player]
+        
+        if not espSettings.Enabled or not IsAlive(player) then
+            HideESP(obj)
+            if tracer then tracer.Visible = false end
+            return
+        end
+        
+        local char = player.Character
+        if not char then
+            HideESP(obj)
+            if tracer then tracer.Visible = false end
+            return
+        end
+        
+        local bbox = GetBBox(char)
+        if not bbox then
+            HideESP(obj)
+            if tracer then tracer.Visible = false end
+            return
+        end
+        
+        local color = GetTeamColor(player)
+        
+        if espSettings.ShowBox then
+            local function SetLine(line, x0, y0, x1, y1)
+                line.From = Vector2.new(x0, y0)
+                line.To = Vector2.new(x1, y1)
+                line.Color = color
+                line.Visible = true
+            end
+            SetLine(obj.top, bbox.x0, bbox.y0, bbox.x1, bbox.y0)
+            SetLine(obj.bottom, bbox.x0, bbox.y1, bbox.x1, bbox.y1)
+            SetLine(obj.left, bbox.x0, bbox.y0, bbox.x0, bbox.y1)
+            SetLine(obj.right, bbox.x1, bbox.y0, bbox.x1, bbox.y1)
+        else
+            obj.top.Visible = false
+            obj.bottom.Visible = false
+            obj.left.Visible = false
+            obj.right.Visible = false
+        end
+        
+        if espSettings.ShowNames then
+            obj.name.Text = player.Name
+            obj.name.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 15)
+            obj.name.Color = color
+            obj.name.Visible = true
+        else
+            obj.name.Visible = false
+        end
+        
+        if espSettings.ShowHealth then
+            local hp, mhp = GetHealth(player)
+            local healthPercent = hp / mhp
+            local greenHealth = Color3.fromRGB(
+                math.floor(255 * (1 - healthPercent * 0.3)),
+                math.floor(255 * (0.6 + healthPercent * 0.4)),
+                math.floor(100 * healthPercent + 50)
+            )
+            obj.health.Text = hp .. "/" .. mhp
+            obj.health.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y0 - 27)
+            obj.health.Color = greenHealth
+            obj.health.Visible = true
+        else
+            obj.health.Visible = false
+        end
+        
+        if espSettings.ShowHealthBar then
+            local hp, mhp = GetHealth(player)
+            local healthPercent = hp / mhp
+            local barX = bbox.x1 + 3
+            local barY = bbox.y0
+            local barHeight = bbox.y1 - bbox.y0
+            local fillHeight = barHeight * healthPercent
+            obj.healthBar.From = Vector2.new(barX, barY + barHeight - fillHeight)
+            obj.healthBar.To = Vector2.new(barX, barY + barHeight)
+            obj.healthBar.Color = Color3.fromRGB(
+                math.floor(255 * (1 - healthPercent)),
+                math.floor(255 * healthPercent),
+                50
+            )
+            obj.healthBar.Thickness = healthBarThickness
+            obj.healthBar.Visible = true
+        else
+            obj.healthBar.Visible = false
+        end
+        
+        if espSettings.ShowDistance then
+            local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
+            local targetPos = char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart.Position
+            if myPos and targetPos then
+                local distStuds = (myPos - targetPos).Magnitude
+                local distMeters = distStuds * 0.28
+                obj.distance.Text = string.format("%.1f m", distMeters)
+                obj.distance.Position = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1 + 12)
+                obj.distance.Color = Color3.fromRGB(255, 255, 0)
+                obj.distance.Size = 11
+                obj.distance.Visible = true
+            else
+                obj.distance.Visible = false
+            end
         else
             obj.distance.Visible = false
         end
-    else
-        obj.distance.Visible = false
-    end
-    
-    if espSettings.ShowTracer and bbox then
-        local vp = Camera.ViewportSize
-        local footPos = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1)
-        local bottomCenter = Vector2.new(vp.X / 2, vp.Y)
-        tracer.From = footPos
-        tracer.To = bottomCenter
-        tracer.Color = color
-        tracer.Visible = true
-    elseif tracer then
-        tracer.Visible = false
-    end
+        
+        if espSettings.ShowTracer and bbox then
+            local vp = Camera.ViewportSize
+            local footPos = Vector2.new((bbox.x0 + bbox.x1) / 2, bbox.y1)
+            local bottomCenter = Vector2.new(vp.X / 2, vp.Y)
+            tracer.From = footPos
+            tracer.To = bottomCenter
+            tracer.Color = color
+            tracer.Visible = true
+        elseif tracer then
+            tracer.Visible = false
+        end
+    end)
 end
 
 Players.PlayerRemoving:Connect(function(p)
@@ -552,21 +597,23 @@ local function EnableAimbot()
     CreateFOVCircle()
     
     aimbotConnection = RunService.RenderStepped:Connect(function()
-        if FOVCircle then
-            local vp = Camera.ViewportSize
-            FOVCircle.Position = Vector2.new(vp.X / 2, vp.Y / 2)
-            FOVCircle.Radius = aimbotFOV
-            FOVCircle.Visible = aimbotEnabled
-        end
-        
-        if aimbotEnabled then
-            local target = GetBestTarget()
-            if target then
-                local cp = Camera.CFrame.Position
-                local dir = (target.Position - cp).Unit
-                Camera.CFrame = CFrame.new(cp, cp + dir)
+        pcall(function()
+            if FOVCircle then
+                local vp = Camera.ViewportSize
+                FOVCircle.Position = Vector2.new(vp.X / 2, vp.Y / 2)
+                FOVCircle.Radius = aimbotFOV
+                FOVCircle.Visible = aimbotEnabled
             end
-        end
+            
+            if aimbotEnabled then
+                local target = GetBestTarget()
+                if target then
+                    local cp = Camera.CFrame.Position
+                    local dir = (target.Position - cp).Unit
+                    Camera.CFrame = CFrame.new(cp, cp + dir)
+                end
+            end
+        end)
     end)
 end
 
@@ -582,132 +629,142 @@ local function DisableAimbot()
     end
 end
 
--- ===================== WALLBANG (TERPISAH DARI NOCLIP) =====================
+-- ===================== WALLBANG =====================
 local wallbangState = false
 
 local function ToggleWallbang()
     wallbangState = not wallbangState
     
-    if wallbangState then
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    pcall(function()
-                        part.CanCollide = false
-                    end)
+    pcall(function()
+        if wallbangState then
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        pcall(function()
+                            part.CanCollide = false
+                        end)
+                    end
                 end
             end
-        end
-        
-        if wallbangConnection then wallbangConnection:Disconnect() end
-        wallbangConnection = RunService.Heartbeat:Connect(function()
-            if not wallbangState then
-                if wallbangConnection then
-                    wallbangConnection:Disconnect()
-                    wallbangConnection = nil
-                end
-                return
+            
+            if wallbangConnection then wallbangConnection:Disconnect() end
+            wallbangConnection = RunService.Heartbeat:Connect(function()
+                pcall(function()
+                    if not wallbangState then
+                        if wallbangConnection then
+                            wallbangConnection:Disconnect()
+                            wallbangConnection = nil
+                        end
+                        return
+                    end
+                    local char2 = LocalPlayer.Character
+                    if not char2 then return end
+                    for _, part in pairs(char2:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            pcall(function()
+                                part.CanCollide = false
+                            end)
+                        end
+                    end
+                end)
+            end)
+            notify("🧱 WALLBANG ON - Tembus dinding!", 3)
+        else
+            if wallbangConnection then
+                wallbangConnection:Disconnect()
+                wallbangConnection = nil
             end
             local char2 = LocalPlayer.Character
-            if not char2 then return end
-            for _, part in pairs(char2:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    pcall(function()
-                        part.CanCollide = false
-                    end)
+            if char2 then
+                for _, part in pairs(char2:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        pcall(function()
+                            part.CanCollide = true
+                        end)
+                    end
                 end
             end
-        end)
-        notify("🧱 WALLBANG ON - Tembus dinding!", 3)
-    else
-        if wallbangConnection then
-            wallbangConnection:Disconnect()
-            wallbangConnection = nil
+            notify("🧱 WALLBANG OFF", 2)
         end
-        local char2 = LocalPlayer.Character
-        if char2 then
-            for _, part in pairs(char2:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    pcall(function()
-                        part.CanCollide = true
-                    end)
-                end
-            end
-        end
-        notify("🧱 WALLBANG OFF", 2)
-    end
+    end)
 end
 
 -- ===================== SPEED HACK =====================
 local function ToggleSpeedHack(state)
     speedHackActive = state
     
-    if speedHackActive then
-        if SpeedLoop then SpeedLoop:Disconnect() end
-        SpeedLoop = RunService.Heartbeat:Connect(function()
-            if not speedHackActive then
-                if SpeedLoop then
-                    SpeedLoop:Disconnect()
-                    SpeedLoop = nil
-                end
-                return
+    pcall(function()
+        if speedHackActive then
+            if SpeedLoop then SpeedLoop:Disconnect() end
+            SpeedLoop = RunService.Heartbeat:Connect(function()
+                pcall(function()
+                    if not speedHackActive then
+                        if SpeedLoop then
+                            SpeedLoop:Disconnect()
+                            SpeedLoop = nil
+                        end
+                        return
+                    end
+                    local char = LocalPlayer.Character
+                    if char then
+                        local hum = char:FindFirstChildOfClass("Humanoid")
+                        if hum then
+                            local ws = 16 + (speedHackValue * 6)
+                            ws = math.clamp(ws, 8, 120)
+                            hum.WalkSpeed = ws
+                        end
+                    end
+                end)
+            end)
+            notify("💨 Speed Hack ON - " .. speedHackValue .. "x", 2)
+        else
+            if SpeedLoop then
+                SpeedLoop:Disconnect()
+                SpeedLoop = nil
             end
             local char = LocalPlayer.Character
             if char then
                 local hum = char:FindFirstChildOfClass("Humanoid")
                 if hum then
-                    local ws = 16 + (speedHackValue * 6)
-                    ws = math.clamp(ws, 8, 120)
-                    hum.WalkSpeed = ws
+                    hum.WalkSpeed = 16
                 end
             end
-        end)
-        notify("💨 Speed Hack ON - " .. speedHackValue .. "x", 2)
-    else
-        if SpeedLoop then
-            SpeedLoop:Disconnect()
-            SpeedLoop = nil
+            notify("💨 Speed Hack OFF", 2)
         end
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.WalkSpeed = 16
-            end
-        end
-        notify("💨 Speed Hack OFF", 2)
-    end
+    end)
 end
 
 -- ===================== INFINITE STAMINA =====================
 local function toggleInfiniteStamina(state)
     infinitestamina = state
-    if state then
-        if staminaLoop then task.cancel(staminaLoop) end
-        staminaLoop = task.spawn(function()
-            while infinitestamina do
-                pcall(function()
-                    local Sprinting = ReplicatedStorage.Systems.Character.Game.Sprinting
-                    local stamina = require(Sprinting)
-                    stamina.StaminaLossDisabled = true
-                end)
-                task.wait(0.5)
+    pcall(function()
+        if state then
+            if staminaLoop then task.cancel(staminaLoop) end
+            staminaLoop = task.spawn(function()
+                while infinitestamina do
+                    pcall(function()
+                        local Sprinting = ReplicatedStorage.Systems.Character.Game.Sprinting
+                        local stamina = require(Sprinting)
+                        stamina.StaminaLossDisabled = true
+                    end)
+                    task.wait(0.5)
+                end
+            end)
+            notify("♾️ Infinite Stamina ON", 2)
+        else
+            if staminaLoop then
+                task.cancel(staminaLoop)
+                staminaLoop = nil
             end
-        end)
-        notify("♾️ Infinite Stamina ON", 2)
-    else
-        if staminaLoop then
-            task.cancel(staminaLoop)
-            staminaLoop = nil
+            pcall(function()
+                local Sprinting = ReplicatedStorage.Systems.Character.Game.Sprinting
+                local stamina = require(Sprinting)
+                stamina.StaminaLossDisabled = false
+            end)
+            notify("♾️ Infinite Stamina OFF", 2)
         end
-        pcall(function()
-            local Sprinting = ReplicatedStorage.Systems.Character.Game.Sprinting
-            local stamina = require(Sprinting)
-            stamina.StaminaLossDisabled = false
-        end)
-        notify("♾️ Infinite Stamina OFF", 2)
-    end
+    end)
 end
 
 -- ===================== FUNCTIONS =====================
@@ -724,94 +781,98 @@ end
 local Connections = {}
 
 local function fireproximityprompt(Obj, Amount, Skip)
-    if Obj.ClassName == "ProximityPrompt" then 
-        Amount = Amount or 1
-        local PromptTime = Obj.HoldDuration
-        if Skip then 
-            Obj.HoldDuration = 0
-        end
-        for i = 1, Amount do 
-            Obj:InputHoldBegin()
-            if not Skip then 
-                wait(Obj.HoldDuration)
+    pcall(function()
+        if Obj.ClassName == "ProximityPrompt" then 
+            Amount = Amount or 1
+            local PromptTime = Obj.HoldDuration
+            if Skip then 
+                Obj.HoldDuration = 0
             end
-            Obj:InputHoldEnd()
+            for i = 1, Amount do 
+                Obj:InputHoldBegin()
+                if not Skip then 
+                    wait(Obj.HoldDuration)
+                end
+                Obj:InputHoldEnd()
+            end
+            Obj.HoldDuration = PromptTime
+        else 
+            error("userdata<ProximityPrompt> expected")
         end
-        Obj.HoldDuration = PromptTime
-    else 
-        error("userdata<ProximityPrompt> expected")
-    end
+    end)
 end
 
 local function generatorDoAll()
-    local function findGenerators()
-        local mapFolder = Workspace:FindFirstChild("Map")
-        local ingameMap = mapFolder and mapFolder:FindFirstChild("Ingame")
-        local map = ingameMap and ingameMap:FindFirstChild("Map")
-        local generators = {}
-        if map then
-            for _, gen in ipairs(map:GetChildren()) do
-                if gen.Name == "Generator" and gen:IsA("Model") and gen:FindFirstChild("Progress") and gen.Progress.Value < 100 then
-                    local LocalPlayersNearby = false
-                    for _, LocalPlayer in ipairs(Players:GetPlayers()) do
-                        local char = LocalPlayer.Character
-                        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                        if hrp and gen:FindFirstChild("Main") then
-                            local dist = (hrp.Position - gen.Main.Position).Magnitude
-                            if dist < 25 then
-                                LocalPlayersNearby = true
-                                break
+    pcall(function()
+        local function findGenerators()
+            local mapFolder = Workspace:FindFirstChild("Map")
+            local ingameMap = mapFolder and mapFolder:FindFirstChild("Ingame")
+            local map = ingameMap and ingameMap:FindFirstChild("Map")
+            local generators = {}
+            if map then
+                for _, gen in ipairs(map:GetChildren()) do
+                    if gen.Name == "Generator" and gen:IsA("Model") and gen:FindFirstChild("Progress") and gen.Progress.Value < 100 then
+                        local LocalPlayersNearby = false
+                        for _, LocalPlayer in ipairs(Players:GetPlayers()) do
+                            local char = LocalPlayer.Character
+                            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                            if hrp and gen:FindFirstChild("Main") then
+                                local dist = (hrp.Position - gen.Main.Position).Magnitude
+                                if dist < 25 then
+                                    LocalPlayersNearby = true
+                                    break
+                                end
                             end
                         end
-                    end
-                    if not LocalPlayersNearby then
-                        table.insert(generators, gen)
+                        if not LocalPlayersNearby then
+                            table.insert(generators, gen)
+                        end
                     end
                 end
             end
+            return generators
         end
-        return generators
-    end
 
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    local lastPosition = humanoidRootPart.CFrame
+        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        local lastPosition = humanoidRootPart.CFrame
 
-    while true do
-        local generators = findGenerators()
-        if #generators == 0 then break end
-        for _, gen in ipairs(generators) do
-            if gen:FindFirstChild("Main") and gen:FindFirstChild("Remotes") and gen.Remotes:FindFirstChild("RE") and gen.Remotes:FindFirstChild("RF") then
-                local generatorPosition = gen.Positions.Center.Position
-                local generatorDirection
-                if gen.Instances.Generator:FindFirstChild("Cube") and gen.Instances.Generator.Cube:IsA("BasePart") then
-                    local cubePos = gen.Instances.Generator.Cube.Position
-                    generatorDirection = (cubePos - generatorPosition).Unit
-                else
-                    generatorDirection = Vector3.new(0, 0, 1)
+        while true do
+            local generators = findGenerators()
+            if #generators == 0 then break end
+            for _, gen in ipairs(generators) do
+                if gen:FindFirstChild("Main") and gen:FindFirstChild("Remotes") and gen.Remotes:FindFirstChild("RE") and gen.Remotes:FindFirstChild("RF") then
+                    local generatorPosition = gen.Positions.Center.Position
+                    local generatorDirection
+                    if gen.Instances.Generator:FindFirstChild("Cube") and gen.Instances.Generator.Cube:IsA("BasePart") then
+                        local cubePos = gen.Instances.Generator.Cube.Position
+                        generatorDirection = (cubePos - generatorPosition).Unit
+                    else
+                        generatorDirection = Vector3.new(0, 0, 1)
+                    end
+                    humanoidRootPart.CFrame = CFrame.new(
+                        generatorPosition + Vector3.new(0, 0.5, 0),
+                        generatorPosition + Vector3.new(generatorDirection.X, 0, generatorDirection.Z)
+                    )
+                    task.wait(timebetweenpuzzles / 2)
+                    local prompt = gen.Main:FindFirstChildOfClass("ProximityPrompt")
+                    if not prompt then
+                        prompt = gen.Main:FindFirstChild("Prompt")
+                    end
+                    if prompt then
+                        fireproximityprompt(prompt, 1.5, false)
+                    end
+                    for _ = 1, 6 do
+                        task.wait(2.5)
+                        gen.Remotes.RE:FireServer()
+                    end
+                    task.wait(timebetweenpuzzles / 5)
+                    gen.Remotes.RF:InvokeServer("leave")
                 end
-                humanoidRootPart.CFrame = CFrame.new(
-                    generatorPosition + Vector3.new(0, 0.5, 0),
-                    generatorPosition + Vector3.new(generatorDirection.X, 0, generatorDirection.Z)
-                )
-                task.wait(timebetweenpuzzles / 2)
-                local prompt = gen.Main:FindFirstChildOfClass("ProximityPrompt")
-                if not prompt then
-                    prompt = gen.Main:FindFirstChild("Prompt")
-                end
-                if prompt then
-                    fireproximityprompt(prompt, 1.5, false)
-                end
-                for _ = 1, 6 do
-                    task.wait(2.5)
-                    gen.Remotes.RE:FireServer()
-                end
-                task.wait(timebetweenpuzzles / 5)
-                gen.Remotes.RF:InvokeServer("leave")
             end
         end
-    end
-    humanoidRootPart.CFrame = lastPosition
+        humanoidRootPart.CFrame = lastPosition
+    end)
 end
 
 local multiplierNames = {
@@ -824,33 +885,37 @@ local multiplierNames = {
 }
 
 local function enforceMultipliers()
-    local character = LocalPlayer.Character
-    if not character then return end
-    local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
-    if not speedMultipliers then return end
-    for _, name in ipairs(multiplierNames) do
-        local mult = speedMultipliers:FindFirstChild(name)
-        if mult then
-            mult.Value = 1
+    pcall(function()
+        local character = LocalPlayer.Character
+        if not character then return end
+        local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
+        if not speedMultipliers then return end
+        for _, name in ipairs(multiplierNames) do
+            local mult = speedMultipliers:FindFirstChild(name)
+            if mult then
+                mult.Value = 1
+            end
         end
-    end
+    end)
 end
 
 local function checkAndSetSlowStatus()
-    if AntiSlow == false then return end
-    local Character = LocalPlayer.Character
-    if not Character then return end
-    local Humanoid = Character:WaitForChild("Humanoid")
-    local speedMultipliers = Character:FindFirstChild("SpeedMultipliers")
-    if not speedMultipliers then return end
-    local slowedStatus = speedMultipliers:FindFirstChild("SlowedStatus")
-    if not slowedStatus or not slowedStatus:IsA("NumberValue") then return end
-    slowedStatus.Value = 1
-    local fovMultipliers = Character:FindFirstChild("FOVMultipliers")
-    if not fovMultipliers then return end
-    local fovSlowedStatus = fovMultipliers:FindFirstChild("SlowedStatus")
-    if not fovSlowedStatus or not fovSlowedStatus:IsA("NumberValue") then return end
-    fovSlowedStatus.Value = 1
+    pcall(function()
+        if AntiSlow == false then return end
+        local Character = LocalPlayer.Character
+        if not Character then return end
+        local Humanoid = Character:WaitForChild("Humanoid")
+        local speedMultipliers = Character:FindFirstChild("SpeedMultipliers")
+        if not speedMultipliers then return end
+        local slowedStatus = speedMultipliers:FindFirstChild("SlowedStatus")
+        if not slowedStatus or not slowedStatus:IsA("NumberValue") then return end
+        slowedStatus.Value = 1
+        local fovMultipliers = Character:FindFirstChild("FOVMultipliers")
+        if not fovMultipliers then return end
+        local fovSlowedStatus = fovMultipliers:FindFirstChild("SlowedStatus")
+        if not fovSlowedStatus or not fovSlowedStatus:IsA("NumberValue") then return end
+        fovSlowedStatus.Value = 1
+    end)
 end
 
 -- ===================== GUEST SETTINGS VARIABLES =====================
@@ -908,11 +973,12 @@ local Window, Tabs = nil, nil
 if FluentLoaded then
     Window = Fluent:CreateWindow({
         Title = "LYNZKA HUB",
-        SubTitle = "v3.6.6 - All Fixed!",
+        SubTitle = "v3.6.7 - All Fixed!",
         TabWidth = 160,
         Size = UDim2.fromOffset(580, 460),
         Theme = "Dark",
-        MinimizeKeyBind = nil    })
+        MinimizeKeyBind = nil
+    })
 
     Tabs = {
         Player = Window:AddTab({ Title = "Player", Icon = "lucide-circle-user" }),
@@ -937,25 +1003,29 @@ if FluentLoaded then
 
     -- ===================== PLAYER TAB =====================
     
-    -- WALLBANG (TERPISAH)
+    -- WALLBANG
     Tabs.Player:AddToggle("Wallbang", {
         Title = "🧱 Wallbang",
         Description = "Tembus dinding (TERPISAH dari Noclip)",
         Default = false,
         Callback = function(state)
-            if state ~= wallbangState then
-                ToggleWallbang()
-            end
+            pcall(function()
+                if state ~= wallbangState then
+                    ToggleWallbang()
+                end
+            end)
         end
     })
 
-    -- NOCLIP - ANTI MASUK TANAH SAJA
+    -- NOCLIP - FIXED
     Tabs.Player:AddToggle("Noclip", {
         Title = "🚫 Noclip (Anti Tanah)",
         Description = "CEGAH masuk tanah - BUKAN tembus tembok!",
         Default = false,
         Callback = function(state)
-            ToggleNoclip(state)
+            pcall(function()
+                ToggleNoclip(state)
+            end)
         end
     })
 
@@ -965,7 +1035,9 @@ if FluentLoaded then
         Description = "Meningkatkan kecepatan jalan",
         Default = false,
         Callback = function(state)
-            ToggleSpeedHack(state)
+            pcall(function()
+                ToggleSpeedHack(state)
+            end)
         end
     })
 
@@ -979,19 +1051,21 @@ if FluentLoaded then
         Rounding = 0,
         Suffix = "x",
         Callback = function(value)
-            speedHackValue = value
-            if speedHackActive then
-                notify("💨 Speed: " .. value .. "x", 2)
-                local char = LocalPlayer.Character
-                if char then
-                    local hum = char:FindFirstChildOfClass("Humanoid")
-                    if hum then
-                        local ws = 16 + (value * 6)
-                        ws = math.clamp(ws, 8, 120)
-                        hum.WalkSpeed = ws
+            pcall(function()
+                speedHackValue = value
+                if speedHackActive then
+                    notify("💨 Speed: " .. value .. "x", 2)
+                    local char = LocalPlayer.Character
+                    if char then
+                        local hum = char:FindFirstChildOfClass("Humanoid")
+                        if hum then
+                            local ws = 16 + (value * 6)
+                            ws = math.clamp(ws, 8, 120)
+                            hum.WalkSpeed = ws
+                        end
                     end
                 end
-            end
+            end)
         end
     })
 
@@ -1001,7 +1075,9 @@ if FluentLoaded then
         Description = "Stamina tidak akan habis",
         Default = false,
         Callback = function(state)
-            toggleInfiniteStamina(state)
+            pcall(function()
+                toggleInfiniteStamina(state)
+            end)
         end
     })
 
@@ -1010,23 +1086,25 @@ if FluentLoaded then
         Description = "Otomatis join ulang saat di kick",
         Default = true,
         Callback = function(state)
-            toggles.AutoRejoinOnKick = state
-            if state then
-                if not Connections.AutoRejoin then
-                    Connections.AutoRejoin = GuiService.ErrorMessageChanged:Connect(function(msg)
-                        if msg and msg ~= "" then
-                            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
-                        end
-                    end)
+            pcall(function()
+                toggles.AutoRejoinOnKick = state
+                if state then
+                    if not Connections.AutoRejoin then
+                        Connections.AutoRejoin = GuiService.ErrorMessageChanged:Connect(function(msg)
+                            if msg and msg ~= "" then
+                                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+                            end
+                        end)
+                    end
+                    notify("🔄 Auto Rejoin ON", 2)
+                else
+                    if Connections.AutoRejoin then
+                        Connections.AutoRejoin:Disconnect()
+                        Connections.AutoRejoin = nil
+                    end
+                    notify("🔄 Auto Rejoin OFF", 2)
                 end
-                notify("🔄 Auto Rejoin ON", 2)
-            else
-                if Connections.AutoRejoin then
-                    Connections.AutoRejoin:Disconnect()
-                    Connections.AutoRejoin = nil
-                end
-                notify("🔄 Auto Rejoin OFF", 2)
-            end
+            end)
         end
     })
 
@@ -1034,8 +1112,10 @@ if FluentLoaded then
         Title = "🔁 Rejoin",
         Description = "Join ulang ke server yang sama",
         Callback = function()
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
-            notify("🔄 Rejoining...", 2)
+            pcall(function()
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+                notify("🔄 Rejoining...", 2)
+            end)
         end
     })
 
@@ -1045,13 +1125,15 @@ if FluentLoaded then
         Description = "Nyalakan ESP untuk melihat player",
         Default = false,
         Callback = function(state)
-            espSettings.Enabled = state
-            if not state then ClearDrawings() end
-            if state then
-                notify("👁️ ESP ON", 2)
-            else
-                notify("👁️ ESP OFF", 2)
-            end
+            pcall(function()
+                espSettings.Enabled = state
+                if not state then ClearDrawings() end
+                if state then
+                    notify("👁️ ESP ON", 2)
+                else
+                    notify("👁️ ESP OFF", 2)
+                end
+            end)
         end
     })
 
@@ -1060,7 +1142,9 @@ if FluentLoaded then
         Description = "Tampilkan kotak di sekitar player",
         Default = true,
         Callback = function(state)
-            espSettings.ShowBox = state
+            pcall(function()
+                espSettings.ShowBox = state
+            end)
         end
     })
 
@@ -1069,7 +1153,9 @@ if FluentLoaded then
         Description = "Tampilkan nama player",
         Default = true,
         Callback = function(state)
-            espSettings.ShowNames = state
+            pcall(function()
+                espSettings.ShowNames = state
+            end)
         end
     })
 
@@ -1078,7 +1164,9 @@ if FluentLoaded then
         Description = "Tampilkan HP player",
         Default = true,
         Callback = function(state)
-            espSettings.ShowHealth = state
+            pcall(function()
+                espSettings.ShowHealth = state
+            end)
         end
     })
 
@@ -1087,7 +1175,9 @@ if FluentLoaded then
         Description = "Tampilkan bar HP di samping player",
         Default = true,
         Callback = function(state)
-            espSettings.ShowHealthBar = state
+            pcall(function()
+                espSettings.ShowHealthBar = state
+            end)
         end
     })
 
@@ -1096,7 +1186,9 @@ if FluentLoaded then
         Description = "Tampilkan jarak ke player",
         Default = true,
         Callback = function(state)
-            espSettings.ShowDistance = state
+            pcall(function()
+                espSettings.ShowDistance = state
+            end)
         end
     })
 
@@ -1105,7 +1197,9 @@ if FluentLoaded then
         Description = "Tampilkan garis dari player ke bawah",
         Default = false,
         Callback = function(state)
-            espSettings.ShowTracer = state
+            pcall(function()
+                espSettings.ShowTracer = state
+            end)
         end
     })
 
@@ -1114,7 +1208,9 @@ if FluentLoaded then
         Description = "Warna ESP sesuai tim",
         Default = false,
         Callback = function(state)
-            espSettings.ShowTeamColor = state
+            pcall(function()
+                espSettings.ShowTeamColor = state
+            end)
         end
     })
 
@@ -1126,8 +1222,10 @@ if FluentLoaded then
         Max = 20,
         Rounding = 0,
         Callback = function(value)
-            UpdateHealthBarThickness(value)
-            notify("📏 Health Bar: " .. value, 2)
+            pcall(function()
+                UpdateHealthBarThickness(value)
+                notify("📏 Health Bar: " .. value, 2)
+            end)
         end
     })
 
@@ -1137,13 +1235,15 @@ if FluentLoaded then
         Description = "Auto aim ke musuh",
         Default = false,
         Callback = function(state)
-            if state then 
-                EnableAimbot()
-                notify("🎯 Aimbot ON", 2)
-            else 
-                DisableAimbot()
-                notify("🎯 Aimbot OFF", 2)
-            end
+            pcall(function()
+                if state then 
+                    EnableAimbot()
+                    notify("🎯 Aimbot ON", 2)
+                else 
+                    DisableAimbot()
+                    notify("🎯 Aimbot OFF", 2)
+                end
+            end)
         end
     })
 
@@ -1152,14 +1252,16 @@ if FluentLoaded then
         Description = "Tampilkan lingkaran FOV aimbot",
         Default = false,
         Callback = function(state)
-            if FOVCircle then 
-                FOVCircle.Visible = state and aimbotEnabled
-                if state then
-                    notify("⭕ FOV ON", 2)
-                else
-                    notify("⭕ FOV OFF", 2)
+            pcall(function()
+                if FOVCircle then 
+                    FOVCircle.Visible = state and aimbotEnabled
+                    if state then
+                        notify("⭕ FOV ON", 2)
+                    else
+                        notify("⭕ FOV OFF", 2)
+                    end
                 end
-            end
+            end)
         end
     })
 
@@ -1168,7 +1270,9 @@ if FluentLoaded then
         Description = "Tidak aim ke tim sendiri",
         Default = true,
         Callback = function(state)
-            teamCheck = state
+            pcall(function()
+                teamCheck = state
+            end)
         end
     })
 
@@ -1180,9 +1284,11 @@ if FluentLoaded then
         Max = 900,
         Rounding = 0,
         Callback = function(value)
-            aimbotFOV = value
-            if FOVCircle then FOVCircle.Radius = value end
-            notify("🎯 FOV: " .. value, 2)
+            pcall(function()
+                aimbotFOV = value
+                if FOVCircle then FOVCircle.Radius = value end
+                notify("🎯 FOV: " .. value, 2)
+            end)
         end
     })
 
@@ -1193,8 +1299,10 @@ if FluentLoaded then
         Multi = false,
         Default = "Head",
         Callback = function(value)
-            hitboxMode = value
-            notify("🎯 Hitbox: " .. value, 2)
+            pcall(function()
+                hitboxMode = value
+                notify("🎯 Hitbox: " .. value, 2)
+            end)
         end
     })
 
@@ -1203,44 +1311,48 @@ if FluentLoaded then
         Description = "Aimbot legacy dengan prediksi",
         Default = false,
         Callback = function(state)
-            if state then
-                local aimbotConnection = RunService.Heartbeat:Connect(function()
-                    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    local humanoid = character:FindFirstChildOfClass("Humanoid")
-                    if humanoid and humanoid.Parent then
-                        local flintlock = humanoid.Parent:FindFirstChild("Flintlock")
-                        if flintlock and flintlock.Transparency == 0 then
-                            local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
-                            if killersFolder then
-                                for _, killerModel in pairs(killersFolder:GetChildren()) do
-                                    if killerModel:IsA("Model") and killerModel:FindFirstChild("HumanoidRootPart") then
-                                        local hrp = killerModel.HumanoidRootPart
-                                        local predictedPos = hrp.Position + hrp.Velocity * timeAhead
-                                        local rootPart = character:FindFirstChild("HumanoidRootPart")
-                                        if rootPart then
-                                            if humanoid then humanoid.AutoRotate = false end
-                                            rootPart.CFrame = CFrame.new(rootPart.Position, predictedPos)
+            pcall(function()
+                if state then
+                    local aimbotConnection = RunService.Heartbeat:Connect(function()
+                        pcall(function()
+                            local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                            local humanoid = character:FindFirstChildOfClass("Humanoid")
+                            if humanoid and humanoid.Parent then
+                                local flintlock = humanoid.Parent:FindFirstChild("Flintlock")
+                                if flintlock and flintlock.Transparency == 0 then
+                                    local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
+                                    if killersFolder then
+                                        for _, killerModel in pairs(killersFolder:GetChildren()) do
+                                            if killerModel:IsA("Model") and killerModel:FindFirstChild("HumanoidRootPart") then
+                                                local hrp = killerModel.HumanoidRootPart
+                                                local predictedPos = hrp.Position + hrp.Velocity * timeAhead
+                                                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                                                if rootPart then
+                                                    if humanoid then humanoid.AutoRotate = false end
+                                                    rootPart.CFrame = CFrame.new(rootPart.Position, predictedPos)
+                                                end
+                                            end
                                         end
                                     end
+                                else
+                                    if humanoid then humanoid.AutoRotate = true end
                                 end
                             end
-                        else
-                            if humanoid then humanoid.AutoRotate = true end
-                        end
+                        end)
+                    end)
+                    Connections.ChanceAimbot = aimbotConnection
+                    notify("🎲 Chance Aimbot ON", 2)
+                else
+                    if Connections.ChanceAimbot then
+                        Connections.ChanceAimbot:Disconnect()
+                        Connections.ChanceAimbot = nil
+                        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                        local humanoid = character:FindFirstChildOfClass("Humanoid")
+                        if humanoid then humanoid.AutoRotate = true end
                     end
-                end)
-                Connections.ChanceAimbot = aimbotConnection
-                notify("🎲 Chance Aimbot ON", 2)
-            else
-                if Connections.ChanceAimbot then
-                    Connections.ChanceAimbot:Disconnect()
-                    Connections.ChanceAimbot = nil
-                    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    local humanoid = character:FindFirstChildOfClass("Humanoid")
-                    if humanoid then humanoid.AutoRotate = true end
+                    notify("🎲 Chance Aimbot OFF", 2)
                 end
-                notify("🎲 Chance Aimbot OFF", 2)
-            end
+            end)
         end
     })
 
@@ -1252,8 +1364,10 @@ if FluentLoaded then
         Max = 2,
         Rounding = 1,
         Callback = function(value)
-            timeAhead = value
-            notify("📊 Prediction: " .. value, 2)
+            pcall(function()
+                timeAhead = value
+                notify("📊 Prediction: " .. value, 2)
+            end)
         end
     })
 
@@ -1262,18 +1376,22 @@ if FluentLoaded then
         Title = "⚡ Infinite Yield",
         Description = "Load admin command",
         Callback = function()
-            loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
-            notify("⚡ Infinite Yield Loaded!", 2)
+            pcall(function()
+                loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+                notify("⚡ Infinite Yield Loaded!", 2)
+            end)
         end
     })
 
-    -- NAMEPROTECT
+    -- NAMEPROTECT - FIXED
     Tabs.Misc:AddToggle("NameProtect", {
         Title = "🛡️ NameProtect",
         Description = "Sembunyikan NAMA KAMU sendiri",
         Default = false,
         Callback = function(state)
-            ToggleNameProtect(state)
+            pcall(function()
+                ToggleNameProtect(state)
+            end)
         end
     })
 
@@ -1281,26 +1399,28 @@ if FluentLoaded then
         Title = "🚀 FPS Boost",
         Description = "Optimasi performa",
         Callback = function()
-            loadstring(game:HttpGet('https://raw.githubusercontent.com/NumanTF3/roblox-fpsboost-script/refs/heads/main/main.lua'))()
-            notify("🚀 FPS Boost Applied!", 2)
+            pcall(function()
+                loadstring(game:HttpGet('https://raw.githubusercontent.com/NumanTF3/roblox-fpsboost-script/refs/heads/main/main.lua'))()
+                notify("🚀 FPS Boost Applied!", 2)
+            end)
         end
     })
 
+    -- PLAY SOUND - FIXED + VOLUME MAX
     Tabs.Misc:AddInput("PlaySoundByID", {
         Title = "🔊 Play Sound",
-        Description = "Masukkan ID sound Roblox",
+        Description = "Masukkan ID sound Roblox (Volume MAX)",
         Placeholder = "Enter Sound ID",
         Numeric = true,
         Callback = function(input)
-            local id = tonumber(input)
-            if id then
-                local soundPlayer = Instance.new("Sound")
-                soundPlayer.SoundId = "rbxassetid://" .. id
-                soundPlayer.Parent = Workspace
-                soundPlayer:Play()
-                task.delay(5, function() soundPlayer:Destroy() end)
-                notify("🔊 Playing Sound!", 2)
-            end
+            pcall(function()
+                local id = tonumber(input)
+                if id then
+                    PlaySoundByID(id)
+                else
+                    notify("❌ Masukkan ID yang valid!", 2)
+                end
+            end)
         end
     })
 
@@ -1328,8 +1448,10 @@ if FluentLoaded then
         Title = "⚡ Do All Generators",
         Description = "Perbaiki semua generator",
         Callback = function()
-            generatorDoAll()
-            notify("⚡ Doing all generators!", 2)
+            pcall(function()
+                generatorDoAll()
+                notify("⚡ Doing all generators!", 2)
+            end)
         end
     })
 
@@ -1341,8 +1463,10 @@ if FluentLoaded then
         Max = 10,
         Rounding = 1,
         Callback = function(value)
-            timebetweenpuzzles = value
-            notify("⚡ Gen Speed: " .. value, 2)
+            pcall(function()
+                timebetweenpuzzles = value
+                notify("⚡ Gen Speed: " .. value, 2)
+            end)
         end
     })
 
@@ -1357,12 +1481,14 @@ if FluentLoaded then
         Description = "Aktifkan kecepatan charge kustom",
         Default = false,
         Callback = function(state)
-            ChargeSpeedLoop = state
-            if state then
-                notify("⚡ Charge Speed ON", 2)
-            else
-                notify("⚡ Charge Speed OFF", 2)
-            end
+            pcall(function()
+                ChargeSpeedLoop = state
+                if state then
+                    notify("⚡ Charge Speed ON", 2)
+                else
+                    notify("⚡ Charge Speed OFF", 2)
+                end
+            end)
         end
     })
 
@@ -1374,8 +1500,10 @@ if FluentLoaded then
         Max = 15,
         Rounding = 1,
         Callback = function(value)
-            GuestChargeSpeed = value
-            notify("⚡ Charge: " .. value, 2)
+            pcall(function()
+                GuestChargeSpeed = value
+                notify("⚡ Charge: " .. value, 2)
+            end)
         end
     })
 
@@ -1384,12 +1512,14 @@ if FluentLoaded then
         Description = "Auto block otomatis",
         Default = false,
         Callback = function(value)
-            GuestSettingsOn = value
-            if value then
-                notify("🛡️ Auto Block ON", 2)
-            else
-                notify("🛡️ Auto Block OFF", 2)
-            end
+            pcall(function()
+                GuestSettingsOn = value
+                if value then
+                    notify("🛡️ Auto Block ON", 2)
+                else
+                    notify("🛡️ Auto Block OFF", 2)
+                end
+            end)
         end
     })
 
@@ -1398,7 +1528,9 @@ if FluentLoaded then
         Description = "Hanya block dalam range ketat",
         Default = false,
         Callback = function(value)
-            strictRangeOn = value
+            pcall(function()
+                strictRangeOn = value
+            end)
         end
     })
 
@@ -1409,7 +1541,9 @@ if FluentLoaded then
         Multi = false,
         Default = "Loose",
         Callback = function(option)
-            looseFacing = option == "Loose"
+            pcall(function()
+                looseFacing = option == "Loose"
+            end)
         end
     })
 
@@ -1419,8 +1553,10 @@ if FluentLoaded then
         Placeholder = "18",
         Numeric = true,
         Callback = function(text)
-            detectionRange = tonumber(text) or detectionRange
-            notify("📏 Range: " .. (tonumber(text) or detectionRange), 2)
+            pcall(function()
+                detectionRange = tonumber(text) or detectionRange
+                notify("📏 Range: " .. (tonumber(text) or detectionRange), 2)
+            end)
         end
     })
 
@@ -1429,7 +1565,9 @@ if FluentLoaded then
         Description = "Teleport saat block",
         Default = false,
         Callback = function(value)
-            blockTPEnabled = value
+            pcall(function()
+                blockTPEnabled = value
+            end)
         end
     })
 
@@ -1438,7 +1576,9 @@ if FluentLoaded then
         Description = "Auto block prediktif",
         Default = false,
         Callback = function(value)
-            predictiveBlockOn = value
+            pcall(function()
+                predictiveBlockOn = value
+            end)
         end
     })
 
@@ -1450,8 +1590,10 @@ if FluentLoaded then
         Max = 7,
         Rounding = 1,
         Callback = function(value)
-            edgeKillerDelay = value
-            notify("⏱️ Delay: " .. value, 2)
+            pcall(function()
+                edgeKillerDelay = value
+                notify("⏱️ Delay: " .. value, 2)
+            end)
         end
     })
 
@@ -1476,7 +1618,9 @@ if FluentLoaded then
         Description = "Fling saat punch",
         Default = false,
         Callback = function(value)
-            flingPunchOn = value
+            pcall(function()
+                flingPunchOn = value
+            end)
         end
     })
 
@@ -1485,7 +1629,9 @@ if FluentLoaded then
         Description = "Aimbot saat punch",
         Default = false,
         Callback = function(value)
-            aimPunch = value
+            pcall(function()
+                aimPunch = value
+            end)
         end
     })
 
@@ -1498,8 +1644,10 @@ if FluentLoaded then
         Rounding = 1,
         Suffix = "studs",
         Callback = function(value)
-            predictionValue = value
-            notify("📊 Prediction: " .. value, 2)
+            pcall(function()
+                predictionValue = value
+                notify("📊 Prediction: " .. value, 2)
+            end)
         end
     })
 
@@ -1511,19 +1659,26 @@ if FluentLoaded then
         Max = 50000000000000,
         Rounding = 0,
         Callback = function(value)
-            flingPower = value
-            notify("💥 Power: " .. value, 2)
+            pcall(function()
+                flingPower = value
+                notify("💥 Power: " .. value, 2)
+            end)
         end
     })
 
     -- ===================== CUSTOM ANIMATIONS TAB =====================
+    -- CUSTOM BLOCK ANIM - FIXED
     Tabs.CustomAnimations:AddInput("CustomBlockAnim", {
         Title = "🎭 Custom Block Animation",
         Description = "Masukkan ID animasi block",
         Placeholder = "AnimationId",
         Callback = function(text)
-            customBlockAnimId = text
-            notify("🎭 Block ID: " .. text, 2)
+            pcall(function()
+                if text and text ~= "" then
+                    customBlockAnimId = text
+                    notify("🎭 Block ID: " .. text, 2)
+                end
+            end)
         end
     })
 
@@ -1532,17 +1687,31 @@ if FluentLoaded then
         Description = "Aktifkan animasi block kustom",
         Default = false,
         Callback = function(value)
-            customBlockEnabled = value
+            pcall(function()
+                customBlockEnabled = value
+                if value and customBlockAnimId ~= "" then
+                    notify("🎭 Custom Block ON - ID: " .. customBlockAnimId, 2)
+                elseif value then
+                    notify("⚠️ Masukkan ID animasi dulu!", 2)
+                else
+                    notify("🎭 Custom Block OFF", 2)
+                end
+            end)
         end
     })
 
+    -- CUSTOM PUNCH ANIM - FIXED
     Tabs.CustomAnimations:AddInput("CustomPunchAnim", {
         Title = "🎭 Custom Punch Animation",
         Description = "Masukkan ID animasi punch",
         Placeholder = "AnimationId",
         Callback = function(text)
-            customPunchAnimId = text
-            notify("🎭 Punch ID: " .. text, 2)
+            pcall(function()
+                if text and text ~= "" then
+                    customPunchAnimId = text
+                    notify("🎭 Punch ID: " .. text, 2)
+                end
+            end)
         end
     })
 
@@ -1551,17 +1720,31 @@ if FluentLoaded then
         Description = "Aktifkan animasi punch kustom",
         Default = false,
         Callback = function(value)
-            customPunchEnabled = value
+            pcall(function()
+                customPunchEnabled = value
+                if value and customPunchAnimId ~= "" then
+                    notify("🎭 Custom Punch ON - ID: " .. customPunchAnimId, 2)
+                elseif value then
+                    notify("⚠️ Masukkan ID animasi dulu!", 2)
+                else
+                    notify("🎭 Custom Punch OFF", 2)
+                end
+            end)
         end
     })
 
+    -- CHARGE ANIM - FIXED
     Tabs.CustomAnimations:AddInput("ChargeAnimID", {
         Title = "🎭 Charge Animation ID",
         Description = "Masukkan ID animasi charge",
         Placeholder = "Animation ID",
         Callback = function(input)
-            customChargeAnimId = input
-            notify("🎭 Charge ID: " .. input, 2)
+            pcall(function()
+                if input and input ~= "" then
+                    customChargeAnimId = input
+                    notify("🎭 Charge ID: " .. input, 2)
+                end
+            end)
         end
     })
 
@@ -1570,7 +1753,16 @@ if FluentLoaded then
         Description = "Aktifkan animasi charge kustom",
         Default = false,
         Callback = function(value)
-            customChargeEnabled = value
+            pcall(function()
+                customChargeEnabled = value
+                if value and customChargeAnimId ~= "" then
+                    notify("🎭 Custom Charge ON - ID: " .. customChargeAnimId, 2)
+                elseif value then
+                    notify("⚠️ Masukkan ID animasi dulu!", 2)
+                else
+                    notify("🎭 Custom Charge OFF", 2)
+                end
+            end)
         end
     })
 
@@ -1579,59 +1771,66 @@ if FluentLoaded then
         Title = "📐 Center GUI",
         Description = "Posisikan menu di tengah",
         Callback = function()
-            if Window and Window.Root then
-                Window.Root.Position = UDim2.new(0.5, -290, 0.5, -230)
-                notify("📐 GUI Centered!", 2)
-            end
+            pcall(function()
+                if Window and Window.Root then
+                    Window.Root.Position = UDim2.new(0.5, -290, 0.5, -230)
+                    notify("📐 GUI Centered!", 2)
+                end
+            end)
         end
     })
 
     -- ===================== FINALIZE =====================
     Window:SelectTab("Player")
-    notify("🔥 LYNZKA HUB v3.6.6 Loaded - All Fixed!", 4)
+    notify("🔥 LYNZKA HUB v3.6.7 Loaded - All Errors Fixed!", 4)
 
     hubLoaded = true
 end
 
 -- ===================== AUTO REJOIN =====================
 local toggles = { AutoRejoinOnKick = true }
-if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
-    Connections.AutoRejoin = GuiService.ErrorMessageChanged:Connect(function(msg)
-        if msg and msg ~= "" then
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
-        end
-    end)
-end
+pcall(function()
+    if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
+        Connections.AutoRejoin = GuiService.ErrorMessageChanged:Connect(function(msg)
+            if msg and msg ~= "" then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+            end
+        end)
+    end
+end)
 
 -- ===================== CHARGE SPEED LOOP =====================
 RunService.Stepped:Connect(function()
-    if ChargeSpeedLoop then
-        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
-        local mult = speedMultipliers and speedMultipliers:FindFirstChild("Guest1337Charge")
-        if mult and GuestChargeSpeed ~= nil then
-            mult.Value = GuestChargeSpeed
+    pcall(function()
+        if ChargeSpeedLoop then
+            local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
+            local mult = speedMultipliers and speedMultipliers:FindFirstChild("Guest1337Charge")
+            if mult and GuestChargeSpeed ~= nil then
+                mult.Value = GuestChargeSpeed
+            end
         end
-    end
+    end)
 end)
 
 -- ===================== ANTI SLOW =====================
 RunService.RenderStepped:Connect(function()
-    if AntiSlow then
-        checkAndSetSlowStatus()
-        enforceMultipliers()
-    end
+    pcall(function()
+        if AntiSlow then
+            checkAndSetSlowStatus()
+            enforceMultipliers()
+        end
+    end)
 end)
 
 -- ===================== CHAT ENABLER =====================
 RunService.Heartbeat:Connect(function()
-    chatWindow.Enabled = true
+    pcall(function()
+        chatWindow.Enabled = true
+    end)
 end)
 
--- ===================== ===================================== =====================
--- ===================== TOMBOL -/+ UNTUK BUKA MENU =====================
--- ===================== ===================================== =====================
-
+-- ===================== TOMBOL MENU =====================
 task.spawn(function()
     local waitCount = 0
     while not Window or not Window.Root and waitCount < 50 do
@@ -1855,9 +2054,6 @@ task.spawn(function()
     }
     
     print("[LYNZKA HUB] ✅ Tombol menu siap!")
-    print("💡 Klik tombol '-' untuk toggle menu")
-    print("💡 Drag tombol untuk memindahkan")
-    print("💡 Tekan '-' atau 'M' di keyboard")
 end)
 
 -- ===================== SAVE CONFIG =====================
@@ -1867,5 +2063,5 @@ if SaveManager then
     end)
 end
 
-print("[LYNZKA HUB v3.6.6] ✅ Loaded successfully!")
+print("[LYNZKA HUB v3.6.7] ✅ Loaded successfully!")
 print("💡 Klik '-' atau tekan '-' di keyboard untuk toggle menu")
