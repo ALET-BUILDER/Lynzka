@@ -577,21 +577,22 @@ local function ToggleSpeedHack(state)
 end
 
 -- ===================== FLY (FIXED - KE ATAS, BUKAN BAWAH TANAH) =====================
+-- ===================== FLY (FIXED - TANPA GETER) =====================
+local flyActive = false
+local flyHeight = 10
+local flyConnection = nil
+local flyBodyVelocity = nil
+local flyBodyGyro = nil
+local flyBodyPosition = nil
+
 local function ToggleFly(state)
     flyActive = state
     
     if flyActive then
         if flyConnection then flyConnection:Disconnect() end
-        
-        -- Bersihkan BodyVelocity lama
-        if flyBodyVelocity then
-            flyBodyVelocity:Destroy()
-            flyBodyVelocity = nil
-        end
-        if flyBodyGyro then
-            flyBodyGyro:Destroy()
-            flyBodyGyro = nil
-        end
+        if flyBodyVelocity then flyBodyVelocity:Destroy() end
+        if flyBodyGyro then flyBodyGyro:Destroy() end
+        if flyBodyPosition then flyBodyPosition:Destroy() end
         
         local char = LocalPlayer.Character
         if not char then
@@ -605,23 +606,6 @@ local function ToggleFly(state)
             return
         end
         
-        -- Naikkan ke ketinggian yang dipilih (KE ATAS!)
-        local targetPos = Vector3.new(hrp.Position.X, flyHeight, hrp.Position.Z)
-        hrp.CFrame = CFrame.new(targetPos)
-        
-        -- Buat BodyVelocity untuk terbang
-        flyBodyVelocity = Instance.new("BodyVelocity")
-        flyBodyVelocity.MaxForce = Vector3.new(1, 1, 1) * 9e9
-        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        flyBodyVelocity.Parent = hrp
-        
-        -- Buat BodyGyro untuk stabilitas
-        flyBodyGyro = Instance.new("BodyGyro")
-        flyBodyGyro.MaxTorque = Vector3.new(1, 1, 1) * 9e9
-        flyBodyGyro.CFrame = hrp.CFrame
-        flyBodyGyro.Parent = hrp
-        
-        -- Matikan gravitasi
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then
             hum.PlatformStand = true
@@ -629,7 +613,30 @@ local function ToggleFly(state)
             hum.AutoRotate = false
         end
         
-        -- Loop untuk menjaga ketinggian
+        -- BodyPosition - jaga ketinggian (Y axis only)
+        flyBodyPosition = Instance.new("BodyPosition")
+        flyBodyPosition.MaxForce = Vector3.new(0, 9e9, 0)
+        flyBodyPosition.P = 5000
+        flyBodyPosition.D = 800
+        flyBodyPosition.Position = Vector3.new(hrp.Position.X, flyHeight, hrp.Position.Z)
+        flyBodyPosition.Parent = hrp
+        
+        -- BodyVelocity - handle gerakan horizontal (X dan Z)
+        flyBodyVelocity = Instance.new("BodyVelocity")
+        flyBodyVelocity.MaxForce = Vector3.new(9e9, 0, 9e9)
+        flyBodyVelocity.P = 3000
+        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVelocity.Parent = hrp
+        
+        -- BodyGyro - stabilitas rotasi
+        flyBodyGyro = Instance.new("BodyGyro")
+        flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        flyBodyGyro.P = 5000
+        flyBodyGyro.D = 500
+        flyBodyGyro.CFrame = hrp.CFrame
+        flyBodyGyro.Parent = hrp
+        
+        -- Loop
         flyConnection = RunService.Heartbeat:Connect(function()
             if not flyActive then
                 if flyConnection then
@@ -643,46 +650,33 @@ local function ToggleFly(state)
             if not char2 then return end
             
             local hrp2 = char2:FindFirstChild("HumanoidRootPart")
-            local hum2 = char2:FindFirstChildOfClass("Humanoid")
-            
-            if hrp2 and hum2 then
-                -- Pertahankan ketinggian (KE ATAS)
-                local currentPos = hrp2.Position
-                local targetY = flyHeight
-                
-                -- Jika terlalu rendah, naikkan
-                if currentPos.Y < targetY - 0.5 then
-                    hrp2.CFrame = CFrame.new(Vector3.new(currentPos.X, targetY, currentPos.Z))
+            if hrp2 then
+                if flyBodyPosition then
+                    flyBodyPosition.Position = Vector3.new(hrp2.Position.X, flyHeight, hrp2.Position.Z)
+                end
+                if flyBodyGyro then
+                    flyBodyGyro.CFrame = hrp2.CFrame
                 end
                 
-                -- Jika terlalu tinggi, turunkan
-                if currentPos.Y > targetY + 0.5 then
-                    hrp2.CFrame = CFrame.new(Vector3.new(currentPos.X, targetY, currentPos.Z))
-                end
-                
-                -- Noclip saat terbang
+                -- Noclip
                 for _, part in pairs(char2:GetDescendants()) do
                     if part:IsA("BasePart") then
                         part.CanCollide = false
                     end
                 end
-                
-                -- Update gyro
-                if flyBodyGyro then
-                    flyBodyGyro.CFrame = hrp2.CFrame
-                end
             end
         end)
         
-        notify("✈️ FLY ON - Ketinggian: " .. flyHeight .. "m", 3)
+        -- Naik ke ketinggian
+        hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, flyHeight, hrp.Position.Z))
+        
+        notify("✈️ FLY ON - " .. flyHeight .. "m", 3)
     else
-        -- Matikan fly
         if flyConnection then
             flyConnection:Disconnect()
             flyConnection = nil
         end
         
-        -- Hapus BodyVelocity & BodyGyro
         if flyBodyVelocity then
             flyBodyVelocity:Destroy()
             flyBodyVelocity = nil
@@ -690,6 +684,10 @@ local function ToggleFly(state)
         if flyBodyGyro then
             flyBodyGyro:Destroy()
             flyBodyGyro = nil
+        end
+        if flyBodyPosition then
+            flyBodyPosition:Destroy()
+            flyBodyPosition = nil
         end
         
         local char = LocalPlayer.Character
@@ -700,7 +698,6 @@ local function ToggleFly(state)
                 hum.AutoRotate = true
             end
             
-            -- Turun ke tanah (JATUH)
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local ray = Ray.new(hrp.Position, Vector3.new(0, -200, 0))
@@ -712,7 +709,7 @@ local function ToggleFly(state)
                 end
             end
         end
-        notify("✈️ FLY OFF - Mendarat...", 2)
+        notify("✈️ FLY OFF", 2)
     end
 end
 
