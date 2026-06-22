@@ -1,8 +1,9 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║      🔥 LYNZKA HUB v3.6.4 🔥           ║
+    ║      🔥 LYNZKA HUB v3.6.6 🔥           ║
     ║   Shadow Style - Perfect Toggle        ║
-    ║   ALL ERRORS FIXED!                    ║
+    ║   NOCLIP = Anti Tanah SAJA!           ║
+    ║   DISCORD TAB = REMOVED               ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -63,7 +64,7 @@ local SpeedLoop = nil
 local nameProtectActive = false
 local originalName = ""
 
--- ===================== NOCLIP - ANTI MASUK TANAH =====================
+-- ===================== NOCLIP - ANTI MASUK TANAH SAJA (BUKAN TEMBOK) =====================
 local noclipActive = false
 local noclipConnection = nil
 
@@ -73,7 +74,7 @@ local function ToggleNoclip(state)
     if noclipActive then
         if noclipConnection then noclipConnection:Disconnect() end
         
-        -- Aktifkan noclip
+        -- Loop buat cegah masuk tanah
         noclipConnection = RunService.Heartbeat:Connect(function()
             if not noclipActive then
                 if noclipConnection then
@@ -86,13 +87,28 @@ local function ToggleNoclip(state)
             local char = LocalPlayer.Character
             if not char then return end
             
-            -- Set semua part ke CanCollide = false
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    pcall(function()
-                        part.CanCollide = false
-                    end)
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            -- CEK APAKAH KITA MASUK TANAH
+            local ray = Ray.new(hrp.Position, Vector3.new(0, -1, 0))
+            local hit, hitPos = Workspace:FindPartOnRay(ray, char)
+            
+            -- KALAU KEPALA ATAU BADAN MASUK TANAH, DORONG KE ATAS
+            if hit and hitPos then
+                local head = char:FindFirstChild("Head")
+                if head then
+                    local headPos = head.Position
+                    -- Cek apakah kepala di bawah tanah
+                    if headPos.Y < 0 then
+                        hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 5, hrp.Position.Z))
+                    end
                 end
+            end
+            
+            -- NOCLIP KHUSUS TANAH: KALAU TERJEBAK DI BAWAH TANAH, TELEPORT KE ATAS
+            if hrp.Position.Y < 0 then
+                hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 5, hrp.Position.Z))
             end
         end)
         notify("🚫 NOCLIP ON - Ga bakal masuk tanah!", 2)
@@ -100,18 +116,6 @@ local function ToggleNoclip(state)
         if noclipConnection then
             noclipConnection:Disconnect()
             noclipConnection = nil
-        end
-        
-        -- Kembalikan CanCollide
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    pcall(function()
-                        part.CanCollide = true
-                    end)
-                end
-            end
         end
         notify("🚫 NOCLIP OFF", 2)
     end
@@ -164,10 +168,8 @@ local function ToggleNameProtect(state)
     nameProtectActive = state
     
     if state then
-        -- SIMPAN NAMA ASLI KITA
         originalName = LocalPlayer.Name
         
-        -- GANTI NAMA KITA JADI "???"
         local success, err = pcall(function()
             LocalPlayer.Name = "???"
         end)
@@ -176,7 +178,6 @@ local function ToggleNameProtect(state)
             notify("⚠️ Gagal mengganti nama: " .. tostring(err), 3)
         end
         
-        -- LISTENER BUAT RESET NAMA KALAU ADA YANG NGANTI
         if Connections.NameProtectListener then
             pcall(function()
                 Connections.NameProtectListener:Disconnect()
@@ -194,7 +195,6 @@ local function ToggleNameProtect(state)
         
         notify("🛡️ NameProtect ON - Namamu disembunyikan!", 3)
     else
-        -- KEMBALIKAN NAMA ASLI
         if Connections.NameProtectListener then
             pcall(function()
                 Connections.NameProtectListener:Disconnect()
@@ -582,7 +582,7 @@ local function DisableAimbot()
     end
 end
 
--- ===================== WALLBANG =====================
+-- ===================== WALLBANG (TERPISAH DARI NOCLIP) =====================
 local wallbangState = false
 
 local function ToggleWallbang()
@@ -908,12 +908,11 @@ local Window, Tabs = nil, nil
 if FluentLoaded then
     Window = Fluent:CreateWindow({
         Title = "LYNZKA HUB",
-        SubTitle = "v3.6.4 - All Errors Fixed!",
+        SubTitle = "v3.6.6 - All Fixed!",
         TabWidth = 160,
         Size = UDim2.fromOffset(580, 460),
         Theme = "Dark",
-        MinimizeKeyBind = nil
-    })
+        MinimizeKeyBind = nil    })
 
     Tabs = {
         Player = Window:AddTab({ Title = "Player", Icon = "lucide-circle-user" }),
@@ -924,7 +923,6 @@ if FluentLoaded then
         Blatant = Window:AddTab({ Title = "Blatant", Icon = "lucide-angry" }),
         GuestSettings = Window:AddTab({ Title = "Guest 1337", Icon = "lucide-leaf" }),
         CustomAnimations = Window:AddTab({ Title = "Custom Anims", Icon = "lucide-person-standing" }),
-        Discord = Window:AddTab({ Title = "Discord", Icon = "lucide-settings" }),
         Settings = Window:AddTab({ Title = "Settings", Icon = "lucide-settings" })
     }
 
@@ -939,10 +937,10 @@ if FluentLoaded then
 
     -- ===================== PLAYER TAB =====================
     
-    -- WALLBANG
+    -- WALLBANG (TERPISAH)
     Tabs.Player:AddToggle("Wallbang", {
         Title = "🧱 Wallbang",
-        Description = "Tembus semua benda/dinding",
+        Description = "Tembus dinding (TERPISAH dari Noclip)",
         Default = false,
         Callback = function(state)
             if state ~= wallbangState then
@@ -951,10 +949,10 @@ if FluentLoaded then
         end
     })
 
-    -- NOCLIP - ANTI MASUK TANAH
+    -- NOCLIP - ANTI MASUK TANAH SAJA
     Tabs.Player:AddToggle("Noclip", {
-        Title = "🚫 Noclip",
-        Description = "Ga bakal masuk tanah / tembus semua",
+        Title = "🚫 Noclip (Anti Tanah)",
+        Description = "CEGAH masuk tanah - BUKAN tembus tembok!",
         Default = false,
         Callback = function(state)
             ToggleNoclip(state)
@@ -1269,10 +1267,10 @@ if FluentLoaded then
         end
     })
 
-    -- NAMEPROTECT - FIXED
+    -- NAMEPROTECT
     Tabs.Misc:AddToggle("NameProtect", {
         Title = "🛡️ NameProtect",
-        Description = "Sembunyikan NAMA KAMU sendiri (orang lain ga bisa liat)",
+        Description = "Sembunyikan NAMA KAMU sendiri",
         Default = false,
         Callback = function(state)
             ToggleNameProtect(state)
@@ -1576,16 +1574,6 @@ if FluentLoaded then
         end
     })
 
-    -- ===================== DISCORD TAB =====================
-    Tabs.Discord:AddButton({
-        Title = "📋 Copy Discord Invite",
-        Description = "Copy link Discord LYNZKA",
-        Callback = function()
-            setclipboard("https://discord.gg/aXNagEYb2f")
-            notify("📋 Discord link copied!", 2)
-        end
-    })
-
     -- ===================== SETTINGS TAB =====================
     Tabs.Settings:AddButton({
         Title = "📐 Center GUI",
@@ -1600,7 +1588,7 @@ if FluentLoaded then
 
     -- ===================== FINALIZE =====================
     Window:SelectTab("Player")
-    notify("🔥 LYNZKA HUB v3.6.4 Loaded - All Errors Fixed!", 4)
+    notify("🔥 LYNZKA HUB v3.6.6 Loaded - All Fixed!", 4)
 
     hubLoaded = true
 end
@@ -1645,7 +1633,6 @@ end)
 -- ===================== ===================================== =====================
 
 task.spawn(function()
-    -- Tunggu Fluent siap
     local waitCount = 0
     while not Window or not Window.Root and waitCount < 50 do
         task.wait(0.2)
@@ -1657,18 +1644,15 @@ task.spawn(function()
         return
     end
     
-    -- Hapus tombol lama
     local oldGui = CoreGui:FindFirstChild("LYNZKAToggleGui")
     if oldGui then oldGui:Destroy() end
     
-    -- Buat ScreenGui untuk tombol
     local toggleGui = Instance.new("ScreenGui")
     toggleGui.Name = "LYNZKAToggleGui"
     toggleGui.ResetOnSpawn = false
     toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     toggleGui.Parent = CoreGui
     
-    -- Frame tombol
     local buttonFrame = Instance.new("Frame")
     buttonFrame.Name = "ToggleFrame"
     buttonFrame.Size = UDim2.new(0, 44, 0, 44)
@@ -1680,12 +1664,10 @@ task.spawn(function()
     buttonFrame.ZIndex = 9999
     buttonFrame.Parent = toggleGui
     
-    -- Corner
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = buttonFrame
     
-    -- Glow
     local glow = Instance.new("Frame")
     glow.Name = "Glow"
     glow.Size = UDim2.new(1.4, 0, 1.4, 0)
@@ -1699,7 +1681,6 @@ task.spawn(function()
     glowCorner.CornerRadius = UDim.new(0, 16)
     glowCorner.Parent = glow
     
-    -- Tombol
     local toggleButton = Instance.new("TextButton")
     toggleButton.Name = "ToggleButton"
     toggleButton.Size = UDim2.new(1.2, 0, 1.2, 0)
@@ -1720,7 +1701,6 @@ task.spawn(function()
     btnCorner.CornerRadius = UDim.new(0, 10)
     btnCorner.Parent = toggleButton
     
-    -- Tooltip
     local tooltip = Instance.new("TextLabel")
     tooltip.Name = "Tooltip"
     tooltip.Size = UDim2.new(0, 80, 0, 20)
@@ -1740,14 +1720,11 @@ task.spawn(function()
     tooltipCorner.CornerRadius = UDim.new(0, 4)
     tooltipCorner.Parent = tooltip
     
-    -- State
     local menuVisible = true
     
-    -- Fungsi toggle menu
     local function toggleMenu()
         menuVisible = not menuVisible
         
-        -- Toggle Fluent GUI
         pcall(function()
             local fluentGui = Window.Root.Parent
             if fluentGui and fluentGui:IsA("ScreenGui") then
@@ -1758,7 +1735,6 @@ task.spawn(function()
             end
         end)
         
-        -- Update tampilan tombol
         if menuVisible then
             toggleButton.Text = "−"
             buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
@@ -1776,7 +1752,6 @@ task.spawn(function()
         end
     end
     
-    -- === DRAG SYSTEM ===
     local drag = {
         dragging = false,
         startPos = nil,
@@ -1822,7 +1797,6 @@ task.spawn(function()
         end
     end)
     
-    -- Hover effects
     toggleButton.MouseEnter:Connect(function()
         tooltip.Visible = true
         if menuVisible then
@@ -1845,14 +1819,12 @@ task.spawn(function()
         end
     end)
     
-    -- Click (hanya jika bukan drag)
     toggleButton.MouseButton1Click:Connect(function()
         if not drag.isDragging then
             toggleMenu()
         end
     end)
     
-    -- Keyboard shortcut
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.Minus or input.KeyCode == Enum.KeyCode.M then
@@ -1860,12 +1832,10 @@ task.spawn(function()
         end
     end)
     
-    -- Load saved position
     if _G.LYNZKAButtonPos then
         buttonFrame.Position = UDim2.new(0, _G.LYNZKAButtonPos.X, 0, _G.LYNZKAButtonPos.Y)
     end
     
-    -- Global API
     _G.LYNZKAToggle = {
         Button = toggleButton,
         Frame = buttonFrame,
@@ -1897,6 +1867,5 @@ if SaveManager then
     end)
 end
 
-print("[LYNZKA HUB v3.6.4] ✅ Loaded successfully!")
+print("[LYNZKA HUB v3.6.6] ✅ Loaded successfully!")
 print("💡 Klik '-' atau tekan '-' di keyboard untuk toggle menu")
-print("💡 Drag tombol '-' untuk memindahkan posisi")
