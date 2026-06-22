@@ -2548,67 +2548,34 @@ task.spawn(function()
         end)
 
         -- TOGGLE MENU
-        minusButton.MouseButton1Click:Connect(function()
-            if Window then
-                -- Cari Fluent GUI container di CoreGui
-                local fluentGui = nil
-                for _, child in pairs(CoreGui:GetChildren()) do
-                    if child:IsA("ScreenGui") and (child.Name == "Fluent" or child:FindFirstChild("MainFrame")) then
-                        fluentGui = child
-                        break
-                    end
-                end
-                
-                if fluentGui then
-                    if menuVisible then
-                        fluentGui.Enabled = false
-                        menuVisible = false
-                        minusButton.Text = "+"
-                        minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
-                        minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
-                    else
-                        fluentGui.Enabled = true
-                        menuVisible = true
-                        minusButton.Text = "-"
-                        minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
-                        minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
-                    end
-                else
-                    -- Fallback: cari semua ScreenGui
-                    for _, child in pairs(CoreGui:GetChildren()) do
-                        if child:IsA("ScreenGui") then
-                            local mainFrame = child:FindFirstChild("MainFrame")
-                            if mainFrame then
-                                if menuVisible then
-                                    child.Enabled = false
-                                    menuVisible = false
-                                    minusButton.Text = "+"
-                                    minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
-                                    minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
-                                else
-                                    child.Enabled = true
-                                    menuVisible = true
-                                    minusButton.Text = "-"
-                                    minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
-                                    minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
-                                end
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-        end)
+        local menuVisible = true
 
-        -- Update posisi
-        while task.wait(0.03) do
-            toggleHolder.Size = minusSize
-            if not dragData.dragging then
-                buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 70, 0, 0)
-            end
+minusButton.MouseButton1Click:Connect(function()
+    local mainFrame = Window and Window.Root
+
+    if not mainFrame then
+        warn("MainFrame not found")
+        return
+    end
+
+    menuVisible = not menuVisible
+
+    for _, obj in ipairs(mainFrame:GetChildren()) do
+        if obj ~= minusButton.Parent then
+            pcall(function()
+                obj.Visible = menuVisible
+            end)
         end
+    end
+
+    if menuVisible then
+        minusButton.Text = "-"
+        minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
+        minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
     else
-        warn("ToggleHolder not found, minus button not created.")
+        minusButton.Text = "+"
+        minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
+        minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
     end
 end)
 
