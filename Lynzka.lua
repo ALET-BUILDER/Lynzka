@@ -1,7 +1,7 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║      🔥 GOONSAKEN HUB v3.4 🔥          ║
-    ║   Fixed Minus Button Toggle             ║
+    ║      🔥 GOONSAKEN HUB v3.5 🔥          ║
+    ║   FINAL FIX - Minus Button Working     ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -36,18 +36,6 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- ===================== SHADOW STYLE VARIABLES =====================
-local godModeActive = false
-local godModeConnection = nil
-local invisibleActive = false
-local invisibleConnection = nil
-local wallbangActive = false
-local wallbangConnection = nil
-local originalTransparency = {}
-local SpeedLoop = nil
-local JumpLoop = nil
-local menuVisible = true
-
 -- ===================== VARIABLES =====================
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
@@ -73,8 +61,36 @@ local timebetweenpuzzles = 3
 local running = false
 local animTrack = nil
 local existence = nil
-local Window = nil
-local Fluent = nil
+local menuVisible = true
+
+-- ===================== SHADOW STYLE VARIABLES =====================
+local godModeActive = false
+local godModeConnection = nil
+local invisibleActive = false
+local invisibleConnection = nil
+local wallbangActive = false
+local wallbangConnection = nil
+local originalTransparency = {}
+local SpeedLoop = nil
+local JumpLoop = nil
+
+-- ===================== FLUENT UI =====================
+local FluentLoaded = false
+local success, Fluent = pcall(function()
+    return loadstring(game:HttpGet('https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua'))()
+end)
+if success and Fluent then
+    FluentLoaded = true
+else
+    warn("Fluent failed to load.")
+end
+
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local Window, Tabs = nil, nil
+local statsGui = nil
+local FluentGuiContainer = nil  -- Untuk menyimpan container GUI Fluent
 
 -- ===================== ESP SYSTEM =====================
 local EspObjects = {}
@@ -451,16 +467,7 @@ end
 local function ToggleGodMode()
     godModeActive = not godModeActive
     local char = LocalPlayer.Character
-    if not char then 
-        if Fluent and Fluent.Notify then
-            Fluent:Notify({
-                Title = "❌ Error",
-                Content = "Character not found!",
-                Duration = 3
-            })
-        end
-        return 
-    end
+    if not char then return end
     
     if godModeActive then
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -489,11 +496,7 @@ local function ToggleGodMode()
             end
         end)
         if Fluent and Fluent.Notify then
-            Fluent:Notify({
-                Title = "🛡 GOD MODE ON",
-                Content = "You are immortal!",
-                Duration = 3
-            })
+            Fluent:Notify({ Title = "🛡 GOD MODE ON", Content = "You are immortal!", Duration = 3 })
         end
     else
         if godModeConnection then
@@ -511,11 +514,7 @@ local function ToggleGodMode()
             end
         end
         if Fluent and Fluent.Notify then
-            Fluent:Notify({
-                Title = "💀 GOD MODE OFF",
-                Content = "You are mortal again!",
-                Duration = 2
-            })
+            Fluent:Notify({ Title = "💀 GOD MODE OFF", Content = "You are mortal again!", Duration = 2 })
         end
     end
 end
@@ -523,16 +522,7 @@ end
 local function ToggleInvisibleShadow()
     invisibleActive = not invisibleActive
     local char = LocalPlayer.Character
-    if not char then
-        if Fluent and Fluent.Notify then
-            Fluent:Notify({
-                Title = "❌ Error",
-                Content = "Character not found!",
-                Duration = 3
-            })
-        end
-        return
-    end
+    if not char then return end
     
     if invisibleActive then
         for _, part in pairs(char:GetDescendants()) do
@@ -558,11 +548,7 @@ local function ToggleInvisibleShadow()
             end
         end)
         if Fluent and Fluent.Notify then
-            Fluent:Notify({
-                Title = "👻 INVISIBLE ON",
-                Content = "You are invisible!",
-                Duration = 3
-            })
+            Fluent:Notify({ Title = "👻 INVISIBLE ON", Content = "You are invisible!", Duration = 3 })
         end
     else
         if invisibleConnection then
@@ -579,11 +565,7 @@ local function ToggleInvisibleShadow()
         end
         originalTransparency = {}
         if Fluent and Fluent.Notify then
-            Fluent:Notify({
-                Title = "👁 INVISIBLE OFF",
-                Content = "You are visible again!",
-                Duration = 2
-            })
+            Fluent:Notify({ Title = "👁 INVISIBLE OFF", Content = "You are visible again!", Duration = 2 })
         end
     end
 end
@@ -617,11 +599,7 @@ local function ToggleWallbang()
             end
         end)
         if Fluent and Fluent.Notify then
-            Fluent:Notify({
-                Title = "🧱 WALLBANG ON",
-                Content = "Can pass through walls!",
-                Duration = 3
-            })
+            Fluent:Notify({ Title = "🧱 WALLBANG ON", Content = "Can pass through walls!", Duration = 3 })
         end
     else
         if wallbangConnection then
@@ -637,11 +615,7 @@ local function ToggleWallbang()
             end
         end
         if Fluent and Fluent.Notify then
-            Fluent:Notify({
-                Title = "🧱 WALLBANG OFF",
-                Content = "Normal collision restored!",
-                Duration = 2
-            })
+            Fluent:Notify({ Title = "🧱 WALLBANG OFF", Content = "Normal collision restored!", Duration = 2 })
         end
     end
 end
@@ -711,7 +685,6 @@ local function NameProtect(toggled)
         wait()
         local gui = LocalPlayer.PlayerGui
         if not gui then return end
-        -- [Name protection code - shortened for space]
         local currentSurvivors = gui:FindFirstChild("TemporaryUI") 
             and gui.TemporaryUI:FindFirstChild("PlayerInfo") 
             and gui.TemporaryUI.PlayerInfo:FindFirstChild("CurrentSurvivors")
@@ -1607,26 +1580,13 @@ local blockAnimIds = {"72722244508749", "96959123077498"}
 local punchAnimIds = {"87259391926321"}
 local chargeAnimIds = {"106014898528300"}
 
--- ===================== FLUENT UI =====================
-local FluentLoaded = false
-local success, Fluent = pcall(function()
-    return loadstring(game:HttpGet('https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua'))()
-end)
-if success and Fluent then
-    FluentLoaded = true
-else
-    warn("Fluent failed to load.")
-end
-
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-
-local statsGui = createStatsTracker()
+-- ===================== BUILD FLUENT UI =====================
+statsGui = createStatsTracker()
 
 if FluentLoaded then
     Window = Fluent:CreateWindow({
         Title = "GoonHub",
-        SubTitle = "v3.4 - Fixed Toggle",
+        SubTitle = "v3.5 - FINAL FIX",
         TabWidth = 160,
         Size = UDim2.fromOffset(580, 460),
         Theme = "Dark",
@@ -2511,17 +2471,10 @@ if FluentLoaded then
 
     -- ===================== FINALIZE =====================
     Window:SelectTab("Player")
-
     Fluent:Notify({
-        Title = "Goonsaken Hub v3.4",
-        Content = "Fixed toggle button!",
+        Title = "Goonsaken Hub v3.5",
+        Content = "FINAL FIX - Minus button works!",
         Duration = 8
-    })
-
-    Fluent:Notify({
-        Title = "📌 HOW TO USE",
-        Content = "Click the '-' button to toggle menu!",
-        Duration = 5
     })
 
     hubLoaded = true
@@ -2891,7 +2844,7 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
--- ===================== SHADOW STYLE MINUS BUTTON TOGGLE (FIXED) =====================
+-- ===================== SHADOW STYLE MINUS BUTTON TOGGLE (FINAL FIX) =====================
 task.spawn(function()
     local toggleHolder = game.CoreGui:FindFirstChild("TopBarApp")
         and game.CoreGui.TopBarApp:FindFirstChild("TopBarApp")
@@ -2934,23 +2887,55 @@ task.spawn(function()
             minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
         end)
 
-        -- FIXED: Toggle menu dengan benar
+        -- FINAL FIX: Toggle dengan cara yang benar
         minusButton.MouseButton1Click:Connect(function()
             if Window then
-                if menuVisible then
-                    -- Tutup menu
-                    Window:SetVisible(false)
-                    menuVisible = false
-                    minusButton.Text = "+"
-                    minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
-                    minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+                -- Cari Fluent GUI container di CoreGui
+                local fluentGui = nil
+                for _, child in pairs(CoreGui:GetChildren()) do
+                    if child:IsA("ScreenGui") and child.Name == "Fluent" then
+                        fluentGui = child
+                        break
+                    end
+                end
+                
+                if not fluentGui then
+                    -- Coba cari dengan nama lain
+                    for _, child in pairs(CoreGui:GetChildren()) do
+                        if child:IsA("ScreenGui") and child:FindFirstChild("MainFrame") then
+                            fluentGui = child
+                            break
+                        end
+                    end
+                end
+                
+                if fluentGui then
+                    if menuVisible then
+                        fluentGui.Enabled = false
+                        menuVisible = false
+                        minusButton.Text = "+"
+                        minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
+                        minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+                    else
+                        fluentGui.Enabled = true
+                        menuVisible = true
+                        minusButton.Text = "-"
+                        minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
+                        minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
+                    end
                 else
-                    -- Buka menu
-                    Window:SetVisible(true)
-                    menuVisible = true
-                    minusButton.Text = "-"
-                    minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
-                    minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
+                    -- Fallback: pake Window:Toggle()
+                    Window:Toggle()
+                    menuVisible = not menuVisible
+                    if menuVisible then
+                        minusButton.Text = "-"
+                        minusButton.BackgroundColor3 = Color3.fromRGB(28, 28, 44)
+                        minusButton.TextColor3 = Color3.fromRGB(100, 180, 255)
+                    else
+                        minusButton.Text = "+"
+                        minusButton.BackgroundColor3 = Color3.fromRGB(44, 28, 28)
+                        minusButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+                    end
                 end
             else
                 warn("Window not found!")
@@ -2960,9 +2945,7 @@ task.spawn(function()
         -- Update posisi
         while task.wait(0.03) do
             toggleHolder.Size = minusSize
-            if not catDragData or not catDragData.dragging then
-                buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 70, 0, 0)
-            end
+            buttonFrame.Position = UDim2.new(0, toggleHolder.Size.X.Offset - 70, 0, 0)
         end
     else
         warn("ToggleHolder not found, minus button not created.")
@@ -2972,5 +2955,5 @@ end)
 -- ===================== SAVE CONFIG =====================
 SaveManager:LoadAutoloadConfig()
 
-print("[Goonsaken Hub v3.4] Loaded successfully!")
-print("Click the '-' button to toggle menu (FIXED)!")
+print("[Goonsaken Hub v3.5] Loaded successfully!")
+print("Click the '-' button to toggle menu (FINAL FIX!)")
