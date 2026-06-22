@@ -921,24 +921,50 @@ local GuestSettingsTriggerAnims = {
     "81639435858902", "137314737492715", "92173139187970", "106847695270773"
 }
 
--- ===================== FLUENT UI =====================
+-- ===================== FLUENT UI (FIXED) =====================
 local FluentLoaded = false
 local success, Fluent = pcall(function()
     return loadstring(game:HttpGet('https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua'))()
 end)
+
 if success and Fluent then
     FluentLoaded = true
+    print("[LYNZKA] ✅ Fluent loaded successfully!")
 else
-    warn("Fluent failed to load.")
+    warn("[LYNZKA] ❌ Fluent failed to load.")
+    -- Jika Fluent gagal, buat notifikasi manual
+    local errNotif = Instance.new("TextLabel")
+    errNotif.Size = UDim2.new(0, 400, 0, 50)
+    errNotif.Position = UDim2.new(0.5, -200, 0.5, -25)
+    errNotif.BackgroundColor3 = Color3.fromRGB(30, 20, 20)
+    errNotif.BackgroundTransparency = 0
+    errNotif.TextColor3 = Color3.fromRGB(255, 100, 100)
+    errNotif.Font = Enum.Font.GothamBold
+    errNotif.TextSize = 16
+    errNotif.Text = "❌ Fluent Gagal Load! Coba jalankan ulang."
+    errNotif.Parent = CoreGui
+    Instance.new("UICorner", errNotif).CornerRadius = UDim.new(0, 8)
+    task.delay(5, function() errNotif:Destroy() end)
 end
 
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+local SaveManager = nil
+local InterfaceManager = nil
 
-local Window, Tabs = nil, nil
-
--- ===================== BUILD FLUENT UI =====================
 if FluentLoaded then
+    pcall(function()
+        SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+        InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+    end)
+end
+
+local Window = nil
+local Tabs = nil
+
+-- ===================== BUILD FLUENT UI (HANYA JIKA FLUENT LOAD) =====================
+if FluentLoaded and Fluent then
+    -- Tunggu sebentar agar stabil
+    task.wait(0.5)
+    
     Window = Fluent:CreateWindow({
         Title = "LYNZKA HUB",
         SubTitle = "v3.6 - Shadow Style Perfect",
@@ -947,6 +973,27 @@ if FluentLoaded then
         Theme = "Dark",
         MinimizeKeyBind = nil
     })
+
+    -- CEK APAKAH WINDOW BERHASIL DIBUAT
+    if not Window or not Window.Root then
+        warn("[LYNZKA] ❌ Gagal membuat Window!")
+        -- Buat notifikasi error
+        local errNotif = Instance.new("TextLabel")
+        errNotif.Size = UDim2.new(0, 400, 0, 50)
+        errNotif.Position = UDim2.new(0.5, -200, 0.5, -25)
+        errNotif.BackgroundColor3 = Color3.fromRGB(30, 20, 20)
+        errNotif.BackgroundTransparency = 0
+        errNotif.TextColor3 = Color3.fromRGB(255, 100, 100)
+        errNotif.Font = Enum.Font.GothamBold
+        errNotif.TextSize = 16
+        errNotif.Text = "❌ Gagal membuat menu! Coba jalankan ulang."
+        errNotif.Parent = CoreGui
+        Instance.new("UICorner", errNotif).CornerRadius = UDim.new(0, 8)
+        task.delay(5, function() errNotif:Destroy() end)
+        return
+    end
+
+    print("[LYNZKA] ✅ Window created successfully!")
 
     Tabs = {
         Player = Window:AddTab({ Title = "Player", Icon = "lucide-circle-user" }),
@@ -961,14 +1008,19 @@ if FluentLoaded then
         Settings = Window:AddTab({ Title = "Settings", Icon = "lucide-settings" })
     }
 
-    SaveManager:SetLibrary(Fluent)
-    InterfaceManager:SetLibrary(Fluent)
-    SaveManager:IgnoreThemeSettings()
-    SaveManager:SetIgnoreIndexes({})
-    InterfaceManager:SetFolder("LYNZKAHub")
-    SaveManager:SetFolder("LYNZKAHub/Configs")
-    InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-    SaveManager:BuildConfigSection(Tabs.Settings)
+    -- SAVE MANAGER
+    if SaveManager and InterfaceManager then
+        pcall(function()
+            SaveManager:SetLibrary(Fluent)
+            InterfaceManager:SetLibrary(Fluent)
+            SaveManager:IgnoreThemeSettings()
+            SaveManager:SetIgnoreIndexes({})
+            InterfaceManager:SetFolder("LYNZKAHub")
+            SaveManager:SetFolder("LYNZKAHub/Configs")
+            InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+            SaveManager:BuildConfigSection(Tabs.Settings)
+        end)
+    end
 
     -- ===================== PLAYER TAB =====================
     
@@ -992,10 +1044,10 @@ if FluentLoaded then
         end
     })
 
-    -- SPEED HACK VALUE (SLIDER DENGAN -/+ YANG MUDAH DIGESER)
+    -- SPEED HACK VALUE
     Tabs.Player:AddSlider("SpeedHackValue", {
         Title = "Speed Hack Value",
-        Description = "Atur kecepatan (1x - 20x) - Geser atau klik +/-",
+        Description = "Atur kecepatan (1x - 20x)",
         Default = 5,
         Min = 1,
         Max = 20,
@@ -1028,7 +1080,7 @@ if FluentLoaded then
         end
     })
 
-    -- FLY HEIGHT (SEPERTI DROPDOWN HITBOX MODE)
+    -- FLY HEIGHT
     local flyHeightOptions = {}
     for i = 1, 30 do
         table.insert(flyHeightOptions, tostring(i) .. "m")
@@ -1049,7 +1101,6 @@ if FluentLoaded then
                     local char = LocalPlayer.Character
                     if char and char:FindFirstChild("HumanoidRootPart") then
                         local hrp = char.HumanoidRootPart
-                        -- Naikkan ke ketinggian baru (KE ATAS!)
                         hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, height, hrp.Position.Z))
                     end
                 end
@@ -1666,10 +1717,13 @@ if FluentLoaded then
     notify("🔥 LYNZKA HUB v3.6 Loaded!", 4)
 
     hubLoaded = true
+    print("[LYNZKA] ✅ Hub loaded successfully!")
 end
 
 -- ===================== AUTO REJOIN =====================
+-- DEFINE toggles SEBELUM dipakai
 local toggles = { AutoRejoinOnKick = true }
+
 if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     Connections.AutoRejoin = GuiService.ErrorMessageChanged:Connect(function(msg)
         if msg and msg ~= "" then
@@ -1678,47 +1732,21 @@ if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     end)
 end
 
--- ===================== CHARGE SPEED LOOP =====================
-RunService.Stepped:Connect(function()
-    if ChargeSpeedLoop then
-        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local speedMultipliers = character:FindFirstChild("SpeedMultipliers")
-        local mult = speedMultipliers and speedMultipliers:FindFirstChild("Guest1337Charge")
-        if mult and GuestChargeSpeed ~= nil then
-            mult.Value = GuestChargeSpeed
-        end
-    end
-end)
-
--- ===================== ANTI SLOW =====================
-RunService.RenderStepped:Connect(function()
-    if AntiSlow then
-        checkAndSetSlowStatus()
-        enforceMultipliers()
-    end
-end)
-
--- ===================== CHAT ENABLER =====================
-RunService.Heartbeat:Connect(function()
-    chatWindow.Enabled = true
-end)
-
--- ===================== ===================================== =====================
--- ===================== TOMBOL -/+ UNTUK BUKA MENU =====================
--- ===================== ===================================== =====================
-
+-- ===================== TOMBOL -/+ (DIBUAT SETELAH FLUENT READY) =====================
 task.spawn(function()
-    -- Tunggu Fluent siap
+    -- Tunggu Fluent dan Window benar-benar siap
     local waitCount = 0
-    while not Window or not Window.Root and waitCount < 50 do
+    while not Window or not Window.Root and waitCount < 100 do
         task.wait(0.2)
         waitCount = waitCount + 1
     end
     
     if not Window or not Window.Root then
-        print("[LYNZKA] Gagal menemukan Window.Root!")
+        print("[LYNZKA] ❌ Window.Root tidak ditemukan! Tombol tidak dibuat.")
         return
     end
+    
+    print("[LYNZKA] ✅ Window.Root ditemukan! Membuat tombol...")
     
     -- Hapus tombol lama
     local oldGui = CoreGui:FindFirstChild("LYNZKAToggleGui")
@@ -1801,8 +1829,7 @@ task.spawn(function()
     tooltip.Parent = buttonFrame
     local tooltipCorner = Instance.new("UICorner")
     tooltipCorner.CornerRadius = UDim.new(0, 4)
-    tooltipCorner.Parent = tooltip
-    
+    tooltipCorner.Parent = tooltip    
     -- State
     local menuVisible = true
     
@@ -1812,11 +1839,11 @@ task.spawn(function()
         
         -- Toggle Fluent GUI
         pcall(function()
-            local fluentGui = Window.Root.Parent
-            if fluentGui and fluentGui:IsA("ScreenGui") then
-                fluentGui.Enabled = menuVisible
-            end
             if Window and Window.Root then
+                local fluentGui = Window.Root.Parent
+                if fluentGui and fluentGui:IsA("ScreenGui") then
+                    fluentGui.Enabled = menuVisible
+                end
                 Window.Root.Visible = menuVisible
             end
         end)
