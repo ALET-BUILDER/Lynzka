@@ -64,22 +64,22 @@ local SpeedLoop = nil
 local speedHackActive = false
 local speedHackValue = 5
 
--- ===================== FLY =====================
+-- ===================== FLY (FIXED - KE ATAS, BUKAN BAWAH TANAH) =====================
 local flyActive = false
 local flyHeight = 10
 local flyConnection = nil
 local flyBodyVelocity = nil
 local flyBodyGyro = nil
-local flyBodyPosition = nil
 
 -- ===================== INFINITE STAMINA =====================
 local staminaLoop = nil
 
--- ===================== TOGGLES =====================
-local toggles = { AutoRejoinOnKick = true }
-
--- ===================== CONNECTIONS =====================
-local Connections = {}
+-- ===================== DRAG SYSTEM =====================
+local dragData = {
+    dragging = false,
+    startPos = nil,
+    startMouse = nil
+}
 
 -- ===================== NOTIFICATION =====================
 local function notify(text, duration)
@@ -93,7 +93,6 @@ local function notify(text, duration)
             })
         end)
     else
-        -- Fallback notification
         local notification = Instance.new("TextLabel")
         notification.Size = UDim2.new(0, 300, 0, 40)
         notification.Position = UDim2.new(0.5, -150, 1, -50)
@@ -103,7 +102,7 @@ local function notify(text, duration)
         notification.Font = Enum.Font.GothamBold
         notification.TextSize = 14
         notification.Text = "LYNZKA HUB: " .. text
-        notification.Parent = CoreGui
+        notification.Parent = game.CoreGui
         Instance.new("UICorner", notification).CornerRadius = UDim.new(0, 8)
         TweenService:Create(notification, TweenInfo.new(0.5), {
             Position = UDim2.new(0.5, -150, 1, -60)
@@ -577,15 +576,22 @@ local function ToggleSpeedHack(state)
     end
 end
 
--- ===================== FLY =====================
+-- ===================== FLY (FIXED - KE ATAS, BUKAN BAWAH TANAH) =====================
 local function ToggleFly(state)
     flyActive = state
     
     if flyActive then
         if flyConnection then flyConnection:Disconnect() end
-        if flyBodyVelocity then flyBodyVelocity:Destroy() end
-        if flyBodyGyro then flyBodyGyro:Destroy() end
-        if flyBodyPosition then flyBodyPosition:Destroy() end
+        
+        -- Bersihkan BodyVelocity lama
+        if flyBodyVelocity then
+            flyBodyVelocity:Destroy()
+            flyBodyVelocity = nil
+        end
+        if flyBodyGyro then
+            flyBodyGyro:Destroy()
+            flyBodyGyro = nil
+        end
         
         local char = LocalPlayer.Character
         if not char then
@@ -599,6 +605,23 @@ local function ToggleFly(state)
             return
         end
         
+        -- Naikkan ke ketinggian yang dipilih (KE ATAS!)
+        local targetPos = Vector3.new(hrp.Position.X, flyHeight, hrp.Position.Z)
+        hrp.CFrame = CFrame.new(targetPos)
+        
+        -- Buat BodyVelocity untuk terbang
+        flyBodyVelocity = Instance.new("BodyVelocity")
+        flyBodyVelocity.MaxForce = Vector3.new(1, 1, 1) * 9e9
+        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVelocity.Parent = hrp
+        
+        -- Buat BodyGyro untuk stabilitas
+        flyBodyGyro = Instance.new("BodyGyro")
+        flyBodyGyro.MaxTorque = Vector3.new(1, 1, 1) * 9e9
+        flyBodyGyro.CFrame = hrp.CFrame
+        flyBodyGyro.Parent = hrp
+        
+        -- Matikan gravitasi
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then
             hum.PlatformStand = true
@@ -606,30 +629,7 @@ local function ToggleFly(state)
             hum.AutoRotate = false
         end
         
-        -- BodyPosition - jaga ketinggian (Y axis only)
-        flyBodyPosition = Instance.new("BodyPosition")
-        flyBodyPosition.MaxForce = Vector3.new(0, 9e9, 0)
-        flyBodyPosition.P = 5000
-        flyBodyPosition.D = 800
-        flyBodyPosition.Position = Vector3.new(hrp.Position.X, flyHeight, hrp.Position.Z)
-        flyBodyPosition.Parent = hrp
-        
-        -- BodyVelocity - handle gerakan horizontal (X dan Z)
-        flyBodyVelocity = Instance.new("BodyVelocity")
-        flyBodyVelocity.MaxForce = Vector3.new(9e9, 0, 9e9)
-        flyBodyVelocity.P = 3000
-        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        flyBodyVelocity.Parent = hrp
-        
-        -- BodyGyro - stabilitas rotasi
-        flyBodyGyro = Instance.new("BodyGyro")
-        flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-        flyBodyGyro.P = 5000
-        flyBodyGyro.D = 500
-        flyBodyGyro.CFrame = hrp.CFrame
-        flyBodyGyro.Parent = hrp
-        
-        -- Loop
+        -- Loop untuk menjaga ketinggian
         flyConnection = RunService.Heartbeat:Connect(function()
             if not flyActive then
                 if flyConnection then
@@ -643,33 +643,46 @@ local function ToggleFly(state)
             if not char2 then return end
             
             local hrp2 = char2:FindFirstChild("HumanoidRootPart")
-            if hrp2 then
-                if flyBodyPosition then
-                    flyBodyPosition.Position = Vector3.new(hrp2.Position.X, flyHeight, hrp2.Position.Z)
-                end
-                if flyBodyGyro then
-                    flyBodyGyro.CFrame = hrp2.CFrame
+            local hum2 = char2:FindFirstChildOfClass("Humanoid")
+            
+            if hrp2 and hum2 then
+                -- Pertahankan ketinggian (KE ATAS)
+                local currentPos = hrp2.Position
+                local targetY = flyHeight
+                
+                -- Jika terlalu rendah, naikkan
+                if currentPos.Y < targetY - 0.5 then
+                    hrp2.CFrame = CFrame.new(Vector3.new(currentPos.X, targetY, currentPos.Z))
                 end
                 
-                -- Noclip
+                -- Jika terlalu tinggi, turunkan
+                if currentPos.Y > targetY + 0.5 then
+                    hrp2.CFrame = CFrame.new(Vector3.new(currentPos.X, targetY, currentPos.Z))
+                end
+                
+                -- Noclip saat terbang
                 for _, part in pairs(char2:GetDescendants()) do
                     if part:IsA("BasePart") then
                         part.CanCollide = false
                     end
                 end
+                
+                -- Update gyro
+                if flyBodyGyro then
+                    flyBodyGyro.CFrame = hrp2.CFrame
+                end
             end
         end)
         
-        -- Naik ke ketinggian
-        hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, flyHeight, hrp.Position.Z))
-        
-        notify("✈️ FLY ON - " .. flyHeight .. "m", 3)
+        notify("✈️ FLY ON - Ketinggian: " .. flyHeight .. "m", 3)
     else
+        -- Matikan fly
         if flyConnection then
             flyConnection:Disconnect()
             flyConnection = nil
         end
         
+        -- Hapus BodyVelocity & BodyGyro
         if flyBodyVelocity then
             flyBodyVelocity:Destroy()
             flyBodyVelocity = nil
@@ -677,10 +690,6 @@ local function ToggleFly(state)
         if flyBodyGyro then
             flyBodyGyro:Destroy()
             flyBodyGyro = nil
-        end
-        if flyBodyPosition then
-            flyBodyPosition:Destroy()
-            flyBodyPosition = nil
         end
         
         local char = LocalPlayer.Character
@@ -691,6 +700,7 @@ local function ToggleFly(state)
                 hum.AutoRotate = true
             end
             
+            -- Turun ke tanah (JATUH)
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local ray = Ray.new(hrp.Position, Vector3.new(0, -200, 0))
@@ -702,7 +712,7 @@ local function ToggleFly(state)
                 end
             end
         end
-        notify("✈️ FLY OFF", 2)
+        notify("✈️ FLY OFF - Mendarat...", 2)
     end
 end
 
@@ -746,6 +756,8 @@ local function runEvery(interval, fn)
         end
     end)
 end
+
+local Connections = {}
 
 local function fireproximityprompt(Obj, Amount, Skip)
     if Obj.ClassName == "ProximityPrompt" then 
@@ -912,79 +924,33 @@ local GuestSettingsTriggerAnims = {
     "81639435858902", "137314737492715", "92173139187970", "106847695270773"
 }
 
--- ===================== ===================================== =====================
--- ===================== FLUENT UI (FIXED - PASTI MUNCUL) =====================
--- ===================== ===================================== =====================
-
+-- ===================== FLUENT UI =====================
 local FluentLoaded = false
-local Fluent = nil
-
--- COBA LOAD FLUENT
-local success, result = pcall(function()
+local success, Fluent = pcall(function()
     return loadstring(game:HttpGet('https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua'))()
 end)
-
-if success and result then
-    Fluent = result
+if success and Fluent then
     FluentLoaded = true
-    print("[LYNZKA] ✅ Fluent loaded successfully!")
 else
-    FluentLoaded = false
-    warn("[LYNZKA] ❌ Fluent failed to load!")
+    warn("Fluent failed to load.")
 end
 
-local SaveManager = nil
-local InterfaceManager = nil
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
-if FluentLoaded and Fluent then
-    pcall(function()
-        SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-        InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-    end)
-end
+local Window, Tabs = nil, nil
 
-local Window = nil
-local Tabs = {}
+-- ===================== BUILD FLUENT UI =====================
+if FluentLoaded then
+    Window = Fluent:CreateWindow({
+        Title = "LYNZKA HUB",
+        SubTitle = "v3.6 - Shadow Style Perfect",
+        TabWidth = 160,
+        Size = UDim2.fromOffset(580, 460),
+        Theme = "Dark",
+        MinimizeKeyBind = nil
+    })
 
--- ===================== CREATE FLUENT WINDOW =====================
-if FluentLoaded and Fluent then
-    -- Tunggu 1 detik agar stabil
-    task.wait(1)
-    
-    pcall(function()
-        Window = Fluent:CreateWindow({
-            Title = "LYNZKA HUB",
-            SubTitle = "v3.6 - Shadow Style Perfect",
-            TabWidth = 160,
-            Size = UDim2.fromOffset(580, 460),
-            Theme = "Dark",
-            MinimizeKeyBind = nil
-        })
-    end)
-    
-    if Window and Window.Root then
-        print("[LYNZKA] ✅ Window created successfully!")
-    else
-        warn("[LYNZKA] ❌ Failed to create Window!")
-        -- Buat notifikasi error
-        local errNotif = Instance.new("TextLabel")
-        errNotif.Size = UDim2.new(0, 400, 0, 50)
-        errNotif.Position = UDim2.new(0.5, -200, 0.5, -25)
-        errNotif.BackgroundColor3 = Color3.fromRGB(30, 20, 20)
-        errNotif.BackgroundTransparency = 0
-        errNotif.TextColor3 = Color3.fromRGB(255, 100, 100)
-        errNotif.Font = Enum.Font.GothamBold
-        errNotif.TextSize = 16
-        errNotif.Text = "❌ Gagal membuat menu! Coba jalankan ulang."
-        errNotif.Parent = CoreGui
-        Instance.new("UICorner", errNotif).CornerRadius = UDim.new(0, 8)
-        task.delay(5, function() errNotif:Destroy() end)
-    end
-end
-
--- ===================== BUILD UI (HANYA JIKA WINDOW BERHASIL) =====================
-if Window and Window.Root then
-    
     Tabs = {
         Player = Window:AddTab({ Title = "Player", Icon = "lucide-circle-user" }),
         Game = Window:AddTab({ Title = "Game", Icon = "lucide-gamepad-2" }),
@@ -998,19 +964,14 @@ if Window and Window.Root then
         Settings = Window:AddTab({ Title = "Settings", Icon = "lucide-settings" })
     }
 
-    -- Save Manager
-    if SaveManager and InterfaceManager then
-        pcall(function()
-            SaveManager:SetLibrary(Fluent)
-            InterfaceManager:SetLibrary(Fluent)
-            SaveManager:IgnoreThemeSettings()
-            SaveManager:SetIgnoreIndexes({})
-            InterfaceManager:SetFolder("LYNZKAHub")
-            SaveManager:SetFolder("LYNZKAHub/Configs")
-            InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-            SaveManager:BuildConfigSection(Tabs.Settings)
-        end)
-    end
+    SaveManager:SetLibrary(Fluent)
+    InterfaceManager:SetLibrary(Fluent)
+    SaveManager:IgnoreThemeSettings()
+    SaveManager:SetIgnoreIndexes({})
+    InterfaceManager:SetFolder("LYNZKAHub")
+    SaveManager:SetFolder("LYNZKAHub/Configs")
+    InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+    SaveManager:BuildConfigSection(Tabs.Settings)
 
     -- ===================== PLAYER TAB =====================
     
@@ -1034,10 +995,10 @@ if Window and Window.Root then
         end
     })
 
-    -- SPEED HACK VALUE
+    -- SPEED HACK VALUE (SLIDER DENGAN -/+ YANG MUDAH DIGESER)
     Tabs.Player:AddSlider("SpeedHackValue", {
         Title = "Speed Hack Value",
-        Description = "Atur kecepatan (1x - 20x)",
+        Description = "Atur kecepatan (1x - 20x) - Geser atau klik +/-",
         Default = 5,
         Min = 1,
         Max = 20,
@@ -1070,7 +1031,7 @@ if Window and Window.Root then
         end
     })
 
-    -- FLY HEIGHT
+    -- FLY HEIGHT (SEPERTI DROPDOWN HITBOX MODE)
     local flyHeightOptions = {}
     for i = 1, 30 do
         table.insert(flyHeightOptions, tostring(i) .. "m")
@@ -1091,6 +1052,7 @@ if Window and Window.Root then
                     local char = LocalPlayer.Character
                     if char and char:FindFirstChild("HumanoidRootPart") then
                         local hrp = char.HumanoidRootPart
+                        -- Naikkan ke ketinggian baru (KE ATAS!)
                         hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, height, hrp.Position.Z))
                     end
                 end
@@ -1707,10 +1669,10 @@ if Window and Window.Root then
     notify("🔥 LYNZKA HUB v3.6 Loaded!", 4)
 
     hubLoaded = true
-    print("[LYNZKA] ✅ Hub loaded successfully!")
 end
 
 -- ===================== AUTO REJOIN =====================
+local toggles = { AutoRejoinOnKick = true }
 if toggles.AutoRejoinOnKick and not Connections.AutoRejoin then
     Connections.AutoRejoin = GuiService.ErrorMessageChanged:Connect(function(msg)
         if msg and msg ~= "" then
@@ -1749,19 +1711,17 @@ end)
 -- ===================== ===================================== =====================
 
 task.spawn(function()
-    -- Tunggu Fluent dan Window benar-benar siap
+    -- Tunggu Fluent siap
     local waitCount = 0
-    while not Window or not Window.Root and waitCount < 100 do
+    while not Window or not Window.Root and waitCount < 50 do
         task.wait(0.2)
         waitCount = waitCount + 1
     end
     
     if not Window or not Window.Root then
-        print("[LYNZKA] ❌ Window.Root tidak ditemukan! Tombol tidak dibuat.")
+        print("[LYNZKA] Gagal menemukan Window.Root!")
         return
     end
-    
-    print("[LYNZKA] ✅ Window.Root ditemukan! Membuat tombol...")
     
     -- Hapus tombol lama
     local oldGui = CoreGui:FindFirstChild("LYNZKAToggleGui")
@@ -1855,11 +1815,11 @@ task.spawn(function()
         
         -- Toggle Fluent GUI
         pcall(function()
+            local fluentGui = Window.Root.Parent
+            if fluentGui and fluentGui:IsA("ScreenGui") then
+                fluentGui.Enabled = menuVisible
+            end
             if Window and Window.Root then
-                local fluentGui = Window.Root.Parent
-                if fluentGui and fluentGui:IsA("ScreenGui") then
-                    fluentGui.Enabled = menuVisible
-                end
                 Window.Root.Visible = menuVisible
             end
         end)
