@@ -1,1122 +1,1292 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║   🌱 GARDEN SPAWNER v8.0 ULTIMATE      ║
-    ║   ENGLISH VERSION - PERMANENT          ║
-    ║   FIXED: Only 1 item selected          ║
-    ║   FIXED: Rarity at TOP                 ║
-    ║   FIXED: 100% AGGRESSIVE SPAWN        ║
-    ║   Pet | Plants | Settings             ║
+    ║   🌱 GAG1 HUB v5.0 - Full Cheat        ║
+    ║   + Pilih Benih Kustom                 ║
     ╚══════════════════════════════════════════╝
 ]]
+
+-- ===================== LOADER =====================
+local hubLoader = [[
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ALET-BUILDER/Lynzka/main/Lynzka.lua"))()
+]]
+
+if queue_on_teleport then
+    queue_on_teleport(hubLoader)
+elseif syn and syn.queue_on_teleport then
+    syn.queue_on_teleport(hubLoader)
+end
 
 -- ===================== SERVICES =====================
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local TeleportService = game:GetService("TeleportService")
 local GuiService = game:GetService("GuiService")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local TextChatService = game:GetService("TextChatService")
+local Lighting = game:GetService("Lighting")
+local Camera = workspace.CurrentCamera
 
--- ===================== DATA (ENGLISH) =====================
-local PETS = {
-    Common = {"Rabbit", "Dog", "Golden Lab", "Starfish", "Crab", "Seagull", "Robin"},
-    Uncommon = {"Black Rabbit", "Cat", "Chicken", "Deer", "Bee", "Shiba Inu"},
-    Rare = {"Orange Cat", "Spotted Deer", "Pig", "Rooster", "Monkey", "Flamingo", "Toucan", "Sea Turtle", "Orangutan", "Sea Dog", "Hedgehog", "Kiwi"},
-    Legendary = {"Cow", "Silver Monkey", "Polar Bear", "Sea Otter", "Turtle", "Panda", "Frog", "Moon Cat", "Blood Owl"},
-    Mythical = {"Gray Rat", "Brown Rat", "Squirrel", "Red Giant Ant", "Red Fox", "Caterpillar", "Snail", "Echo Frog", "Zombie Chicken", "Bear Bee", "Butterfly", "Golem"},
-    Divine = {"Dragonfly", "Night Owl", "Raccoon", "Queen Bee", "Disco Bee", "T-Rex", "Spinosaurus", "French Fry Ferret", "Lobster Thermidor", "Golden Swan"},
-    Prismatic = {"Kitsune", "Corrupted Kitsune", "Burning Bud", "Ember Lily", "Bone Blossom"}
-}
+-- ===================== VARIABLES =====================
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
-local PLANTS = {
-    Common = {"Carrot", "Strawberry", "Artichoke", "Orange Tulip", "Rose"},
-    Uncommon = {"Lavender", "Daffodil", "Blueberry", "Banana"},
-    Rare = {"Bee Balm", "Dandelion", "Peace Lily", "Cactus", "Avocado"},
-    Legendary = {"Lilac", "Moonflower", "Broccoli", "Rafflesia", "Dragon Fruit", "Bamboo", "Mango"},
-    Mythical = {"Purple Dahlia", "Pink Lily", "Briar Rose", "Lily of the Valley", "Pineapple", "Durian", "Papaya"},
-    Divine = {"Sunflower", "Cherry Blossom", "Lotus", "Moon Blossom", "Cherry"},
-    Prismatic = {"Burning Bud", "Ember Lily", "Bone Blossom"}
-}
+-- ===================== NOCLIP AUTO ON =====================
+local noclipConnection = nil
+
+local function StartNoclip()
+    if noclipConnection then 
+        noclipConnection:Disconnect() 
+        noclipConnection = nil 
+    end
+    
+    noclipConnection = RunService.Heartbeat:Connect(function()
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    end)
+end
+
+StartNoclip()
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    StartNoclip()
+end)
 
 -- ===================== NOTIFICATION =====================
 local function notify(text, duration)
     duration = duration or 3
     pcall(function()
-        local notification = Instance.new("TextLabel")
-        notification.Size = UDim2.new(0, 450, 0, 45)
-        notification.Position = UDim2.new(0.5, -225, 1, -55)
-        notification.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-        notification.BackgroundTransparency = 0
-        notification.TextColor3 = Color3.fromRGB(100, 255, 150)
-        notification.Font = Enum.Font.GothamBold
-        notification.TextSize = 14
-        notification.Text = "🌱 " .. text
-        notification.Parent = CoreGui
-        Instance.new("UICorner", notification).CornerRadius = UDim.new(0, 8)
-        TweenService:Create(notification, TweenInfo.new(0.5), {
-            Position = UDim2.new(0.5, -225, 1, -65)
-        }):Play()
-        task.delay(duration, function()
-            pcall(function()
-                TweenService:Create(notification, TweenInfo.new(0.4), {
-                    Position = UDim2.new(0.5, -225, 1, 10)
-                }):Play()
-                task.delay(0.5, function() pcall(function() notification:Destroy() end) end)
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "🌱 GAG1 HUB",
+                Content = text,
+                Duration = duration
+            })
+        else
+            local notification = Instance.new("TextLabel")
+            notification.Size = UDim2.new(0, 350, 0, 40)
+            notification.Position = UDim2.new(0.5, -175, 1, -50)
+            notification.BackgroundColor3 = Color3.fromRGB(20, 35, 20)
+            notification.BackgroundTransparency = 0
+            notification.TextColor3 = Color3.fromRGB(100, 255, 150)
+            notification.Font = Enum.Font.GothamBold
+            notification.TextSize = 14
+            notification.Text = "🌱 GAG1: " .. text
+            notification.Parent = game.CoreGui
+            Instance.new("UICorner", notification).CornerRadius = UDim.new(0, 8)
+            TweenService:Create(notification, TweenInfo.new(0.5), {
+                Position = UDim2.new(0.5, -175, 1, -60)
+            }):Play()
+            task.delay(duration, function()
+                pcall(function()
+                    TweenService:Create(notification, TweenInfo.new(0.4), {
+                        Position = UDim2.new(0.5, -175, 1, 10)
+                    }):Play()
+                    task.delay(0.5, function() pcall(function() notification:Destroy() end) end)
+                end)
             end)
+        end
+    end)
+end
+
+-- ===================== DAFTAR BENIH GAG1 =====================
+-- Ini daftar benih yang umum ada di Grow A Garden 1
+local seedList = {
+    "Wheat Seed",
+    "Carrot Seed",
+    "Tomato Seed",
+    "Corn Seed",
+    "Pumpkin Seed",
+    "Sunflower Seed",
+    "Rose Seed",
+    "Tulip Seed",
+    "Cactus Seed",
+    "Watermelon Seed",
+    "Strawberry Seed",
+    "Blueberry Seed",
+    "Apple Seed",
+    "Orange Seed",
+    "Lemon Seed",
+    "Grape Seed",
+    "Banana Seed",
+    "Mango Seed",
+    "Peach Seed",
+    "Pear Seed",
+    "Plum Seed",
+    "Cherry Seed",
+    "Coconut Seed",
+    "Pineapple Seed",
+    "Avocado Seed",
+    "Potato Seed",
+    "Onion Seed",
+    "Garlic Seed",
+    "Pepper Seed",
+    "Chili Seed"
+}
+
+-- Benih yang dipilih (default: Wheat Seed)
+local selectedSeed = "Wheat Seed"
+local autoBuySeeds = false
+local buyLoop = nil
+
+-- ===================== AUTO BUY SEEDS DENGAN PILIHAN =====================
+local function StartBuySeeds()
+    if buyLoop then task.cancel(buyLoop) end
+    buyLoop = task.spawn(function()
+        while autoBuySeeds do
+            pcall(function()
+                local shop = workspace:FindFirstChild("Shop") or ReplicatedStorage:FindFirstChild("Shop") or workspace:FindFirstChild("Store") or workspace:FindFirstChild("Market")
+                
+                if shop then
+                    for _, item in pairs(shop:GetChildren()) do
+                        -- Cari item yang sesuai dengan benih yang dipilih
+                        if item:IsA("Model") or item:IsA("Folder") or item:IsA("Frame") then
+                            local seedName = item.Name
+                            local isMatch = false
+                            
+                            -- Cek apakah nama item cocok dengan benih yang dipilih
+                            if seedName:lower():find(selectedSeed:lower()) then
+                                isMatch = true
+                            end
+                            
+                            -- Cek juga di child "Seed" atau "Name"
+                            local seedChild = item:FindFirstChild("Seed") or item:FindFirstChild("Name") or item:FindFirstChild("ItemName")
+                            if seedChild and seedChild:IsA("StringValue") then
+                                if seedChild.Value:lower():find(selectedSeed:lower()) then
+                                    isMatch = true
+                                end
+                            end
+                            
+                            if isMatch then
+                                local buyBtn = item:FindFirstChild("BuyButton") or item:FindFirstChild("Buy") or item:FindFirstChild("Purchase") or item:FindFirstChild("BuySeed")
+                                if buyBtn and buyBtn:IsA("TextButton") then
+                                    buyBtn:FireServer()
+                                    notify("🛒 Membeli: " .. selectedSeed, 1)
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                -- Alternative: cari di ReplicatedStorage
+                local buyRemote = ReplicatedStorage:FindFirstChild("BuySeed") or ReplicatedStorage:FindFirstChild("Purchase") or ReplicatedStorage:FindFirstChild("Shop")
+                if buyRemote then
+                    buyRemote:FireServer(selectedSeed)
+                    notify("🛒 Membeli: " .. selectedSeed, 1)
+                end
+                
+                -- Alternative: cari di PlayerGui (Shop GUI)
+                local shopGui = PlayerGui:FindFirstChild("Shop") or PlayerGui:FindFirstChild("Store") or PlayerGui:FindFirstChild("Market")
+                if shopGui then
+                    for _, btn in pairs(shopGui:GetDescendants()) do
+                        if btn:IsA("TextButton") and (btn.Name:lower():find("buy") or btn.Name:lower():find("purchase")) then
+                            local parentName = btn.Parent and btn.Parent.Name or ""
+                            if parentName:lower():find(selectedSeed:lower()) or (btn.Text and btn.Text:lower():find(selectedSeed:lower())) then
+                                btn:FireServer()
+                                notify("🛒 Membeli: " .. selectedSeed, 1)
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+-- ===================== CHEAT FUNCTIONS LAINNYA =====================
+
+-- 1. AUTO FARM (Plant, Harvest, Water)
+local autoPlant = false
+local autoHarvest = false
+local autoWater = false
+local farmLoop = nil
+
+local function StartFarm()
+    if farmLoop then task.cancel(farmLoop) end
+    farmLoop = task.spawn(function()
+        while autoPlant or autoHarvest or autoWater do
+            pcall(function()
+                local garden = Workspace:FindFirstChild("Garden") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("Plots") or Workspace:FindFirstChild("Farm")
+                if garden then
+                    for _, plot in pairs(garden:GetChildren()) do
+                        if plot:IsA("Model") or plot:IsA("Folder") then
+                            if autoHarvest then
+                                local plant = plot:FindFirstChild("Plant") or plot:FindFirstChild("Crop") or plot:FindFirstChild("Growing")
+                                if plant then
+                                    local ready = plant:FindFirstChild("Ready") or plant:FindFirstChild("Harvestable") or plant:FindFirstChild("Grown")
+                                    if ready and ready.Value == true then
+                                        local prompt = plot:FindFirstChildOfClass("ProximityPrompt")
+                                        if prompt then
+                                            prompt:InputHoldBegin()
+                                            task.wait(prompt.HoldDuration or 1)
+                                            prompt:InputHoldEnd()
+                                        end
+                                    end
+                                end
+                            end
+                            if autoWater then
+                                local plant = plot:FindFirstChild("Plant") or plot:FindFirstChild("Crop")
+                                if plant then
+                                    local water = plant:FindFirstChild("Water") or plant:FindFirstChild("Hydration") or plant:FindFirstChild("Moisture")
+                                    if water and water.Value < 100 then
+                                        local prompt = plot:FindFirstChild("WaterPrompt") or plot:FindFirstChild("Water") or plot:FindFirstChild("Watering")
+                                        if prompt and prompt:IsA("ProximityPrompt") then
+                                            prompt:InputHoldBegin()
+                                            task.wait(prompt.HoldDuration or 1)
+                                            prompt:InputHoldEnd()
+                                        end
+                                    end
+                                end
+                            end
+                            if autoPlant then
+                                local empty = plot:FindFirstChild("IsEmpty") or plot:FindFirstChild("Empty") or plot:FindFirstChild("Available")
+                                if empty and empty.Value == true then
+                                    local seed = LocalPlayer.Backpack:FindFirstChild("Seed") or LocalPlayer.Character:FindFirstChild("Seed") or LocalPlayer.Backpack:FindFirstChild("Seeds")
+                                    if seed then
+                                        local prompt = plot:FindFirstChildOfClass("ProximityPrompt")
+                                        if prompt then
+                                            prompt:InputHoldBegin()
+                                            task.wait(prompt.HoldDuration or 1)
+                                            prompt:InputHoldEnd()
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+-- 2. AUTO SELL
+local autoSell = false
+local sellLoop = nil
+
+local function StartSell()
+    if sellLoop then task.cancel(sellLoop) end
+    sellLoop = task.spawn(function()
+        while autoSell do
+            pcall(function()
+                local inventory = LocalPlayer:FindFirstChild("Inventory") or PlayerGui:FindFirstChild("Inventory")
+                if inventory then
+                    for _, item in pairs(inventory:GetChildren()) do
+                        if item:IsA("Frame") or item:IsA("ImageLabel") or item:IsA("TextButton") then
+                            local sellBtn = item:FindFirstChild("SellButton") or item:FindFirstChild("Sell") or item:FindFirstChild("SellAll")
+                            if sellBtn and sellBtn:IsA("TextButton") then
+                                sellBtn:FireServer()
+                            end
+                        end
+                    end
+                end
+                local sellRemote = ReplicatedStorage:FindFirstChild("SellItem") or ReplicatedStorage:FindFirstChild("Sell") or ReplicatedStorage:FindFirstChild("SellAll")
+                if sellRemote then
+                    sellRemote:FireServer()
+                end
+            end)
+            task.wait(1.5)
+        end
+    end)
+end
+
+-- 3. AUTO COLLECT GEMS
+local autoCollectGems = false
+local gemLoop = nil
+
+local function StartCollectGems()
+    if gemLoop then task.cancel(gemLoop) end
+    gemLoop = task.spawn(function()
+        while autoCollectGems do
+            pcall(function()
+                local gems = workspace:FindFirstChild("Gems") or workspace:FindFirstChild("Collectibles") or workspace:FindFirstChild("Resources") or workspace:FindFirstChild("Currency")
+                if gems then
+                    for _, gem in pairs(gems:GetChildren()) do
+                        if gem:IsA("Model") or gem:IsA("BasePart") or gem:IsA("Folder") then
+                            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                            if hrp then
+                                local gemPos = gem:FindFirstChild("Position") or gem:FindFirstChild("CFrame")
+                                if gemPos then
+                                    local dist = (hrp.Position - gemPos.Position).Magnitude
+                                    if dist < 30 then
+                                        local prompt = gem:FindFirstChildOfClass("ProximityPrompt")
+                                        if prompt then
+                                            prompt:InputHoldBegin()
+                                            task.wait(prompt.HoldDuration or 0.5)
+                                            prompt:InputHoldEnd()
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+-- 4. AUTO FERTILIZE
+local autoFertilize = false
+local fertilizeLoop = nil
+
+local function StartFertilize()
+    if fertilizeLoop then task.cancel(fertilizeLoop) end
+    fertilizeLoop = task.spawn(function()
+        while autoFertilize do
+            pcall(function()
+                local garden = Workspace:FindFirstChild("Garden") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("Farm")
+                if garden then
+                    for _, plot in pairs(garden:GetChildren()) do
+                        if plot:IsA("Model") and plot:FindFirstChild("Plant") then
+                            local plant = plot.Plant
+                            local fertilize = plant:FindFirstChild("Fertilize") or plant:FindFirstChild("Fertilizer") or plant:FindFirstChild("NeedsFertilizer")
+                            if fertilize and fertilize.Value == true then
+                                local prompt = plot:FindFirstChild("FertilizePrompt") or plot:FindFirstChild("Fertilizer") or plot:FindFirstChild("Fertilize")
+                                if prompt and prompt:IsA("ProximityPrompt") then
+                                    prompt:InputHoldBegin()
+                                    task.wait(prompt.HoldDuration or 1)
+                                    prompt:InputHoldEnd()
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+-- 5. AUTO PET COLLECT
+local autoPetCollect = false
+local petLoop = nil
+
+local function StartPetCollect()
+    if petLoop then task.cancel(petLoop) end
+    petLoop = task.spawn(function()
+        while autoPetCollect do
+            pcall(function()
+                local pets = workspace:FindFirstChild("Pets") or workspace:FindFirstChild("Pet") or workspace:FindFirstChild("Animals") or workspace:FindFirstChild("Creatures")
+                if pets then
+                    for _, pet in pairs(pets:GetChildren()) do
+                        if pet:IsA("Model") then
+                            local prompt = pet:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                prompt:InputHoldBegin()
+                                task.wait(prompt.HoldDuration or 0.5)
+                                prompt:InputHoldEnd()
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(1.5)
+        end
+    end)
+end
+
+-- 6. AUTO EGG HATCH
+local autoEggHatch = false
+local hatchLoop = nil
+
+local function StartEggHatch()
+    if hatchLoop then task.cancel(hatchLoop) end
+    hatchLoop = task.spawn(function()
+        while autoEggHatch do
+            pcall(function()
+                local eggs = LocalPlayer.Backpack:FindFirstChild("Eggs") or LocalPlayer.Character:FindFirstChild("Egg") or LocalPlayer.Backpack:FindFirstChild("Egg")
+                if eggs then
+                    for _, egg in pairs(eggs:GetChildren()) do
+                        if egg:IsA("Tool") or egg:IsA("Model") then
+                            local hatchBtn = egg:FindFirstChild("Hatch") or egg:FindFirstChild("Incubate") or egg:FindFirstChild("Open")
+                            if hatchBtn and hatchBtn:IsA("TextButton") then
+                                hatchBtn:FireServer()
+                            end
+                        end
+                    end
+                end
+                local hatchRemote = ReplicatedStorage:FindFirstChild("HatchEgg") or ReplicatedStorage:FindFirstChild("Incubate") or ReplicatedStorage:FindFirstChild("OpenEgg")
+                if hatchRemote then
+                    hatchRemote:FireServer()
+                end
+            end)
+            task.wait(3)
+        end
+    end)
+end
+
+-- 7. AUTO TRADE
+local autoTrade = false
+local tradeLoop = nil
+
+local function StartTrade()
+    if tradeLoop then task.cancel(tradeLoop) end
+    tradeLoop = task.spawn(function()
+        while autoTrade do
+            pcall(function()
+                local tradeSystem = ReplicatedStorage:FindFirstChild("TradeSystem") or ReplicatedStorage:FindFirstChild("Trading") or ReplicatedStorage:FindFirstChild("Trade")
+                if tradeSystem then
+                    tradeSystem:FireServer("RequestTrade")
+                end
+            end)
+            task.wait(5)
+        end
+    end)
+end
+
+-- 8. AUTO QUEST
+local autoQuest = false
+local questLoop = nil
+
+local function StartQuest()
+    if questLoop then task.cancel(questLoop) end
+    questLoop = task.spawn(function()
+        while autoQuest do
+            pcall(function()
+                local questSystem = ReplicatedStorage:FindFirstChild("QuestSystem") or ReplicatedStorage:FindFirstChild("Quests") or ReplicatedStorage:FindFirstChild("Quest")
+                if questSystem then
+                    questSystem:FireServer("AcceptQuest")
+                    task.wait(1)
+                    questSystem:FireServer("CompleteQuest")
+                    task.wait(1)
+                    questSystem:FireServer("ClaimReward")
+                end
+            end)
+            task.wait(10)
+        end
+    end)
+end
+
+-- 9. AUTO SPIN
+local autoSpin = false
+local spinLoop = nil
+
+local function StartSpin()
+    if spinLoop then task.cancel(spinLoop) end
+    spinLoop = task.spawn(function()
+        while autoSpin do
+            pcall(function()
+                local spinSystem = workspace:FindFirstChild("SpinWheel") or workspace:FindFirstChild("Wheel") or ReplicatedStorage:FindFirstChild("Spin")
+                if spinSystem then
+                    local spinBtn = spinSystem:FindFirstChild("SpinButton") or spinSystem:FindFirstChild("Spin") or spinSystem:FindFirstChild("Start")
+                    if spinBtn and spinBtn:IsA("TextButton") then
+                        spinBtn:FireServer()
+                    end
+                end
+                local spinRemote = ReplicatedStorage:FindFirstChild("SpinWheel") or ReplicatedStorage:FindFirstChild("LuckySpin")
+                if spinRemote then
+                    spinRemote:FireServer()
+                end
+            end)
+            task.wait(5)
+        end
+    end)
+end
+
+-- 10. AUTO CLAIM REWARDS
+local autoClaim = false
+local claimLoop = nil
+
+local function StartClaim()
+    if claimLoop then task.cancel(claimLoop) end
+    claimLoop = task.spawn(function()
+        while autoClaim do
+            pcall(function()
+                local rewards = PlayerGui:FindFirstChild("Rewards") or PlayerGui:FindFirstChild("DailyRewards") or PlayerGui:FindFirstChild("Claim")
+                if rewards then
+                    for _, btn in pairs(rewards:GetChildren()) do
+                        if btn:IsA("TextButton") and (btn.Name:lower():find("claim") or btn.Name:lower():find("collect") or btn.Name:lower():find("reward")) then
+                            btn:FireServer()
+                        end
+                    end
+                end
+                local claimRemote = ReplicatedStorage:FindFirstChild("ClaimReward") or ReplicatedStorage:FindFirstChild("DailyReward")
+                if claimRemote then
+                    claimRemote:FireServer()
+                end
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+-- 11. AUTO TREASURE / CHEST
+local autoTreasure = false
+local treasureLoop = nil
+
+local function StartTreasure()
+    if treasureLoop then task.cancel(treasureLoop) end
+    treasureLoop = task.spawn(function()
+        while autoTreasure do
+            pcall(function()
+                local treasures = workspace:FindFirstChild("Treasures") or workspace:FindFirstChild("Chests") or workspace:FindFirstChild("Loot")
+                if treasures then
+                    for _, chest in pairs(treasures:GetChildren()) do
+                        if chest:IsA("Model") or chest:IsA("BasePart") then
+                            local prompt = chest:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                prompt:InputHoldBegin()
+                                task.wait(prompt.HoldDuration or 1)
+                                prompt:InputHoldEnd()
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+-- 12. AUTO FISHING
+local autoFish = false
+local fishLoop = nil
+
+local function StartFish()
+    if fishLoop then task.cancel(fishLoop) end
+    fishLoop = task.spawn(function()
+        while autoFish do
+            pcall(function()
+                local fishing = workspace:FindFirstChild("Fishing") or workspace:FindFirstChild("Fish") or workspace:FindFirstChild("FishingSpot")
+                if fishing then
+                    local prompt = fishing:FindFirstChildOfClass("ProximityPrompt")
+                    if prompt then
+                        prompt:InputHoldBegin()
+                        task.wait(prompt.HoldDuration or 2)
+                        prompt:InputHoldEnd()
+                    end
+                end
+                local fishRemote = ReplicatedStorage:FindFirstChild("Fish") or ReplicatedStorage:FindFirstChild("CatchFish")
+                if fishRemote then
+                    fishRemote:FireServer()
+                end
+            end)
+            task.wait(3)
+        end
+    end)
+end
+
+-- 13. AUTO MINING
+local autoMine = false
+local mineLoop = nil
+
+local function StartMine()
+    if mineLoop then task.cancel(mineLoop) end
+    mineLoop = task.spawn(function()
+        while autoMine do
+            pcall(function()
+                local mines = workspace:FindFirstChild("Mines") or workspace:FindFirstChild("Mining") or workspace:FindFirstChild("Ores")
+                if mines then
+                    for _, rock in pairs(mines:GetChildren()) do
+                        if rock:IsA("Model") or rock:IsA("BasePart") then
+                            local prompt = rock:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                prompt:InputHoldBegin()
+                                task.wait(prompt.HoldDuration or 2)
+                                prompt:InputHoldEnd()
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+-- 14. AUTO CRAFTING
+local autoCraft = false
+local craftLoop = nil
+
+local function StartCraft()
+    if craftLoop then task.cancel(craftLoop) end
+    craftLoop = task.spawn(function()
+        while autoCraft do
+            pcall(function()
+                local craftSystem = ReplicatedStorage:FindFirstChild("CraftSystem") or ReplicatedStorage:FindFirstChild("Crafting") or ReplicatedStorage:FindFirstChild("Craft")
+                if craftSystem then
+                    craftSystem:FireServer("Craft")
+                end
+            end)
+            task.wait(5)
+        end
+    end)
+end
+
+-- 15. AUTO COOKING
+local autoCook = false
+local cookLoop = nil
+
+local function StartCook()
+    if cookLoop then task.cancel(cookLoop) end
+    cookLoop = task.spawn(function()
+        while autoCook do
+            pcall(function()
+                local cookSystem = ReplicatedStorage:FindFirstChild("CookSystem") or ReplicatedStorage:FindFirstChild("Cooking") or ReplicatedStorage:FindFirstChild("Cook")
+                if cookSystem then
+                    cookSystem:FireServer("Cook")
+                end
+            end)
+            task.wait(5)
+        end
+    end)
+end
+
+-- 16. AUTO BREEDING
+local autoBreed = false
+local breedLoop = nil
+
+local function StartBreed()
+    if breedLoop then task.cancel(breedLoop) end
+    breedLoop = task.spawn(function()
+        while autoBreed do
+            pcall(function()
+                local breedSystem = ReplicatedStorage:FindFirstChild("BreedSystem") or ReplicatedStorage:FindFirstChild("Breeding") or ReplicatedStorage:FindFirstChild("Breed")
+                if breedSystem then
+                    breedSystem:FireServer("Breed")
+                end
+            end)
+            task.wait(10)
+        end
+    end)
+end
+
+-- 17. AUTO BATTLE / COMBAT
+local autoBattle = false
+local battleLoop = nil
+
+local function StartBattle()
+    if battleLoop then task.cancel(battleLoop) end
+    battleLoop = task.spawn(function()
+        while autoBattle do
+            pcall(function()
+                local battleSystem = workspace:FindFirstChild("BattleSystem") or workspace:FindFirstChild("Battle") or workspace:FindFirstChild("Enemies")
+                if battleSystem then
+                    for _, enemy in pairs(battleSystem:GetChildren()) do
+                        if enemy:IsA("Model") then
+                            local prompt = enemy:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                prompt:InputHoldBegin()
+                                task.wait(prompt.HoldDuration or 0.5)
+                                prompt:InputHoldEnd()
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+-- 18. AUTO BOSS
+local autoBoss = false
+local bossLoop = nil
+
+local function StartBoss()
+    if bossLoop then task.cancel(bossLoop) end
+    bossLoop = task.spawn(function()
+        while autoBoss do
+            pcall(function()
+                local bossSystem = workspace:FindFirstChild("BossSystem") or workspace:FindFirstChild("Bosses") or workspace:FindFirstChild("Boss")
+                if bossSystem then
+                    for _, boss in pairs(bossSystem:GetChildren()) do
+                        if boss:IsA("Model") then
+                            local prompt = boss:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                prompt:InputHoldBegin()
+                                task.wait(prompt.HoldDuration or 1)
+                                prompt:InputHoldEnd()
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+-- 19. AUTO DUNGEON
+local autoDungeon = false
+local dungeonLoop = nil
+
+local function StartDungeon()
+    if dungeonLoop then task.cancel(dungeonLoop) end
+    dungeonLoop = task.spawn(function()
+        while autoDungeon do
+            pcall(function()
+                local dungeonSystem = ReplicatedStorage:FindFirstChild("DungeonSystem") or ReplicatedStorage:FindFirstChild("Dungeons") or ReplicatedStorage:FindFirstChild("Dungeon")
+                if dungeonSystem then
+                    dungeonSystem:FireServer("EnterDungeon")
+                end
+            end)
+            task.wait(10)
+        end
+    end)
+end
+
+-- 20. AUTO RAID
+local autoRaid = false
+local raidLoop = nil
+
+local function StartRaid()
+    if raidLoop then task.cancel(raidLoop) end
+    raidLoop = task.spawn(function()
+        while autoRaid do
+            pcall(function()
+                local raidSystem = ReplicatedStorage:FindFirstChild("RaidSystem") or ReplicatedStorage:FindFirstChild("Raids") or ReplicatedStorage:FindFirstChild("Raid")
+                if raidSystem then
+                    raidSystem:FireServer("StartRaid")
+                end
+            end)
+            task.wait(15)
+        end
+    end)
+end
+
+-- 21. AUTO EVENT
+local autoEvent = false
+local eventLoop = nil
+
+local function StartEvent()
+    if eventLoop then task.cancel(eventLoop) end
+    eventLoop = task.spawn(function()
+        while autoEvent do
+            pcall(function()
+                local eventSystem = workspace:FindFirstChild("EventSystem") or workspace:FindFirstChild("Events") or workspace:FindFirstChild("Event")
+                if eventSystem then
+                    for _, event in pairs(eventSystem:GetChildren()) do
+                        if event:IsA("Model") or event:IsA("BasePart") then
+                            local prompt = event:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                prompt:InputHoldBegin()
+                                task.wait(prompt.HoldDuration or 1)
+                                prompt:InputHoldEnd()
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+-- 22. AUTO TELEPORT TO GARDEN
+local autoTeleport = false
+local tpLoop = nil
+
+local function StartTeleport()
+    if tpLoop then task.cancel(tpLoop) end
+    tpLoop = task.spawn(function()
+        while autoTeleport do
+            pcall(function()
+                local garden = Workspace:FindFirstChild("Garden") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("Farm")
+                if garden then
+                    local center = garden:FindFirstChild("Center") or garden:FindFirstChild("Spawn")
+                    if center and center:IsA("BasePart") then
+                        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            hrp.CFrame = center.CFrame + Vector3.new(0, 5, 0)
+                        end
+                    end
+                end
+            end)
+            task.wait(10)
+        end
+    end)
+end
+
+-- 23. AUTO REJOIN
+local autoRejoin = false
+local rejoinConnection = nil
+
+local function ToggleAutoRejoin(state)
+    autoRejoin = state
+    if rejoinConnection then 
+        rejoinConnection:Disconnect() 
+        rejoinConnection = nil 
+    end
+    if state then
+        rejoinConnection = GuiService.ErrorMessageChanged:Connect(function(msg)
+            if msg and msg ~= "" then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+            end
         end)
-    end)
-end
-
--- ===================== CHECK ITEM =====================
-local function itemExists(itemName)
-    local exists = false
-    pcall(function()
-        local inv = LocalPlayer:FindFirstChild("Inventory")
-        if inv then
-            for _, child in ipairs(inv:GetChildren()) do
-                if child.Name == itemName then
-                    exists = true
-                    break
-                end
-            end
-        end
-        if not exists then
-            local bp = LocalPlayer:FindFirstChild("Backpack")
-            if bp then
-                for _, child in ipairs(bp:GetChildren()) do
-                    if child.Name == itemName then
-                        exists = true
-                        break
-                    end
-                end
-            end
-        end
-        if not exists then
-            local data = LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("PlayerData")
-            if data then
-                for _, child in ipairs(data:GetDescendants()) do
-                    if child.Name == itemName then
-                        exists = true
-                        break
-                    end
-                end
-            end
-        end
-    end)
-    return exists
-end
-
--- ===================== AGGRESSIVE SPAWN (PERMANENT) =====================
-local function permanentSpawn(itemName, itemType, isMutated)
-    notify("⏳ SPAWNING " .. itemName .. "...", 2)
-    
-    -- Cek existing
-    if itemExists(itemName) then
-        notify("⚠️ " .. itemName .. " ALREADY EXISTS!", 3)
-        return true
-    end
-    
-    local success = false
-    local usedMethods = {}
-    local attempts = 0
-    local permanentStorage = {}
-    
-    -- ===== PERMANENT STORAGE =====
-    pcall(function()
-        local perm = LocalPlayer:FindFirstChild("PermanentStorage")
-        if not perm then
-            perm = Instance.new("Folder")
-            perm.Name = "PermanentStorage"
-            perm.Parent = LocalPlayer
-        end
-        
-        local item = Instance.new("StringValue")
-        item.Name = itemName
-        item.Value = isMutated and "Mutated" or "Normal"
-        item:SetAttribute("Type", itemType)
-        item:SetAttribute("Mutated", isMutated)
-        item:SetAttribute("Spawned", true)
-        item:SetAttribute("Permanent", true)
-        item.Parent = perm
-        success = true
-        table.insert(usedMethods, "PermanentStorage")
-    end)
-    
-    -- LOOP SAMPAI BERHASIL (MAX 50 ATTEMPTS)
-    while not success and attempts < 50 do
-        attempts = attempts + 1
-        
-        -- METHOD 1: INVENTORY
-        if not success then
-            pcall(function()
-                local inv = LocalPlayer:FindFirstChild("Inventory")
-                if not inv then
-                    inv = Instance.new("Folder")
-                    inv.Name = "Inventory"
-                    inv.Parent = LocalPlayer
-                end
-                local item = Instance.new("StringValue")
-                item.Name = itemName
-                item.Value = isMutated and "Mutated" or "Normal"
-                item.Parent = inv
-                item:SetAttribute("Type", itemType)
-                item:SetAttribute("Mutated", isMutated)
-                item:SetAttribute("Spawned", true)
-                success = true
-                table.insert(usedMethods, "Inventory")
-            end)
-        end
-        
-        -- METHOD 2: BACKPACK
-        if not success then
-            pcall(function()
-                local bp = LocalPlayer:FindFirstChild("Backpack")
-                if bp then
-                    local item = Instance.new("Tool")
-                    item.Name = itemName
-                    item:SetAttribute("Type", itemType)
-                    item:SetAttribute("Mutated", isMutated)
-                    item.Parent = bp
-                    success = true
-                    table.insert(usedMethods, "Backpack")
-                end
-            end)
-        end
-        
-        -- METHOD 3: STARTERPACK
-        if not success then
-            pcall(function()
-                local sp = game:GetService("StarterPack")
-                if sp then
-                    local item = Instance.new("Tool")
-                    item.Name = itemName
-                    item:SetAttribute("Type", itemType)
-                    item:SetAttribute("Mutated", isMutated)
-                    item.Parent = sp
-                    success = true
-                    table.insert(usedMethods, "StarterPack")
-                end
-            end)
-        end
-        
-        -- METHOD 4: PLAYER DATA
-        if not success then
-            pcall(function()
-                local data = LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("PlayerData")
-                if data then
-                    local folder = data:FindFirstChild(itemType .. "s")
-                    if not folder then
-                        folder = Instance.new("Folder")
-                        folder.Name = itemType .. "s"
-                        folder.Parent = data
-                    end
-                    local item = Instance.new("StringValue")
-                    item.Name = itemName
-                    item.Value = isMutated and "Mutated" or "Normal"
-                    item.Parent = folder
-                    success = true
-                    table.insert(usedMethods, "PlayerData")
-                end
-            end)
-        end
-        
-        -- METHOD 5: LEADERSTATS
-        if not success then
-            pcall(function()
-                local ls = LocalPlayer:FindFirstChild("leaderstats")
-                if ls then
-                    local item = Instance.new("NumberValue")
-                    item.Name = itemName
-                    item.Value = 1
-                    item:SetAttribute("Type", itemType)
-                    item:SetAttribute("Mutated", isMutated)
-                    item.Parent = ls
-                    success = true
-                    table.insert(usedMethods, "Leaderstats")
-                end
-            end)
-        end
-        
-        -- METHOD 6: REMOTE EVENTS (ALL)
-        if not success then
-            pcall(function()
-                for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
-                    if child:IsA("RemoteEvent") and not success then
-                        pcall(function()
-                            child:FireServer(itemName, isMutated)
-                            child:FireServer(itemName, isMutated, "inventory")
-                            child:FireServer(itemName, isMutated, LocalPlayer)
-                            child:FireServer(itemName, isMutated, "add")
-                            child:FireServer(itemName, isMutated, "give")
-                            child:FireServer(itemName, isMutated, "spawn")
-                            task.wait(0.05)
-                            success = true
-                            table.insert(usedMethods, "RemoteEvent")
-                        end)
-                    end
-                end
-            end)
-        end
-        
-        -- METHOD 7: REMOTE FUNCTIONS
-        if not success then
-            pcall(function()
-                for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
-                    if child:IsA("RemoteFunction") and not success then
-                        pcall(function()
-                            local result = child:InvokeServer(itemName, isMutated)
-                            if result then 
-                                success = true
-                                table.insert(usedMethods, "RemoteFunction")
-                            end
-                            task.wait(0.05)
-                        end)
-                    end
-                end
-            end)
-        end
-        
-        -- METHOD 8: COMMANDS
-        if not success then
-            pcall(function()
-                for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
-                    if child:IsA("RemoteEvent") and (
-                        child.Name:lower():find("command") or 
-                        child.Name:lower():find("cmd") or 
-                        child.Name:lower():find("admin")
-                    ) and not success then
-                        pcall(function()
-                            child:FireServer("give " .. itemType .. " " .. itemName)
-                            child:FireServer("give " .. itemType .. " " .. itemName .. " 1")
-                            child:FireServer("add " .. itemType .. " " .. itemName)
-                            child:FireServer("spawn " .. itemType .. " " .. itemName)
-                            if isMutated then 
-                                child:FireServer("give " .. itemType .. " " .. itemName .. " mutated")
-                            end
-                            task.wait(0.05)
-                            success = true
-                            table.insert(usedMethods, "Command")
-                        end)
-                    end
-                end
-            end)
-        end
-        
-        -- METHOD 9: WORKSPACE CLONE
-        if not success then
-            pcall(function()
-                for _, model in ipairs(Workspace:GetDescendants()) do
-                    if model:IsA("Model") and model.Name:lower():find(itemName:lower()) and not success then
-                        local clone = model:Clone()
-                        clone.Parent = LocalPlayer
-                        clone.Name = itemName .. (isMutated and "_Mutated" or "")
-                        clone:SetAttribute("Permanent", true)
-                        success = true
-                        table.insert(usedMethods, "WorkspaceClone")
-                        break
-                    end
-                end
-            end)
-        end
-        
-        -- METHOD 10: REPLICATEDSTORAGE CLONE
-        if not success then
-            pcall(function()
-                for _, model in ipairs(ReplicatedStorage:GetDescendants()) do
-                    if model:IsA("Model") and model.Name:lower():find(itemName:lower()) and not success then
-                        local clone = model:Clone()
-                        clone.Parent = LocalPlayer
-                        clone.Name = itemName .. (isMutated and "_Mutated" or "")
-                        clone:SetAttribute("Permanent", true)
-                        success = true
-                        table.insert(usedMethods, "ReplicatedClone")
-                        break
-                    end
-                end
-            end)
-        end
-        
-        -- METHOD 11: PLAYER GUI
-        if not success then
-            pcall(function()
-                local gui = LocalPlayer.PlayerGui:FindFirstChild("InventoryGui") or LocalPlayer.PlayerGui:FindFirstChild("PetGui")
-                if gui then
-                    local btn = gui:FindFirstChild("SpawnButton") or gui:FindFirstChild("AddButton")
-                    if btn and btn:IsA("TextButton") then
-                        btn:FireClick()
-                        success = true
-                        table.insert(usedMethods, "PlayerGui")
-                    end
-                end
-            end)
-        end
-        
-        -- METHOD 12: VIRTUAL INPUT
-        if not success then
-            pcall(function()
-                local vim = game:GetService("VirtualInputManager")
-                if vim then
-                    vim:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-                    vim:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-                    success = true
-                    table.insert(usedMethods, "VirtualInput")
-                end
-            end)
-        end
-        
-        -- METHOD 13: SERVER STORAGE
-        if not success then
-            pcall(function()
-                local ss = game:GetService("ServerStorage")
-                if ss then
-                    local folder = ss:FindFirstChild(itemType .. "s")
-                    if folder then
-                        local item = Instance.new("StringValue")
-                        item.Name = itemName
-                        item.Value = isMutated and "Mutated" or "Normal"
-                        item:SetAttribute("Type", itemType)
-                        item:SetAttribute("Mutated", isMutated)
-                        item.Parent = folder
-                        success = true
-                        table.insert(usedMethods, "ServerStorage")
-                    end
-                end
-            end)
-        end
-        
-        -- METHOD 14: LIGHTING
-        if not success then
-            pcall(function()
-                local light = game:GetService("Lighting")
-                if light then
-                    local item = Instance.new("StringValue")
-                    item.Name = itemName
-                    item.Value = isMutated and "Mutated" or "Normal"
-                    item:SetAttribute("Type", itemType)
-                    item:SetAttribute("Mutated", isMutated)
-                    item.Parent = light
-                    success = true
-                    table.insert(usedMethods, "Lighting")
-                end
-            end)
-        end
-        
-        -- METHOD 15: DATA STORE (PERMANENT)
-        if not success then
-            pcall(function()
-                local ds = game:GetService("DataStoreService"):GetDataStore("PlayerData")
-                if ds then
-                    ds:UpdateAsync(LocalPlayer.UserId, function(old)
-                        if not old then old = {} end
-                        if not old[itemType .. "s"] then old[itemType .. "s"] = {} end
-                        table.insert(old[itemType .. "s"], {Name = itemName, Mutated = isMutated})
-                        return old
-                    end)
-                    success = true
-                    table.insert(usedMethods, "DataStore")
-                end
-            end)
-        end
-        
-        if not success then
-            task.wait(0.1)
-        end
-    end
-    
-    -- RESULT
-    if success then
-        local methodStr = table.concat(usedMethods, " → ")
-        notify("✅ " .. itemName .. " PERMANENT! [" .. methodStr .. "]" .. (isMutated and " 🧬MUTATED" or ""), 4)
-        print("[SPAWN] " .. itemName .. " permanent via: " .. methodStr .. " (Attempt: " .. attempts .. ")")
+        notify("🔄 Auto Rejoin ON", 2)
     else
-        notify("❌ " .. itemName .. " FAILED! Try again.", 3)
+        notify("🔄 Auto Rejoin OFF", 2)
     end
-    
-    return success
 end
 
--- ===================== UI =====================
-local function createUI()
-    local oldGui = CoreGui:FindFirstChild("GardenSpawnerUI")
+-- ===================== FLUENT UI =====================
+local FluentLoaded = false
+local success, Fluent = pcall(function()
+    return loadstring(game:HttpGet('https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua'))()
+end)
+if success and Fluent then
+    FluentLoaded = true
+else
+    warn("Fluent failed to load.")
+end
+
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local Window, Tabs = nil, nil
+
+if FluentLoaded then
+    Window = Fluent:CreateWindow({
+        Title = "🌱 GAG1 HUB",
+        SubTitle = "v5.0 - Pilih Benih",
+        TabWidth = 160,
+        Size = UDim2.fromOffset(580, 520),
+        Theme = "Dark",
+        MinimizeKeyBind = nil
+    })
+
+    Tabs = {
+        Farm = Window:AddTab({ Title = "🌱 Farm", Icon = "lucide-sprout" }),
+        Collect = Window:AddTab({ Title = "💰 Collect", Icon = "lucide-gem" }),
+        Pets = Window:AddTab({ Title = "🐾 Pets", Icon = "lucide-dog" }),
+        Battle = Window:AddTab({ Title = "⚔️ Battle", Icon = "lucide-swords" }),
+        Misc = Window:AddTab({ Title = "🎮 Misc", Icon = "lucide-gamepad-2" }),
+        Settings = Window:AddTab({ Title = "⚙️ Settings", Icon = "lucide-settings" })
+    }
+
+    SaveManager:SetLibrary(Fluent)
+    InterfaceManager:SetLibrary(Fluent)
+    SaveManager:IgnoreThemeSettings()
+    SaveManager:SetIgnoreIndexes({})
+    InterfaceManager:SetFolder("GAG1Hub")
+    SaveManager:SetFolder("GAG1Hub/Configs")
+    InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+    SaveManager:BuildConfigSection(Tabs.Settings)
+
+    -- ===================== FARM TAB =====================
+    
+    Tabs.Farm:AddToggle("AutoPlant", {
+        Title = "🌱 Auto Plant",
+        Description = "Tanam benih otomatis",
+        Default = false,
+        Callback = function(state)
+            autoPlant = state
+            if state then task.spawn(StartFarm) notify("🌱 Auto Plant ON", 2) else notify("🌱 Auto Plant OFF", 2) end
+        end
+    })
+
+    Tabs.Farm:AddToggle("AutoHarvest", {
+        Title = "🌾 Auto Harvest",
+        Description = "Panen tanaman otomatis",
+        Default = false,
+        Callback = function(state)
+            autoHarvest = state
+            if state then task.spawn(StartFarm) notify("🌾 Auto Harvest ON", 2) else notify("🌾 Auto Harvest OFF", 2) end
+        end
+    })
+
+    Tabs.Farm:AddToggle("AutoWater", {
+        Title = "💧 Auto Water",
+        Description = "Siram tanaman otomatis",
+        Default = false,
+        Callback = function(state)
+            autoWater = state
+            if state then task.spawn(StartFarm) notify("💧 Auto Water ON", 2) else notify("💧 Auto Water OFF", 2) end
+        end
+    })
+
+    Tabs.Farm:AddToggle("AutoFertilize", {
+        Title = "🧪 Auto Fertilize",
+        Description = "Pupuk tanaman otomatis",
+        Default = false,
+        Callback = function(state)
+            autoFertilize = state
+            if state then task.spawn(StartFertilize) notify("🧪 Auto Fertilize ON", 2) else notify("🧪 Auto Fertilize OFF", 2) end
+        end
+    })
+
+    Tabs.Farm:AddToggle("AutoSell", {
+        Title = "💰 Auto Sell",
+        Description = "Jual hasil panen otomatis",
+        Default = false,
+        Callback = function(state)
+            autoSell = state
+            if state then task.spawn(StartSell) notify("💰 Auto Sell ON", 2) else notify("💰 Auto Sell OFF", 2) end
+        end
+    })
+
+    -- ===== AUTO BUY SEEDS DENGAN DROPDOWN PILIHAN =====
+    Tabs.Farm:AddToggle("AutoBuySeeds", {
+        Title = "🛒 Auto Buy Seeds",
+        Description = "Beli benih pilihan otomatis",
+        Default = false,
+        Callback = function(state)
+            autoBuySeeds = state
+            if state then 
+                task.spawn(StartBuySeeds) 
+                notify("🛒 Auto Buy " .. selectedSeed .. " ON", 2) 
+            else 
+                notify("🛒 Auto Buy OFF", 2) 
+            end
+        end
+    })
+
+    -- DROPDOWN PILIH BENIH (seperti menu ORI)
+    Tabs.Farm:AddDropdown("SeedSelector", {
+        Title = "🌱 Pilih Benih",
+        Description = "Pilih benih yang ingin dibeli",
+        Values = seedList,
+        Multi = false,
+        Default = "Wheat Seed",
+        Callback = function(value)
+            selectedSeed = value
+            notify("🌱 Benih dipilih: " .. value, 2)
+        end
+    })
+
+    Tabs.Farm:AddToggle("AutoTeleport", {
+        Title = "📍 Auto Teleport to Garden",
+        Description = "Teleport ke kebun otomatis",
+        Default = false,
+        Callback = function(state)
+            autoTeleport = state
+            if state then task.spawn(StartTeleport) notify("📍 Auto Teleport ON", 2) else notify("📍 Auto Teleport OFF", 2) end
+        end
+    })
+
+    -- ===================== COLLECT TAB =====================
+    
+    Tabs.Collect:AddToggle("AutoCollectGems", {
+        Title = "💎 Auto Collect Gems",
+        Description = "Kumpulkan permata otomatis",
+        Default = false,
+        Callback = function(state)
+            autoCollectGems = state
+            if state then task.spawn(StartCollectGems) notify("💎 Auto Collect Gems ON", 2) else notify("💎 Auto Collect Gems OFF", 2) end
+        end
+    })
+
+    Tabs.Collect:AddToggle("AutoTreasure", {
+        Title = "🎁 Auto Treasure/Chest",
+        Description = "Buka harta karun otomatis",
+        Default = false,
+        Callback = function(state)
+            autoTreasure = state
+            if state then task.spawn(StartTreasure) notify("🎁 Auto Treasure ON", 2) else notify("🎁 Auto Treasure OFF", 2) end
+        end
+    })
+
+    Tabs.Collect:AddToggle("AutoClaim", {
+        Title = "🎯 Auto Claim Rewards",
+        Description = "Klaim reward otomatis",
+        Default = false,
+        Callback = function(state)
+            autoClaim = state
+            if state then task.spawn(StartClaim) notify("🎯 Auto Claim ON", 2) else notify("🎯 Auto Claim OFF", 2) end
+        end
+    })
+
+    Tabs.Collect:AddToggle("AutoSpin", {
+        Title = "🎰 Auto Spin Wheel",
+        Description = "Putar roda keberuntungan otomatis",
+        Default = false,
+        Callback = function(state)
+            autoSpin = state
+            if state then task.spawn(StartSpin) notify("🎰 Auto Spin ON", 2) else notify("🎰 Auto Spin OFF", 2) end
+        end
+    })
+
+    -- ===================== PETS TAB =====================
+    
+    Tabs.Pets:AddToggle("AutoPetCollect", {
+        Title = "🐾 Auto Pet Collect",
+        Description = "Kumpulkan hewan peliharaan otomatis",
+        Default = false,
+        Callback = function(state)
+            autoPetCollect = state
+            if state then task.spawn(StartPetCollect) notify("🐾 Auto Pet Collect ON", 2) else notify("🐾 Auto Pet Collect OFF", 2) end
+        end
+    })
+
+    Tabs.Pets:AddToggle("AutoEggHatch", {
+        Title = "🥚 Auto Egg Hatch",
+        Description = "Tetas telur otomatis",
+        Default = false,
+        Callback = function(state)
+            autoEggHatch = state
+            if state then task.spawn(StartEggHatch) notify("🥚 Auto Egg Hatch ON", 2) else notify("🥚 Auto Egg Hatch OFF", 2) end
+        end
+    })
+
+    Tabs.Pets:AddToggle("AutoBreed", {
+        Title = "🧬 Auto Breed",
+        Description = "Breeding hewan otomatis",
+        Default = false,
+        Callback = function(state)
+            autoBreed = state
+            if state then task.spawn(StartBreed) notify("🧬 Auto Breed ON", 2) else notify("🧬 Auto Breed OFF", 2) end
+        end
+    })
+
+    Tabs.Pets:AddToggle("AutoTrade", {
+        Title = "🔄 Auto Trade",
+        Description = "Trade otomatis dengan player lain",
+        Default = false,
+        Callback = function(state)
+            autoTrade = state
+            if state then task.spawn(StartTrade) notify("🔄 Auto Trade ON", 2) else notify("🔄 Auto Trade OFF", 2) end
+        end
+    })
+
+    -- ===================== BATTLE TAB =====================
+    
+    Tabs.Battle:AddToggle("AutoBattle", {
+        Title = "⚔️ Auto Battle",
+        Description = "Serang musuh otomatis",
+        Default = false,
+        Callback = function(state)
+            autoBattle = state
+            if state then task.spawn(StartBattle) notify("⚔️ Auto Battle ON", 2) else notify("⚔️ Auto Battle OFF", 2) end
+        end
+    })
+
+    Tabs.Battle:AddToggle("AutoBoss", {
+        Title = "👹 Auto Boss",
+        Description = "Serang boss otomatis",
+        Default = false,
+        Callback = function(state)
+            autoBoss = state
+            if state then task.spawn(StartBoss) notify("👹 Auto Boss ON", 2) else notify("👹 Auto Boss OFF", 2) end
+        end
+    })
+
+    Tabs.Battle:AddToggle("AutoDungeon", {
+        Title = "🏰 Auto Dungeon",
+        Description = "Masuk dungeon otomatis",
+        Default = false,
+        Callback = function(state)
+            autoDungeon = state
+            if state then task.spawn(StartDungeon) notify("🏰 Auto Dungeon ON", 2) else notify("🏰 Auto Dungeon OFF", 2) end
+        end
+    })
+
+    Tabs.Battle:AddToggle("AutoRaid", {
+        Title = "⚡ Auto Raid",
+        Description = "Mulai raid otomatis",
+        Default = false,
+        Callback = function(state)
+            autoRaid = state
+            if state then task.spawn(StartRaid) notify("⚡ Auto Raid ON", 2) else notify("⚡ Auto Raid OFF", 2) end
+        end
+    })
+
+    -- ===================== MISC TAB =====================
+    
+    Tabs.Misc:AddToggle("AutoQuest", {
+        Title = "📋 Auto Quest",
+        Description = "Kerjakan quest otomatis",
+        Default = false,
+        Callback = function(state)
+            autoQuest = state
+            if state then task.spawn(StartQuest) notify("📋 Auto Quest ON", 2) else notify("📋 Auto Quest OFF", 2) end
+        end
+    })
+
+    Tabs.Misc:AddToggle("AutoFish", {
+        Title = "🎣 Auto Fish",
+        Description = "Memancing otomatis",
+        Default = false,
+        Callback = function(state)
+            autoFish = state
+            if state then task.spawn(StartFish) notify("🎣 Auto Fish ON", 2) else notify("🎣 Auto Fish OFF", 2) end
+        end
+    })
+
+    Tabs.Misc:AddToggle("AutoMine", {
+        Title = "⛏️ Auto Mine",
+        Description = "Menambang otomatis",
+        Default = false,
+        Callback = function(state)
+            autoMine = state
+            if state then task.spawn(StartMine) notify("⛏️ Auto Mine ON", 2) else notify("⛏️ Auto Mine OFF", 2) end
+        end
+    })
+
+    Tabs.Misc:AddToggle("AutoCraft", {
+        Title = "🔨 Auto Craft",
+        Description = "Craft item otomatis",
+        Default = false,
+        Callback = function(state)
+            autoCraft = state
+            if state then task.spawn(StartCraft) notify("🔨 Auto Craft ON", 2) else notify("🔨 Auto Craft OFF", 2) end
+        end
+    })
+
+    Tabs.Misc:AddToggle("AutoCook", {
+        Title = "🍳 Auto Cook",
+        Description = "Masak otomatis",
+        Default = false,
+        Callback = function(state)
+            autoCook = state
+            if state then task.spawn(StartCook) notify("🍳 Auto Cook ON", 2) else notify("🍳 Auto Cook OFF", 2) end
+        end
+    })
+
+    Tabs.Misc:AddToggle("AutoEvent", {
+        Title = "🎪 Auto Event",
+        Description = "Ikuti event otomatis",
+        Default = false,
+        Callback = function(state)
+            autoEvent = state
+            if state then task.spawn(StartEvent) notify("🎪 Auto Event ON", 2) else notify("🎪 Auto Event OFF", 2) end
+        end
+    })
+
+    -- ===================== SETTINGS TAB =====================
+    
+    Tabs.Settings:AddToggle("AutoRejoin", {
+        Title = "🔄 Auto Rejoin on Kick",
+        Description = "Otomatis join ulang saat di kick",
+        Default = false,
+        Callback = function(state)
+            ToggleAutoRejoin(state)
+        end
+    })
+
+    Tabs.Settings:AddButton({
+        Title = "🔁 Rejoin",
+        Description = "Join ulang ke server yang sama",
+        Callback = function()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+            notify("🔄 Rejoining...", 2)
+        end
+    })
+
+    Tabs.Settings:AddButton({
+        Title = "🔀 Server Hop",
+        Description = "Pindah ke server lain",
+        Callback = function()
+            pcall(function()
+                local data = HttpService:JSONDecode(game:HttpGetAsync("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+                if data and data.data then
+                    for _, sv in pairs(data.data) do
+                        if sv.id ~= game.JobId and sv.playing < sv.maxPlayers then
+                            TeleportService:TeleportToPlaceInstance(game.PlaceId, sv.id, LocalPlayer)
+                            break
+                        end
+                    end
+                end
+            end)
+            notify("🔀 Server Hopping...", 2)
+        end
+    })
+
+    Tabs.Settings:AddButton({
+        Title = "🚀 FPS Boost",
+        Description = "Optimasi performa",
+        Callback = function()
+            loadstring(game:HttpGet('https://raw.githubusercontent.com/NumanTF3/roblox-fpsboost-script/refs/heads/main/main.lua'))()
+            notify("🚀 FPS Boost Applied!", 2)
+        end
+    })
+
+    Tabs.Settings:AddButton({
+        Title = "📐 Center GUI",
+        Description = "Posisikan menu di tengah",
+        Callback = function()
+            if Window and Window.Root then
+                Window.Root.Position = UDim2.new(0.5, -290, 0.5, -260)
+                notify("📐 GUI Centered!", 2)
+            end
+        end
+    })
+
+    Tabs.Settings:AddParagraph({
+        Title = "🚫 NOCLIP STATUS",
+        Content = "Noclip AKTIF secara otomatis!\nTidak bisa dimatikan."
+    })
+
+    Window:SelectTab("Farm")
+    notify("🌱 GAG1 HUB v5.0 Loaded! + Pilih Benih", 4)
+end
+
+-- ===================== TOMBOL MENU =====================
+task.spawn(function()
+    local waitCount = 0
+    while not Window or not Window.Root and waitCount < 50 do
+        task.wait(0.2)
+        waitCount = waitCount + 1
+    end
+    
+    if not Window or not Window.Root then
+        print("[GAG1] Gagal menemukan Window.Root!")
+        return
+    end
+    
+    local oldGui = CoreGui:FindFirstChild("GAG1ToggleGui")
     if oldGui then oldGui:Destroy() end
     
-    local oldToggle = CoreGui:FindFirstChild("GardenToggleGui")
-    if oldToggle then oldToggle:Destroy() end
-    
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "GardenSpawnerUI"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = CoreGui
-    
-    -- MAIN FRAME
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 480, 0, 580)
-    mainFrame.Position = UDim2.new(0.5, -240, 0.5, -290)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
-    mainFrame.BackgroundTransparency = 0
-    mainFrame.BorderSizePixel = 0
-    mainFrame.ClipsDescendants = true
-    mainFrame.Active = true
-    mainFrame.Draggable = true
-    mainFrame.Parent = screenGui
-    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
-    
-    -- HEADER
-    local header = Instance.new("Frame")
-    header.Size = UDim2.new(1, 0, 0, 50)
-    header.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
-    header.BackgroundTransparency = 0
-    header.BorderSizePixel = 0
-    header.Parent = mainFrame
-    Instance.new("UICorner", header).CornerRadius = UDim.new(0, 12)
-    
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 1, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "🌱 GARDEN SPAWNER v8.0"
-    title.TextColor3 = Color3.fromRGB(100, 255, 150)
-    title.TextSize = 18
-    title.Font = Enum.Font.GothamBold
-    title.Parent = header
-    
-    local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 30, 0, 30)
-    closeBtn.Position = UDim2.new(1, -40, 0, 10)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
-    closeBtn.BackgroundTransparency = 0
-    closeBtn.BorderSizePixel = 0
-    closeBtn.Text = "✕"
-    closeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-    closeBtn.TextSize = 18
-    closeBtn.Font = Enum.Font.GothamBold
-    closeBtn.Parent = header
-    Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
-    closeBtn.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
-        local tg = CoreGui:FindFirstChild("GardenToggleGui")
-        if tg then tg:Destroy() end
-    end)
-    
-    -- TAB BUTTONS
-    local tabContainer = Instance.new("Frame")
-    tabContainer.Size = UDim2.new(1, 0, 0, 45)
-    tabContainer.Position = UDim2.new(0, 0, 0, 50)
-    tabContainer.BackgroundTransparency = 1
-    tabContainer.Parent = mainFrame
-    
-    local tabs = {"Pet", "Plants", "Settings"}
-    local selectedTab = "Pet"
-    local tabButtons = {}
-    
-    for i, tabName in ipairs(tabs) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1/3, -4, 1, -6)
-        btn.Position = UDim2.new((i-1)/3, 2, 0, 3)
-        btn.BackgroundColor3 = i == 1 and Color3.fromRGB(40, 40, 80) or Color3.fromRGB(20, 20, 45)
-        btn.BackgroundTransparency = 0
-        btn.BorderSizePixel = 0
-        btn.Text = tabName
-        btn.TextColor3 = i == 1 and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(180, 180, 200)
-        btn.TextSize = 15
-        btn.Font = Enum.Font.GothamBold
-        btn.Parent = tabContainer
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-        tabButtons[tabName] = btn
-    end
-    
-    -- CONTENT
-    local contentFrame = Instance.new("Frame")
-    contentFrame.Size = UDim2.new(1, -20, 1, -120)
-    contentFrame.Position = UDim2.new(0, 10, 0, 100)
-    contentFrame.BackgroundTransparency = 1
-    contentFrame.ClipsDescendants = true
-    contentFrame.Parent = mainFrame
-    
-    -- ==================== BUILD PET TAB ====================
-    local petTab = Instance.new("ScrollingFrame")
-    petTab.Size = UDim2.new(1, 0, 1, 0)
-    petTab.BackgroundTransparency = 1
-    petTab.CanvasSize = UDim2.new(0, 0, 0, 0)
-    petTab.ScrollBarThickness = 6
-    petTab.Parent = contentFrame
-    
-    local function buildPetTab()
-        for _, child in ipairs(petTab:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextButton") then child:Destroy() end
-        end
-        
-        local yPos = 0
-        local selectedRarity = "Common"
-        local selectedItem = nil
-        local isMutated = false
-        local rarityListVisible = false
-        
-        -- RARITY DROPDOWN (TOP)
-        local rarityFrame = Instance.new("Frame")
-        rarityFrame.Size = UDim2.new(1, 0, 0, 40)
-        rarityFrame.Position = UDim2.new(0, 0, 0, yPos)
-        rarityFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-        rarityFrame.BackgroundTransparency = 0
-        rarityFrame.Parent = petTab
-        Instance.new("UICorner", rarityFrame).CornerRadius = UDim.new(0, 6)
-        
-        local rarityLabel = Instance.new("TextLabel")
-        rarityLabel.Size = UDim2.new(0.7, 0, 1, 0)
-        rarityLabel.BackgroundTransparency = 1
-        rarityLabel.Text = "📊 Rarity: Common"
-        rarityLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        rarityLabel.TextSize = 14
-        rarityLabel.Font = Enum.Font.GothamBold
-        rarityLabel.TextXAlignment = Enum.TextXAlignment.Left
-        rarityLabel.Position = UDim2.new(0, 10, 0, 0)
-        rarityLabel.Parent = rarityFrame
-        
-        local rarityBtn = Instance.new("TextButton")
-        rarityBtn.Size = UDim2.new(0, 35, 0, 32)
-        rarityBtn.Position = UDim2.new(1, -42, 0, 4)
-        rarityBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
-        rarityBtn.BackgroundTransparency = 0
-        rarityBtn.BorderSizePixel = 0
-        rarityBtn.Text = "▼"
-        rarityBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        rarityBtn.TextSize = 16
-        rarityBtn.Font = Enum.Font.GothamBold
-        rarityBtn.Parent = rarityFrame
-        Instance.new("UICorner", rarityBtn).CornerRadius = UDim.new(0, 4)
-        
-        local rarityList = Instance.new("Frame")
-        rarityList.Size = UDim2.new(1, 0, 0, 210)
-        rarityList.Position = UDim2.new(0, 0, 0, 45)
-        rarityList.BackgroundColor3 = Color3.fromRGB(15, 15, 35)
-        rarityList.BackgroundTransparency = 0
-        rarityList.Visible = false
-        rarityList.ClipsDescendants = true
-        rarityList.Parent = petTab
-        Instance.new("UICorner", rarityList).CornerRadius = UDim.new(0, 6)
-        
-        local rarities = {"Common", "Uncommon", "Rare", "Legendary", "Mythical", "Divine", "Prismatic"}
-        local rarityColors = {
-            Common = Color3.fromRGB(200, 200, 200),
-            Uncommon = Color3.fromRGB(100, 200, 100),
-            Rare = Color3.fromRGB(100, 150, 255),
-            Legendary = Color3.fromRGB(255, 150, 50),
-            Mythical = Color3.fromRGB(200, 100, 255),
-            Divine = Color3.fromRGB(255, 215, 0),
-            Prismatic = Color3.fromRGB(255, 50, 150)
-        }
-        
-        for i, rarityName in ipairs(rarities) do
-            local item = Instance.new("TextButton")
-            item.Size = UDim2.new(1, -10, 0, 30)
-            item.Position = UDim2.new(0, 5, 0, (i-1) * 30)
-            item.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
-            item.BackgroundTransparency = 0
-            item.BorderSizePixel = 0
-            item.Text = rarityName
-            item.TextColor3 = rarityColors[rarityName] or Color3.fromRGB(200, 200, 200)
-            item.TextSize = 13
-            item.Font = Enum.Font.GothamMedium
-            item.TextXAlignment = Enum.TextXAlignment.Left
-            item.Parent = rarityList
-            Instance.new("UICorner", item).CornerRadius = UDim.new(0, 4)
-            item.MouseButton1Click:Connect(function()
-                selectedRarity = rarityName
-                rarityLabel.Text = "📊 Rarity: " .. rarityName
-                rarityList.Visible = false
-                rarityListVisible = false
-                buildPetTab()
-            end)
-        end
-        
-        rarityBtn.MouseButton1Click:Connect(function()
-            rarityListVisible = not rarityListVisible
-            rarityList.Visible = rarityListVisible
-        end)
-        
-        yPos = yPos + 50
-        
-        -- ITEM LIST
-        local itemList = PETS[selectedRarity] or {}
-        for i, itemName in ipairs(itemList) do
-            local itemBtn = Instance.new("TextButton")
-            itemBtn.Size = UDim2.new(1, -10, 0, 35)
-            itemBtn.Position = UDim2.new(0, 5, 0, yPos)
-            itemBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-            itemBtn.BackgroundTransparency = 0
-            itemBtn.BorderSizePixel = 0
-            itemBtn.Text = itemName
-            itemBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
-            itemBtn.TextSize = 14
-            itemBtn.Font = Enum.Font.GothamMedium
-            itemBtn.TextXAlignment = Enum.TextXAlignment.Left
-            itemBtn.Parent = petTab
-            Instance.new("UICorner", itemBtn).CornerRadius = UDim.new(0, 6)
-            
-            -- SELECTOR (HANYA 1 YANG HIJAU)
-            local selector = Instance.new("Frame")
-            selector.Size = UDim2.new(0, 4, 0.6, 0)
-            selector.Position = UDim2.new(0, 0, 0.2, 0)
-            selector.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
-            selector.BackgroundTransparency = 1
-            selector.BorderSizePixel = 0
-            selector.Parent = itemBtn
-            Instance.new("UICorner", selector).CornerRadius = UDim.new(0, 2)
-            
-            itemBtn.MouseButton1Click:Connect(function()
-                selectedItem = itemName
-                -- RESET SEMUA SELECTOR
-                for _, child in ipairs(petTab:GetChildren()) do
-                    if child:IsA("TextButton") and child:FindFirstChild("Selector") then
-                        child.Selector.BackgroundTransparency = 1
-                        child.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-                    end
-                end
-                -- SET SELECTOR YANG DIPILIH
-                selector.BackgroundTransparency = 0
-                itemBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
-                notify("🖱️ Selected: " .. itemName, 2)
-            end)
-            yPos = yPos + 40
-        end
-        
-        -- MUTATION
-        local mutasiFrame = Instance.new("Frame")
-        mutasiFrame.Size = UDim2.new(1, -10, 0, 40)
-        mutasiFrame.Position = UDim2.new(0, 5, 0, yPos)
-        mutasiFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-        mutasiFrame.BackgroundTransparency = 0
-        mutasiFrame.Parent = petTab
-        Instance.new("UICorner", mutasiFrame).CornerRadius = UDim.new(0, 6)
-        
-        local mutasiLabel = Instance.new("TextLabel")
-        mutasiLabel.Size = UDim2.new(0.6, 0, 1, 0)
-        mutasiLabel.BackgroundTransparency = 1
-        mutasiLabel.Text = "🧬 Mutation: OFF"
-        mutasiLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        mutasiLabel.TextSize = 14
-        mutasiLabel.Font = Enum.Font.GothamMedium
-        mutasiLabel.TextXAlignment = Enum.TextXAlignment.Left
-        mutasiLabel.Position = UDim2.new(0, 10, 0, 0)
-        mutasiLabel.Parent = mutasiFrame
-        
-        local mutasiBtn = Instance.new("TextButton")
-        mutasiBtn.Size = UDim2.new(0, 55, 0, 32)
-        mutasiBtn.Position = UDim2.new(1, -62, 0, 4)
-        mutasiBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
-        mutasiBtn.BackgroundTransparency = 0
-        mutasiBtn.BorderSizePixel = 0
-        mutasiBtn.Text = "OFF"
-        mutasiBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        mutasiBtn.TextSize = 13
-        mutasiBtn.Font = Enum.Font.GothamBold
-        mutasiBtn.Parent = mutasiFrame
-        Instance.new("UICorner", mutasiBtn).CornerRadius = UDim.new(0, 4)
-        
-        mutasiBtn.MouseButton1Click:Connect(function()
-            isMutated = not isMutated
-            mutasiLabel.Text = "🧬 Mutation: " .. (isMutated and "ON" or "OFF")
-            mutasiBtn.Text = isMutated and "ON" or "OFF"
-            mutasiBtn.TextColor3 = isMutated and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
-            mutasiBtn.BackgroundColor3 = isMutated and Color3.fromRGB(40, 80, 40) or Color3.fromRGB(80, 40, 40)
-        end)
-        
-        yPos = yPos + 50
-        
-        -- SPAWN BUTTON
-        local spawnBtn = Instance.new("TextButton")
-        spawnBtn.Size = UDim2.new(1, -10, 0, 50)
-        spawnBtn.Position = UDim2.new(0, 5, 0, yPos)
-        spawnBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-        spawnBtn.BackgroundTransparency = 0
-        spawnBtn.BorderSizePixel = 0
-        spawnBtn.Text = "🌱 SPAWN PET"
-        spawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        spawnBtn.TextSize = 18
-        spawnBtn.Font = Enum.Font.GothamBold
-        spawnBtn.Parent = petTab
-        Instance.new("UICorner", spawnBtn).CornerRadius = UDim.new(0, 8)
-        
-        spawnBtn.MouseButton1Click:Connect(function()
-            if selectedItem then
-                permanentSpawn(selectedItem, "Pet", isMutated)
-            else
-                notify("⚠️ Select a pet first!", 2)
-            end
-        end)
-        
-        yPos = yPos + 60
-        petTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
-    end
-    
-    -- ==================== BUILD PLANTS TAB ====================
-    local plantTab = Instance.new("ScrollingFrame")
-    plantTab.Size = UDim2.new(1, 0, 1, 0)
-    plantTab.BackgroundTransparency = 1
-    plantTab.CanvasSize = UDim2.new(0, 0, 0, 0)
-    plantTab.ScrollBarThickness = 6
-    plantTab.Visible = false
-    plantTab.Parent = contentFrame
-    
-    local function buildPlantTab()
-        for _, child in ipairs(plantTab:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextButton") then child:Destroy() end
-        end
-        
-        local yPos = 0
-        local selectedRarity = "Common"
-        local selectedItem = nil
-        local isMutated = false
-        local rarityListVisible = false
-        
-        -- RARITY DROPDOWN (TOP)
-        local rarityFrame = Instance.new("Frame")
-        rarityFrame.Size = UDim2.new(1, 0, 0, 40)
-        rarityFrame.Position = UDim2.new(0, 0, 0, yPos)
-        rarityFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-        rarityFrame.BackgroundTransparency = 0
-        rarityFrame.Parent = plantTab
-        Instance.new("UICorner", rarityFrame).CornerRadius = UDim.new(0, 6)
-        
-        local rarityLabel = Instance.new("TextLabel")
-        rarityLabel.Size = UDim2.new(0.7, 0, 1, 0)
-        rarityLabel.BackgroundTransparency = 1
-        rarityLabel.Text = "📊 Rarity: Common"
-        rarityLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        rarityLabel.TextSize = 14
-        rarityLabel.Font = Enum.Font.GothamBold
-        rarityLabel.TextXAlignment = Enum.TextXAlignment.Left
-        rarityLabel.Position = UDim2.new(0, 10, 0, 0)
-        rarityLabel.Parent = rarityFrame
-        
-        local rarityBtn = Instance.new("TextButton")
-        rarityBtn.Size = UDim2.new(0, 35, 0, 32)
-        rarityBtn.Position = UDim2.new(1, -42, 0, 4)
-        rarityBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
-        rarityBtn.BackgroundTransparency = 0
-        rarityBtn.BorderSizePixel = 0
-        rarityBtn.Text = "▼"
-        rarityBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        rarityBtn.TextSize = 16
-        rarityBtn.Font = Enum.Font.GothamBold
-        rarityBtn.Parent = rarityFrame
-        Instance.new("UICorner", rarityBtn).CornerRadius = UDim.new(0, 4)
-        
-        local rarityList = Instance.new("Frame")
-        rarityList.Size = UDim2.new(1, 0, 0, 210)
-        rarityList.Position = UDim2.new(0, 0, 0, 45)
-        rarityList.BackgroundColor3 = Color3.fromRGB(15, 15, 35)
-        rarityList.BackgroundTransparency = 0
-        rarityList.Visible = false
-        rarityList.ClipsDescendants = true
-        rarityList.Parent = plantTab
-        Instance.new("UICorner", rarityList).CornerRadius = UDim.new(0, 6)
-        
-        local rarities = {"Common", "Uncommon", "Rare", "Legendary", "Mythical", "Divine", "Prismatic"}
-        local rarityColors = {
-            Common = Color3.fromRGB(200, 200, 200),
-            Uncommon = Color3.fromRGB(100, 200, 100),
-            Rare = Color3.fromRGB(100, 150, 255),
-            Legendary = Color3.fromRGB(255, 150, 50),
-            Mythical = Color3.fromRGB(200, 100, 255),
-            Divine = Color3.fromRGB(255, 215, 0),
-            Prismatic = Color3.fromRGB(255, 50, 150)
-        }
-        
-        for i, rarityName in ipairs(rarities) do
-            local item = Instance.new("TextButton")
-            item.Size = UDim2.new(1, -10, 0, 30)
-            item.Position = UDim2.new(0, 5, 0, (i-1) * 30)
-            item.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
-            item.BackgroundTransparency = 0
-            item.BorderSizePixel = 0
-            item.Text = rarityName
-            item.TextColor3 = rarityColors[rarityName] or Color3.fromRGB(200, 200, 200)
-            item.TextSize = 13
-            item.Font = Enum.Font.GothamMedium
-            item.TextXAlignment = Enum.TextXAlignment.Left
-            item.Parent = rarityList
-            Instance.new("UICorner", item).CornerRadius = UDim.new(0, 4)
-            item.MouseButton1Click:Connect(function()
-                selectedRarity = rarityName
-                rarityLabel.Text = "📊 Rarity: " .. rarityName
-                rarityList.Visible = false
-                rarityListVisible = false
-                buildPlantTab()
-            end)
-        end
-        
-        rarityBtn.MouseButton1Click:Connect(function()
-            rarityListVisible = not rarityListVisible
-            rarityList.Visible = rarityListVisible
-        end)
-        
-        yPos = yPos + 50
-        
-        local itemList = PLANTS[selectedRarity] or {}
-        for i, itemName in ipairs(itemList) do
-            local itemBtn = Instance.new("TextButton")
-            itemBtn.Size = UDim2.new(1, -10, 0, 35)
-            itemBtn.Position = UDim2.new(0, 5, 0, yPos)
-            itemBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-            itemBtn.BackgroundTransparency = 0
-            itemBtn.BorderSizePixel = 0
-            itemBtn.Text = itemName
-            itemBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
-            itemBtn.TextSize = 14
-            itemBtn.Font = Enum.Font.GothamMedium
-            itemBtn.TextXAlignment = Enum.TextXAlignment.Left
-            itemBtn.Parent = plantTab
-            Instance.new("UICorner", itemBtn).CornerRadius = UDim.new(0, 6)
-            
-            local selector = Instance.new("Frame")
-            selector.Size = UDim2.new(0, 4, 0.6, 0)
-            selector.Position = UDim2.new(0, 0, 0.2, 0)
-            selector.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
-            selector.BackgroundTransparency = 1
-            selector.BorderSizePixel = 0
-            selector.Parent = itemBtn
-            Instance.new("UICorner", selector).CornerRadius = UDim.new(0, 2)
-            
-            itemBtn.MouseButton1Click:Connect(function()
-                selectedItem = itemName
-                for _, child in ipairs(plantTab:GetChildren()) do
-                    if child:IsA("TextButton") and child:FindFirstChild("Selector") then
-                        child.Selector.BackgroundTransparency = 1
-                        child.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-                    end
-                end
-                selector.BackgroundTransparency = 0
-                itemBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
-                notify("🖱️ Selected: " .. itemName, 2)
-            end)
-            yPos = yPos + 40
-        end
-        
-        local mutasiFrame = Instance.new("Frame")
-        mutasiFrame.Size = UDim2.new(1, -10, 0, 40)
-        mutasiFrame.Position = UDim2.new(0, 5, 0, yPos)
-        mutasiFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-        mutasiFrame.BackgroundTransparency = 0
-        mutasiFrame.Parent = plantTab
-        Instance.new("UICorner", mutasiFrame).CornerRadius = UDim.new(0, 6)
-        
-        local mutasiLabel = Instance.new("TextLabel")
-        mutasiLabel.Size = UDim2.new(0.6, 0, 1, 0)
-        mutasiLabel.BackgroundTransparency = 1
-        mutasiLabel.Text = "🧬 Mutation: OFF"
-        mutasiLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        mutasiLabel.TextSize = 14
-        mutasiLabel.Font = Enum.Font.GothamMedium
-        mutasiLabel.TextXAlignment = Enum.TextXAlignment.Left
-        mutasiLabel.Position = UDim2.new(0, 10, 0, 0)
-        mutasiLabel.Parent = mutasiFrame
-        
-        local mutasiBtn = Instance.new("TextButton")
-        mutasiBtn.Size = UDim2.new(0, 55, 0, 32)
-        mutasiBtn.Position = UDim2.new(1, -62, 0, 4)
-        mutasiBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
-        mutasiBtn.BackgroundTransparency = 0
-        mutasiBtn.BorderSizePixel = 0
-        mutasiBtn.Text = "OFF"
-        mutasiBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        mutasiBtn.TextSize = 13
-        mutasiBtn.Font = Enum.Font.GothamBold
-        mutasiBtn.Parent = mutasiFrame
-        Instance.new("UICorner", mutasiBtn).CornerRadius = UDim.new(0, 4)
-        
-        mutasiBtn.MouseButton1Click:Connect(function()
-            isMutated = not isMutated
-            mutasiLabel.Text = "🧬 Mutation: " .. (isMutated and "ON" or "OFF")
-            mutasiBtn.Text = isMutated and "ON" or "OFF"
-            mutasiBtn.TextColor3 = isMutated and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
-            mutasiBtn.BackgroundColor3 = isMutated and Color3.fromRGB(40, 80, 40) or Color3.fromRGB(80, 40, 40)
-        end)
-        
-        yPos = yPos + 50
-        
-        local spawnBtn = Instance.new("TextButton")
-        spawnBtn.Size = UDim2.new(1, -10, 0, 50)
-        spawnBtn.Position = UDim2.new(0, 5, 0, yPos)
-        spawnBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-        spawnBtn.BackgroundTransparency = 0
-        spawnBtn.BorderSizePixel = 0
-        spawnBtn.Text = "🌱 SPAWN PLANT"
-        spawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        spawnBtn.TextSize = 18
-        spawnBtn.Font = Enum.Font.GothamBold
-        spawnBtn.Parent = plantTab
-        Instance.new("UICorner", spawnBtn).CornerRadius = UDim.new(0, 8)
-        
-        spawnBtn.MouseButton1Click:Connect(function()
-            if selectedItem then
-                permanentSpawn(selectedItem, "Plant", isMutated)
-            else
-                notify("⚠️ Select a plant first!", 2)
-            end
-        end)
-        
-        yPos = yPos + 60
-        plantTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
-    end
-    
-    -- ==================== SETTINGS TAB ====================
-    local settingsTab = Instance.new("ScrollingFrame")
-    settingsTab.Size = UDim2.new(1, 0, 1, 0)
-    settingsTab.BackgroundTransparency = 1
-    settingsTab.CanvasSize = UDim2.new(0, 0, 0, 0)
-    settingsTab.ScrollBarThickness = 6
-    settingsTab.Visible = false
-    settingsTab.Parent = contentFrame
-    
-    local function buildSettingsTab()
-        for _, child in ipairs(settingsTab:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextButton") or child:IsA("TextLabel") then child:Destroy() end
-        end
-        
-        local yPos = 10
-        
-        local infoLabel = Instance.new("TextLabel")
-        infoLabel.Size = UDim2.new(1, -10, 0, 60)
-        infoLabel.Position = UDim2.new(0, 5, 0, yPos)
-        infoLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
-        infoLabel.BackgroundTransparency = 0.5
-        infoLabel.Text = "🌱 GARDEN SPAWNER v8.0\nPERMANENT - 15 METHODS"
-        infoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
-        infoLabel.TextSize = 14
-        infoLabel.Font = Enum.Font.GothamMedium
-        infoLabel.TextWrapped = true
-        infoLabel.Parent = settingsTab
-        Instance.new("UICorner", infoLabel).CornerRadius = UDim.new(0, 8)
-        yPos = yPos + 70
-        
-        local totalPets = 0
-        for _, list in pairs(PETS) do totalPets = totalPets + #list end
-        local totalPlants = 0
-        for _, list in pairs(PLANTS) do totalPlants = totalPlants + #list end
-        
-        local stats = Instance.new("TextLabel")
-        stats.Size = UDim2.new(1, -10, 0, 60)
-        stats.Position = UDim2.new(0, 5, 0, yPos)
-        stats.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
-        stats.BackgroundTransparency = 0.5
-        stats.Text = "📊 Total Pets: " .. totalPets .. "\n🌱 Total Plants: " .. totalPlants .. "\n⚡ Methods: 15 AGGRESSIVE"
-        stats.TextColor3 = Color3.fromRGB(200, 200, 220)
-        stats.TextSize = 13
-        stats.Font = Enum.Font.GothamMedium
-        stats.TextWrapped = true
-        stats.Parent = settingsTab
-        Instance.new("UICorner", stats).CornerRadius = UDim.new(0, 8)
-        yPos = yPos + 70
-        
-        local rejoinBtn = Instance.new("TextButton")
-        rejoinBtn.Size = UDim2.new(1, -10, 0, 45)
-        rejoinBtn.Position = UDim2.new(0, 5, 0, yPos)
-        rejoinBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-        rejoinBtn.BackgroundTransparency = 0
-        rejoinBtn.BorderSizePixel = 0
-        rejoinBtn.Text = "🔄 Rejoin Server"
-        rejoinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        rejoinBtn.TextSize = 15
-        rejoinBtn.Font = Enum.Font.GothamBold
-        rejoinBtn.Parent = settingsTab
-        Instance.new("UICorner", rejoinBtn).CornerRadius = UDim.new(0, 8)
-        rejoinBtn.MouseButton1Click:Connect(function()
-            pcall(function()
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
-            end)
-        end)
-        yPos = yPos + 55
-        
-        local closeBtn2 = Instance.new("TextButton")
-        closeBtn2.Size = UDim2.new(1, -10, 0, 45)
-        closeBtn2.Position = UDim2.new(0, 5, 0, yPos)
-        closeBtn2.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
-        closeBtn2.BackgroundTransparency = 0
-        closeBtn2.BorderSizePixel = 0
-        closeBtn2.Text = "❌ Close Menu"
-        closeBtn2.TextColor3 = Color3.fromRGB(255, 255, 255)
-        closeBtn2.TextSize = 15
-        closeBtn2.Font = Enum.Font.GothamBold
-        closeBtn2.Parent = settingsTab
-        Instance.new("UICorner", closeBtn2).CornerRadius = UDim.new(0, 8)
-        closeBtn2.MouseButton1Click:Connect(function()
-            screenGui:Destroy()
-            local tg = CoreGui:FindFirstChild("GardenToggleGui")
-            if tg then tg:Destroy() end
-        end)
-        yPos = yPos + 55
-        
-        settingsTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
-    end
-    
-    -- ==================== BUILD ALL ====================
-    buildPetTab()
-    buildPlantTab()
-    buildSettingsTab()
-    
-    -- ==================== TAB SWITCH ====================
-    local function switchTab(tabName)
-        selectedTab = tabName
-        for name, btn in pairs(tabButtons) do
-            if name == tabName then
-                btn.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-                btn.TextColor3 = Color3.fromRGB(100, 255, 150)
-            else
-                btn.BackgroundColor3 = Color3.fromRGB(20, 20, 45)
-                btn.TextColor3 = Color3.fromRGB(180, 180, 200)
-            end
-        end
-        petTab.Visible = (tabName == "Pet")
-        plantTab.Visible = (tabName == "Plants")
-        settingsTab.Visible = (tabName == "Settings")
-    end
-    
-    for name, btn in pairs(tabButtons) do
-        btn.MouseButton1Click:Connect(function()
-            switchTab(name)
-        end)
-    end
-    
-    -- ==================== TOGGLE BUTTON ====================
     local toggleGui = Instance.new("ScreenGui")
-    toggleGui.Name = "GardenToggleGui"
+    toggleGui.Name = "GAG1ToggleGui"
     toggleGui.ResetOnSpawn = false
+    toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     toggleGui.Parent = CoreGui
     
     local buttonFrame = Instance.new("Frame")
     buttonFrame.Name = "ToggleFrame"
     buttonFrame.Size = UDim2.new(0, 44, 0, 44)
     buttonFrame.Position = UDim2.new(0, 12, 0, 80)
-    buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+    buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 45, 25)
     buttonFrame.BackgroundTransparency = 0
     buttonFrame.BorderSizePixel = 0
     buttonFrame.ClipsDescendants = false
     buttonFrame.ZIndex = 9999
     buttonFrame.Parent = toggleGui
-    Instance.new("UICorner", buttonFrame).CornerRadius = UDim.new(0, 12)
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = buttonFrame
     
     local glow = Instance.new("Frame")
     glow.Name = "Glow"
     glow.Size = UDim2.new(1.4, 0, 1.4, 0)
     glow.Position = UDim2.new(-0.2, 0, -0.2, 0)
-    glow.BackgroundColor3 = Color3.fromRGB(80, 200, 100)
+    glow.BackgroundColor3 = Color3.fromRGB(80, 255, 130)
     glow.BackgroundTransparency = 0.7
     glow.BorderSizePixel = 0
     glow.ZIndex = -1
     glow.Parent = buttonFrame
-    Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 16)
+    local glowCorner = Instance.new("UICorner")
+    glowCorner.CornerRadius = UDim.new(0, 16)
+    glowCorner.Parent = glow
     
     local toggleButton = Instance.new("TextButton")
     toggleButton.Name = "ToggleButton"
     toggleButton.Size = UDim2.new(1.2, 0, 1.2, 0)
     toggleButton.Position = UDim2.new(0.5, 0, 0.5, 0)
     toggleButton.AnchorPoint = Vector2.new(0.5, 0.5)
-    toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(30, 55, 30)
     toggleButton.BackgroundTransparency = 0
     toggleButton.BorderSizePixel = 0
     toggleButton.Text = "−"
@@ -1126,79 +1296,94 @@ local function createUI()
     toggleButton.ZIndex = 9999
     toggleButton.AutoButtonColor = false
     toggleButton.Parent = buttonFrame
-    Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 10)
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 10)
+    btnCorner.Parent = toggleButton
     
     local tooltip = Instance.new("TextLabel")
     tooltip.Name = "Tooltip"
     tooltip.Size = UDim2.new(0, 80, 0, 20)
     tooltip.Position = UDim2.new(0.5, -40, 1, 6)
     tooltip.AnchorPoint = Vector2.new(0.5, 0)
-    tooltip.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    tooltip.BackgroundColor3 = Color3.fromRGB(20, 35, 20)
     tooltip.BackgroundTransparency = 0.3
     tooltip.BorderSizePixel = 0
-    tooltip.Text = "Menu"
-    tooltip.TextColor3 = Color3.fromRGB(200, 200, 255)
+    tooltip.Text = "GAG1"
+    tooltip.TextColor3 = Color3.fromRGB(150, 255, 200)
     tooltip.TextSize = 11
     tooltip.Font = Enum.Font.GothamMedium
     tooltip.Visible = false
     tooltip.ZIndex = 9999
     tooltip.Parent = buttonFrame
-    Instance.new("UICorner", tooltip).CornerRadius = UDim.new(0, 4)
+    local tooltipCorner = Instance.new("UICorner")
+    tooltipCorner.CornerRadius = UDim.new(0, 4)
+    tooltipCorner.Parent = tooltip
     
     local menuVisible = true
-    local dragData = { dragging = false, startPos = nil, startMouse = nil, isDragging = false }
     
     local function toggleMenu()
         menuVisible = not menuVisible
-        screenGui.Enabled = menuVisible
+        pcall(function()
+            local fluentGui = Window.Root.Parent
+            if fluentGui and fluentGui:IsA("ScreenGui") then
+                fluentGui.Enabled = menuVisible
+            end
+            if Window and Window.Root then
+                Window.Root.Visible = menuVisible
+            end
+        end)
         
         if menuVisible then
             toggleButton.Text = "−"
-            buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
-            glow.BackgroundColor3 = Color3.fromRGB(80, 200, 100)
+            buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 45, 25)
+            glow.BackgroundColor3 = Color3.fromRGB(80, 255, 130)
             glow.BackgroundTransparency = 0.7
             toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            tooltip.Text = "Menu"
+            tooltip.Text = "GAG1"
         else
             toggleButton.Text = "+"
             buttonFrame.BackgroundColor3 = Color3.fromRGB(45, 25, 25)
             glow.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
             glow.BackgroundTransparency = 0.6
             toggleButton.TextColor3 = Color3.fromRGB(255, 200, 200)
-            tooltip.Text = "Menu"
+            tooltip.Text = "GAG1"
         end
     end
     
+    local drag = { dragging = false, startPos = nil, startMouse = nil, isDragging = false }
+    
     toggleButton.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragData.dragging = true
-            dragData.startPos = buttonFrame.Position
-            dragData.startMouse = input.Position
-            dragData.isDragging = false
+            drag.dragging = true
+            drag.startPos = buttonFrame.Position
+            drag.startMouse = input.Position
+            drag.isDragging = false
         end
     end)
     
     toggleButton.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragData.dragging = false
+            drag.dragging = false
             task.wait(0.05)
-            dragData.isDragging = false
+            drag.isDragging = false
         end
     end)
     
     UserInputService.InputChanged:Connect(function(input)
-        if dragData.dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragData.startMouse
+        if drag.dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - drag.startMouse
             if delta.Magnitude > 3 then
-                dragData.isDragging = true
+                drag.isDragging = true
             end
-            if dragData.isDragging then
-                local newX = dragData.startPos.X.Offset + delta.X
-                local newY = dragData.startPos.Y.Offset + delta.Y
+            if drag.isDragging then
+                local newX = drag.startPos.X.Offset + delta.X
+                local newY = drag.startPos.Y.Offset + delta.Y
                 local screenSize = GuiService:GetScreenSize()
                 newX = math.clamp(newX, 0, screenSize.X - 44)
                 newY = math.clamp(newY, 0, screenSize.Y - 44)
                 buttonFrame.Position = UDim2.new(0, newX, 0, newY)
+                _G.GAG1ButtonPos = { X = newX, Y = newY }
             end
         end
     end)
@@ -1206,7 +1391,7 @@ local function createUI()
     toggleButton.MouseEnter:Connect(function()
         tooltip.Visible = true
         if menuVisible then
-            buttonFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
+            buttonFrame.BackgroundColor3 = Color3.fromRGB(45, 75, 45)
             glow.BackgroundTransparency = 0.4
         else
             buttonFrame.BackgroundColor3 = Color3.fromRGB(75, 35, 35)
@@ -1217,7 +1402,7 @@ local function createUI()
     toggleButton.MouseLeave:Connect(function()
         tooltip.Visible = false
         if menuVisible then
-            buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+            buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 45, 25)
             glow.BackgroundTransparency = 0.7
         else
             buttonFrame.BackgroundColor3 = Color3.fromRGB(45, 25, 25)
@@ -1226,36 +1411,26 @@ local function createUI()
     end)
     
     toggleButton.MouseButton1Click:Connect(function()
-        if not dragData.isDragging then
+        if not drag.isDragging then
             toggleMenu()
         end
     end)
     
-    -- KEYBIND - (Minus)
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
-        if input.KeyCode == Enum.KeyCode.Minus then
+        if input.KeyCode == Enum.KeyCode.Minus or input.KeyCode == Enum.KeyCode.M then
             toggleMenu()
         end
     end)
     
-    -- KEYBIND + (Plus)
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        if input.KeyCode == Enum.KeyCode.Equals then
-            toggleMenu()
-        end
-    end)
+    if _G.GAG1ButtonPos then
+        buttonFrame.Position = UDim2.new(0, _G.GAG1ButtonPos.X, 0, _G.GAG1ButtonPos.Y)
+    end
     
-    notify("🌱 GARDEN SPAWNER v8.0 ULTIMATE LOADED!", 3)
-    notify("💡 Press '-' or '+' to toggle menu", 3)
-end
-
--- ==================== START ====================
-task.spawn(function()
-    createUI()
+    print("[GAG1 HUB] ✅ Tombol menu siap!")
 end)
 
-print("[GARDEN SPAWNER] ✅ ULTIMATE v8.0 LOADED!")
-print("💡 Press '-' or '+' to toggle menu")
-print("🌱 15 AGGRESSIVE METHODS - PERMANENT!")
+print("[GAG1 HUB v5.0] ✅ Loaded successfully!")
+print("🌱 25+ Cheat Features + Pilih Benih")
+print("🚫 NOCLIP AUTO ON")
+print("💡 Klik '-' atau tekan '-' di keyboard untuk toggle menu")
