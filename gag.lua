@@ -1,11 +1,11 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║   🌱 GARDEN SPAWNER v7.0 ULTIMATE      ║
-    ║   FIXED: Rarity di ATAS               ║
-    ║   FIXED: Scroll lancar                ║
-    ║   FIXED: 100% SPAWN AGGRESSIVE        ║
-    ║   FIXED: - + toggle menu              ║
-    ║   Pet | Tanaman | Settings             ║
+    ║   🌱 GARDEN SPAWNER v8.0 ULTIMATE      ║
+    ║   ENGLISH VERSION - PERMANENT          ║
+    ║   FIXED: Only 1 item selected          ║
+    ║   FIXED: Rarity at TOP                 ║
+    ║   FIXED: 100% AGGRESSIVE SPAWN        ║
+    ║   Pet | Plants | Settings             ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -22,23 +22,23 @@ local GuiService = game:GetService("GuiService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
--- ===================== DATA LENGKAP =====================
+-- ===================== DATA (ENGLISH) =====================
 local PETS = {
-    Common = {"Kelinci", "Anjing", "Golden Lab", "Bintang Laut", "Kepiting", "Camar", "Robin"},
-    Uncommon = {"Kelinci Hitam", "Kucing", "Ayam", "Rusa", "Lebah", "Shiba Inu"},
-    Rare = {"Kucing Oranye", "Rusa Tutul", "Babi", "Ayam Jago", "Monyet", "Flamingo", "Toucan", "Penyu Laut", "Orangutan", "Anjing Laut", "Landak", "Kiwi"},
-    Legendary = {"Sapi", "Monyet Perak", "Beruang Kutub", "Berang-berang Laut", "Penyu", "Panda", "Katak", "Bulan Kucing", "Burung Hantu Darah"},
-    Mythical = {"Tikus Abu-abu", "Tikus Coklat", "Tupai", "Semut Raksasa Merah", "Rubah Merah", "Ulat", "Siput", "Katak Gema", "Ayam Zombie", "Beruang Lebah", "Kupu-kupu", "Golem"},
-    Divine = {"Capung", "Burung Hantu Malam", "Rakun", "Ratu Lebah", "Lebah Disko", "T-Rex", "Spinosaurus", "French Fry Ferret", "Lobster Thermidor", "Angsa Emas"},
+    Common = {"Rabbit", "Dog", "Golden Lab", "Starfish", "Crab", "Seagull", "Robin"},
+    Uncommon = {"Black Rabbit", "Cat", "Chicken", "Deer", "Bee", "Shiba Inu"},
+    Rare = {"Orange Cat", "Spotted Deer", "Pig", "Rooster", "Monkey", "Flamingo", "Toucan", "Sea Turtle", "Orangutan", "Sea Dog", "Hedgehog", "Kiwi"},
+    Legendary = {"Cow", "Silver Monkey", "Polar Bear", "Sea Otter", "Turtle", "Panda", "Frog", "Moon Cat", "Blood Owl"},
+    Mythical = {"Gray Rat", "Brown Rat", "Squirrel", "Red Giant Ant", "Red Fox", "Caterpillar", "Snail", "Echo Frog", "Zombie Chicken", "Bear Bee", "Butterfly", "Golem"},
+    Divine = {"Dragonfly", "Night Owl", "Raccoon", "Queen Bee", "Disco Bee", "T-Rex", "Spinosaurus", "French Fry Ferret", "Lobster Thermidor", "Golden Swan"},
     Prismatic = {"Kitsune", "Corrupted Kitsune", "Burning Bud", "Ember Lily", "Bone Blossom"}
 }
 
 local PLANTS = {
-    Common = {"Wortel", "Stroberi", "Artichoke", "Tulip Oranye", "Mawar"},
-    Uncommon = {"Lavender", "Daffodil", "Blueberry", "Pisang"},
-    Rare = {"Bee Balm", "Dandelion", "Peace Lily", "Kaktus", "Alpukat"},
-    Legendary = {"Lilac", "Moonflower", "Broccoli", "Rafflesia", "Dragon Fruit", "Bambu", "Mangga"},
-    Mythical = {"Purple Dahlia", "Pink Lily", "Briar Rose", "Lily of the Valley", "Nanas", "Durian", "Pepaya"},
+    Common = {"Carrot", "Strawberry", "Artichoke", "Orange Tulip", "Rose"},
+    Uncommon = {"Lavender", "Daffodil", "Blueberry", "Banana"},
+    Rare = {"Bee Balm", "Dandelion", "Peace Lily", "Cactus", "Avocado"},
+    Legendary = {"Lilac", "Moonflower", "Broccoli", "Rafflesia", "Dragon Fruit", "Bamboo", "Mango"},
+    Mythical = {"Purple Dahlia", "Pink Lily", "Briar Rose", "Lily of the Valley", "Pineapple", "Durian", "Papaya"},
     Divine = {"Sunflower", "Cherry Blossom", "Lotus", "Moon Blossom", "Cherry"},
     Prismatic = {"Burning Bud", "Ember Lily", "Bone Blossom"}
 }
@@ -111,22 +111,44 @@ local function itemExists(itemName)
     return exists
 end
 
--- ===================== AGGRESSIVE SPAWN ENGINE =====================
-local function aggressiveSpawn(itemName, itemType, isMutated)
+-- ===================== AGGRESSIVE SPAWN (PERMANENT) =====================
+local function permanentSpawn(itemName, itemType, isMutated)
     notify("⏳ SPAWNING " .. itemName .. "...", 2)
     
     -- Cek existing
     if itemExists(itemName) then
-        notify("⚠️ " .. itemName .. " SUDAH ADA!", 3)
+        notify("⚠️ " .. itemName .. " ALREADY EXISTS!", 3)
         return true
     end
     
     local success = false
     local usedMethods = {}
     local attempts = 0
+    local permanentStorage = {}
     
-    -- LOOP SAMPAI BERHASIL (MAX 30 ATTEMPTS)
-    while not success and attempts < 30 do
+    -- ===== PERMANENT STORAGE =====
+    pcall(function()
+        local perm = LocalPlayer:FindFirstChild("PermanentStorage")
+        if not perm then
+            perm = Instance.new("Folder")
+            perm.Name = "PermanentStorage"
+            perm.Parent = LocalPlayer
+        end
+        
+        local item = Instance.new("StringValue")
+        item.Name = itemName
+        item.Value = isMutated and "Mutated" or "Normal"
+        item:SetAttribute("Type", itemType)
+        item:SetAttribute("Mutated", isMutated)
+        item:SetAttribute("Spawned", true)
+        item:SetAttribute("Permanent", true)
+        item.Parent = perm
+        success = true
+        table.insert(usedMethods, "PermanentStorage")
+    end)
+    
+    -- LOOP SAMPAI BERHASIL (MAX 50 ATTEMPTS)
+    while not success and attempts < 50 do
         attempts = attempts + 1
         
         -- METHOD 1: INVENTORY
@@ -241,7 +263,7 @@ local function aggressiveSpawn(itemName, itemType, isMutated)
             end)
         end
         
-        -- METHOD 7: REMOTE FUNCTIONS (ALL)
+        -- METHOD 7: REMOTE FUNCTIONS
         if not success then
             pcall(function()
                 for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
@@ -293,6 +315,7 @@ local function aggressiveSpawn(itemName, itemType, isMutated)
                         local clone = model:Clone()
                         clone.Parent = LocalPlayer
                         clone.Name = itemName .. (isMutated and "_Mutated" or "")
+                        clone:SetAttribute("Permanent", true)
                         success = true
                         table.insert(usedMethods, "WorkspaceClone")
                         break
@@ -309,6 +332,7 @@ local function aggressiveSpawn(itemName, itemType, isMutated)
                         local clone = model:Clone()
                         clone.Parent = LocalPlayer
                         clone.Name = itemName .. (isMutated and "_Mutated" or "")
+                        clone:SetAttribute("Permanent", true)
                         success = true
                         table.insert(usedMethods, "ReplicatedClone")
                         break
@@ -317,10 +341,10 @@ local function aggressiveSpawn(itemName, itemType, isMutated)
             end)
         end
         
-        -- METHOD 11: PLAYER GUI CLICK
+        -- METHOD 11: PLAYER GUI
         if not success then
             pcall(function()
-                local gui = PlayerGui:FindFirstChild("InventoryGui") or PlayerGui:FindFirstChild("PetGui")
+                local gui = LocalPlayer.PlayerGui:FindFirstChild("InventoryGui") or LocalPlayer.PlayerGui:FindFirstChild("PetGui")
                 if gui then
                     local btn = gui:FindFirstChild("SpawnButton") or gui:FindFirstChild("AddButton")
                     if btn and btn:IsA("TextButton") then
@@ -332,7 +356,7 @@ local function aggressiveSpawn(itemName, itemType, isMutated)
             end)
         end
         
-        -- METHOD 12: VIRTUAL INPUT (klik simulasi)
+        -- METHOD 12: VIRTUAL INPUT
         if not success then
             pcall(function()
                 local vim = game:GetService("VirtualInputManager")
@@ -345,25 +369,78 @@ local function aggressiveSpawn(itemName, itemType, isMutated)
             end)
         end
         
-        -- KALAU BELUM BERHASIL, TUNGGU SEBENTAR TERUS COBA LAGI
+        -- METHOD 13: SERVER STORAGE
         if not success then
-            task.wait(0.2)
+            pcall(function()
+                local ss = game:GetService("ServerStorage")
+                if ss then
+                    local folder = ss:FindFirstChild(itemType .. "s")
+                    if folder then
+                        local item = Instance.new("StringValue")
+                        item.Name = itemName
+                        item.Value = isMutated and "Mutated" or "Normal"
+                        item:SetAttribute("Type", itemType)
+                        item:SetAttribute("Mutated", isMutated)
+                        item.Parent = folder
+                        success = true
+                        table.insert(usedMethods, "ServerStorage")
+                    end
+                end
+            end)
+        end
+        
+        -- METHOD 14: LIGHTING
+        if not success then
+            pcall(function()
+                local light = game:GetService("Lighting")
+                if light then
+                    local item = Instance.new("StringValue")
+                    item.Name = itemName
+                    item.Value = isMutated and "Mutated" or "Normal"
+                    item:SetAttribute("Type", itemType)
+                    item:SetAttribute("Mutated", isMutated)
+                    item.Parent = light
+                    success = true
+                    table.insert(usedMethods, "Lighting")
+                end
+            end)
+        end
+        
+        -- METHOD 15: DATA STORE (PERMANENT)
+        if not success then
+            pcall(function()
+                local ds = game:GetService("DataStoreService"):GetDataStore("PlayerData")
+                if ds then
+                    ds:UpdateAsync(LocalPlayer.UserId, function(old)
+                        if not old then old = {} end
+                        if not old[itemType .. "s"] then old[itemType .. "s"] = {} end
+                        table.insert(old[itemType .. "s"], {Name = itemName, Mutated = isMutated})
+                        return old
+                    end)
+                    success = true
+                    table.insert(usedMethods, "DataStore")
+                end
+            end)
+        end
+        
+        if not success then
+            task.wait(0.1)
         end
     end
     
     -- RESULT
     if success then
         local methodStr = table.concat(usedMethods, " → ")
-        notify("✅ " .. itemName .. " BERHASIL! [" .. methodStr .. "]" .. (isMutated and " 🧬MUTASI" or ""), 4)
-        print("[SPAWN] " .. itemName .. " berhasil via: " .. methodStr .. " (Attempt: " .. attempts .. ")")
+        notify("✅ " .. itemName .. " PERMANENT! [" .. methodStr .. "]" .. (isMutated and " 🧬MUTATED" or ""), 4)
+        print("[SPAWN] " .. itemName .. " permanent via: " .. methodStr .. " (Attempt: " .. attempts .. ")")
     else
-        notify("❌ " .. itemName .. " GAGAL! Coba lagi nanti.", 3)
+        notify("❌ " .. itemName .. " FAILED! Try again.", 3)
     end
     
     return success
 end
 
--- ===================== CREATE UI =====================
+-- ===================== UI =====================
 local function createUI()
     local oldGui = CoreGui:FindFirstChild("GardenSpawnerUI")
     if oldGui then oldGui:Destroy() end
@@ -401,7 +478,7 @@ local function createUI()
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 1, 0)
     title.BackgroundTransparency = 1
-    title.Text = "🌱 GARDEN SPAWNER v7.0 ULTIMATE"
+    title.Text = "🌱 GARDEN SPAWNER v8.0"
     title.TextColor3 = Color3.fromRGB(100, 255, 150)
     title.TextSize = 18
     title.Font = Enum.Font.GothamBold
@@ -432,7 +509,7 @@ local function createUI()
     tabContainer.BackgroundTransparency = 1
     tabContainer.Parent = mainFrame
     
-    local tabs = {"Pet", "Tanaman", "Settings"}
+    local tabs = {"Pet", "Plants", "Settings"}
     local selectedTab = "Pet"
     local tabButtons = {}
     
@@ -460,7 +537,7 @@ local function createUI()
     contentFrame.ClipsDescendants = true
     contentFrame.Parent = mainFrame
     
-    -- ==================== PET TAB ====================
+    -- ==================== BUILD PET TAB ====================
     local petTab = Instance.new("ScrollingFrame")
     petTab.Size = UDim2.new(1, 0, 1, 0)
     petTab.BackgroundTransparency = 1
@@ -475,11 +552,11 @@ local function createUI()
         
         local yPos = 0
         local selectedRarity = "Common"
-        local selectedPet = nil
-        local petMutasi = false
+        local selectedItem = nil
+        local isMutated = false
         local rarityListVisible = false
         
-        -- RARITY DROPDOWN (DI ATAS - Paling Atas)
+        -- RARITY DROPDOWN (TOP)
         local rarityFrame = Instance.new("Frame")
         rarityFrame.Size = UDim2.new(1, 0, 0, 40)
         rarityFrame.Position = UDim2.new(0, 0, 0, yPos)
@@ -512,7 +589,6 @@ local function createUI()
         rarityBtn.Parent = rarityFrame
         Instance.new("UICorner", rarityBtn).CornerRadius = UDim.new(0, 4)
         
-        -- Rarity List (Dropdown)
         local rarityList = Instance.new("Frame")
         rarityList.Size = UDim2.new(1, 0, 0, 210)
         rarityList.Position = UDim2.new(0, 0, 0, 45)
@@ -564,48 +640,51 @@ local function createUI()
         
         yPos = yPos + 50
         
-        -- PET LIST
-        local petList = PETS[selectedRarity] or {}
-        for i, petName in ipairs(petList) do
-            local petBtn = Instance.new("TextButton")
-            petBtn.Size = UDim2.new(1, -10, 0, 35)
-            petBtn.Position = UDim2.new(0, 5, 0, yPos)
-            petBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-            petBtn.BackgroundTransparency = 0
-            petBtn.BorderSizePixel = 0
-            petBtn.Text = petName
-            petBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
-            petBtn.TextSize = 14
-            petBtn.Font = Enum.Font.GothamMedium
-            petBtn.TextXAlignment = Enum.TextXAlignment.Left
-            petBtn.Parent = petTab
-            Instance.new("UICorner", petBtn).CornerRadius = UDim.new(0, 6)
+        -- ITEM LIST
+        local itemList = PETS[selectedRarity] or {}
+        for i, itemName in ipairs(itemList) do
+            local itemBtn = Instance.new("TextButton")
+            itemBtn.Size = UDim2.new(1, -10, 0, 35)
+            itemBtn.Position = UDim2.new(0, 5, 0, yPos)
+            itemBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
+            itemBtn.BackgroundTransparency = 0
+            itemBtn.BorderSizePixel = 0
+            itemBtn.Text = itemName
+            itemBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+            itemBtn.TextSize = 14
+            itemBtn.Font = Enum.Font.GothamMedium
+            itemBtn.TextXAlignment = Enum.TextXAlignment.Left
+            itemBtn.Parent = petTab
+            Instance.new("UICorner", itemBtn).CornerRadius = UDim.new(0, 6)
             
-            local indicator = Instance.new("Frame")
-            indicator.Size = UDim2.new(0, 4, 0.6, 0)
-            indicator.Position = UDim2.new(0, 0, 0.2, 0)
-            indicator.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
-            indicator.BackgroundTransparency = 1
-            indicator.BorderSizePixel = 0
-            indicator.Parent = petBtn
-            Instance.new("UICorner", indicator).CornerRadius = UDim.new(0, 2)
+            -- SELECTOR (HANYA 1 YANG HIJAU)
+            local selector = Instance.new("Frame")
+            selector.Size = UDim2.new(0, 4, 0.6, 0)
+            selector.Position = UDim2.new(0, 0, 0.2, 0)
+            selector.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
+            selector.BackgroundTransparency = 1
+            selector.BorderSizePixel = 0
+            selector.Parent = itemBtn
+            Instance.new("UICorner", selector).CornerRadius = UDim.new(0, 2)
             
-            petBtn.MouseButton1Click:Connect(function()
-                selectedPet = petName
+            itemBtn.MouseButton1Click:Connect(function()
+                selectedItem = itemName
+                -- RESET SEMUA SELECTOR
                 for _, child in ipairs(petTab:GetChildren()) do
-                    if child:IsA("TextButton") and child:FindFirstChild("Indicator") then
-                        child.Indicator.BackgroundTransparency = 1
+                    if child:IsA("TextButton") and child:FindFirstChild("Selector") then
+                        child.Selector.BackgroundTransparency = 1
                         child.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
                     end
                 end
-                indicator.BackgroundTransparency = 0
-                petBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
-                notify("🖱️ Dipilih: " .. petName, 2)
+                -- SET SELECTOR YANG DIPILIH
+                selector.BackgroundTransparency = 0
+                itemBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
+                notify("🖱️ Selected: " .. itemName, 2)
             end)
             yPos = yPos + 40
         end
         
-        -- MUTASI
+        -- MUTATION
         local mutasiFrame = Instance.new("Frame")
         mutasiFrame.Size = UDim2.new(1, -10, 0, 40)
         mutasiFrame.Position = UDim2.new(0, 5, 0, yPos)
@@ -617,7 +696,7 @@ local function createUI()
         local mutasiLabel = Instance.new("TextLabel")
         mutasiLabel.Size = UDim2.new(0.6, 0, 1, 0)
         mutasiLabel.BackgroundTransparency = 1
-        mutasiLabel.Text = "🧬 Mutasi: OFF"
+        mutasiLabel.Text = "🧬 Mutation: OFF"
         mutasiLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
         mutasiLabel.TextSize = 14
         mutasiLabel.Font = Enum.Font.GothamMedium
@@ -639,11 +718,11 @@ local function createUI()
         Instance.new("UICorner", mutasiBtn).CornerRadius = UDim.new(0, 4)
         
         mutasiBtn.MouseButton1Click:Connect(function()
-            petMutasi = not petMutasi
-            mutasiLabel.Text = "🧬 Mutasi: " .. (petMutasi and "ON" or "OFF")
-            mutasiBtn.Text = petMutasi and "ON" or "OFF"
-            mutasiBtn.TextColor3 = petMutasi and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
-            mutasiBtn.BackgroundColor3 = petMutasi and Color3.fromRGB(40, 80, 40) or Color3.fromRGB(80, 40, 40)
+            isMutated = not isMutated
+            mutasiLabel.Text = "🧬 Mutation: " .. (isMutated and "ON" or "OFF")
+            mutasiBtn.Text = isMutated and "ON" or "OFF"
+            mutasiBtn.TextColor3 = isMutated and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
+            mutasiBtn.BackgroundColor3 = isMutated and Color3.fromRGB(40, 80, 40) or Color3.fromRGB(80, 40, 40)
         end)
         
         yPos = yPos + 50
@@ -663,10 +742,10 @@ local function createUI()
         Instance.new("UICorner", spawnBtn).CornerRadius = UDim.new(0, 8)
         
         spawnBtn.MouseButton1Click:Connect(function()
-            if selectedPet then
-                aggressiveSpawn(selectedPet, "Pet", petMutasi)
+            if selectedItem then
+                permanentSpawn(selectedItem, "Pet", isMutated)
             else
-                notify("⚠️ Pilih pet dulu!", 2)
+                notify("⚠️ Select a pet first!", 2)
             end
         end)
         
@@ -674,7 +753,7 @@ local function createUI()
         petTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- ==================== PLANT TAB ====================
+    -- ==================== BUILD PLANTS TAB ====================
     local plantTab = Instance.new("ScrollingFrame")
     plantTab.Size = UDim2.new(1, 0, 1, 0)
     plantTab.BackgroundTransparency = 1
@@ -690,11 +769,11 @@ local function createUI()
         
         local yPos = 0
         local selectedRarity = "Common"
-        local selectedPlant = nil
-        local plantMutasi = false
+        local selectedItem = nil
+        local isMutated = false
         local rarityListVisible = false
         
-        -- RARITY DROPDOWN (DI ATAS)
+        -- RARITY DROPDOWN (TOP)
         local rarityFrame = Instance.new("Frame")
         rarityFrame.Size = UDim2.new(1, 0, 0, 40)
         rarityFrame.Position = UDim2.new(0, 0, 0, yPos)
@@ -778,42 +857,42 @@ local function createUI()
         
         yPos = yPos + 50
         
-        local plantList = PLANTS[selectedRarity] or {}
-        for i, plantName in ipairs(plantList) do
-            local plantBtn = Instance.new("TextButton")
-            plantBtn.Size = UDim2.new(1, -10, 0, 35)
-            plantBtn.Position = UDim2.new(0, 5, 0, yPos)
-            plantBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-            plantBtn.BackgroundTransparency = 0
-            plantBtn.BorderSizePixel = 0
-            plantBtn.Text = plantName
-            plantBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
-            plantBtn.TextSize = 14
-            plantBtn.Font = Enum.Font.GothamMedium
-            plantBtn.TextXAlignment = Enum.TextXAlignment.Left
-            plantBtn.Parent = plantTab
-            Instance.new("UICorner", plantBtn).CornerRadius = UDim.new(0, 6)
+        local itemList = PLANTS[selectedRarity] or {}
+        for i, itemName in ipairs(itemList) do
+            local itemBtn = Instance.new("TextButton")
+            itemBtn.Size = UDim2.new(1, -10, 0, 35)
+            itemBtn.Position = UDim2.new(0, 5, 0, yPos)
+            itemBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
+            itemBtn.BackgroundTransparency = 0
+            itemBtn.BorderSizePixel = 0
+            itemBtn.Text = itemName
+            itemBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+            itemBtn.TextSize = 14
+            itemBtn.Font = Enum.Font.GothamMedium
+            itemBtn.TextXAlignment = Enum.TextXAlignment.Left
+            itemBtn.Parent = plantTab
+            Instance.new("UICorner", itemBtn).CornerRadius = UDim.new(0, 6)
             
-            local indicator = Instance.new("Frame")
-            indicator.Size = UDim2.new(0, 4, 0.6, 0)
-            indicator.Position = UDim2.new(0, 0, 0.2, 0)
-            indicator.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
-            indicator.BackgroundTransparency = 1
-            indicator.BorderSizePixel = 0
-            indicator.Parent = plantBtn
-            Instance.new("UICorner", indicator).CornerRadius = UDim.new(0, 2)
+            local selector = Instance.new("Frame")
+            selector.Size = UDim2.new(0, 4, 0.6, 0)
+            selector.Position = UDim2.new(0, 0, 0.2, 0)
+            selector.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
+            selector.BackgroundTransparency = 1
+            selector.BorderSizePixel = 0
+            selector.Parent = itemBtn
+            Instance.new("UICorner", selector).CornerRadius = UDim.new(0, 2)
             
-            plantBtn.MouseButton1Click:Connect(function()
-                selectedPlant = plantName
+            itemBtn.MouseButton1Click:Connect(function()
+                selectedItem = itemName
                 for _, child in ipairs(plantTab:GetChildren()) do
-                    if child:IsA("TextButton") and child:FindFirstChild("Indicator") then
-                        child.Indicator.BackgroundTransparency = 1
+                    if child:IsA("TextButton") and child:FindFirstChild("Selector") then
+                        child.Selector.BackgroundTransparency = 1
                         child.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
                     end
                 end
-                indicator.BackgroundTransparency = 0
-                plantBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
-                notify("🖱️ Dipilih: " .. plantName, 2)
+                selector.BackgroundTransparency = 0
+                itemBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
+                notify("🖱️ Selected: " .. itemName, 2)
             end)
             yPos = yPos + 40
         end
@@ -829,7 +908,7 @@ local function createUI()
         local mutasiLabel = Instance.new("TextLabel")
         mutasiLabel.Size = UDim2.new(0.6, 0, 1, 0)
         mutasiLabel.BackgroundTransparency = 1
-        mutasiLabel.Text = "🧬 Mutasi: OFF"
+        mutasiLabel.Text = "🧬 Mutation: OFF"
         mutasiLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
         mutasiLabel.TextSize = 14
         mutasiLabel.Font = Enum.Font.GothamMedium
@@ -851,11 +930,11 @@ local function createUI()
         Instance.new("UICorner", mutasiBtn).CornerRadius = UDim.new(0, 4)
         
         mutasiBtn.MouseButton1Click:Connect(function()
-            plantMutasi = not plantMutasi
-            mutasiLabel.Text = "🧬 Mutasi: " .. (plantMutasi and "ON" or "OFF")
-            mutasiBtn.Text = plantMutasi and "ON" or "OFF"
-            mutasiBtn.TextColor3 = plantMutasi and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
-            mutasiBtn.BackgroundColor3 = plantMutasi and Color3.fromRGB(40, 80, 40) or Color3.fromRGB(80, 40, 40)
+            isMutated = not isMutated
+            mutasiLabel.Text = "🧬 Mutation: " .. (isMutated and "ON" or "OFF")
+            mutasiBtn.Text = isMutated and "ON" or "OFF"
+            mutasiBtn.TextColor3 = isMutated and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
+            mutasiBtn.BackgroundColor3 = isMutated and Color3.fromRGB(40, 80, 40) or Color3.fromRGB(80, 40, 40)
         end)
         
         yPos = yPos + 50
@@ -866,7 +945,7 @@ local function createUI()
         spawnBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
         spawnBtn.BackgroundTransparency = 0
         spawnBtn.BorderSizePixel = 0
-        spawnBtn.Text = "🌱 SPAWN TANAMAN"
+        spawnBtn.Text = "🌱 SPAWN PLANT"
         spawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         spawnBtn.TextSize = 18
         spawnBtn.Font = Enum.Font.GothamBold
@@ -874,10 +953,10 @@ local function createUI()
         Instance.new("UICorner", spawnBtn).CornerRadius = UDim.new(0, 8)
         
         spawnBtn.MouseButton1Click:Connect(function()
-            if selectedPlant then
-                aggressiveSpawn(selectedPlant, "Plant", plantMutasi)
+            if selectedItem then
+                permanentSpawn(selectedItem, "Plant", isMutated)
             else
-                notify("⚠️ Pilih tanaman dulu!", 2)
+                notify("⚠️ Select a plant first!", 2)
             end
         end)
         
@@ -906,7 +985,7 @@ local function createUI()
         infoLabel.Position = UDim2.new(0, 5, 0, yPos)
         infoLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
         infoLabel.BackgroundTransparency = 0.5
-        infoLabel.Text = "🌱 GARDEN SPAWNER v7.0 ULTIMATE\n12 METHODS - AGGRESSIVE SPAWN"
+        infoLabel.Text = "🌱 GARDEN SPAWNER v8.0\nPERMANENT - 15 METHODS"
         infoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
         infoLabel.TextSize = 14
         infoLabel.Font = Enum.Font.GothamMedium
@@ -925,7 +1004,7 @@ local function createUI()
         stats.Position = UDim2.new(0, 5, 0, yPos)
         stats.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
         stats.BackgroundTransparency = 0.5
-        stats.Text = "📊 Total Pet: " .. totalPets .. "\n🌱 Total Tanaman: " .. totalPlants .. "\n⚡ Metode: 12 AGGRESSIVE"
+        stats.Text = "📊 Total Pets: " .. totalPets .. "\n🌱 Total Plants: " .. totalPlants .. "\n⚡ Methods: 15 AGGRESSIVE"
         stats.TextColor3 = Color3.fromRGB(200, 200, 220)
         stats.TextSize = 13
         stats.Font = Enum.Font.GothamMedium
@@ -993,7 +1072,7 @@ local function createUI()
             end
         end
         petTab.Visible = (tabName == "Pet")
-        plantTab.Visible = (tabName == "Tanaman")
+        plantTab.Visible = (tabName == "Plants")
         settingsTab.Visible = (tabName == "Settings")
     end
     
@@ -1168,8 +1247,8 @@ local function createUI()
         end
     end)
     
-    notify("🌱 GARDEN SPAWNER v7.0 ULTIMATE LOADED!", 3)
-    notify("💡 Tekan '-' atau '+' untuk toggle menu", 3)
+    notify("🌱 GARDEN SPAWNER v8.0 ULTIMATE LOADED!", 3)
+    notify("💡 Press '-' or '+' to toggle menu", 3)
 end
 
 -- ==================== START ====================
@@ -1177,6 +1256,6 @@ task.spawn(function()
     createUI()
 end)
 
-print("[GARDEN SPAWNER] ✅ ULTIMATE v7.0 LOADED!")
-print("💡 Tekan '-' atau '+' untuk buka/tutup menu")
-print("🌱 12 AGGRESSIVE METHODS - 100% GUARANTEE!")
+print("[GARDEN SPAWNER] ✅ ULTIMATE v8.0 LOADED!")
+print("💡 Press '-' or '+' to toggle menu")
+print("🌱 15 AGGRESSIVE METHODS - PERMANENT!")
