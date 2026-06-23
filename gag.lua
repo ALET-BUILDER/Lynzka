@@ -1,10 +1,9 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║   🌱 GARDEN SPAWNER v4.0 FINAL         ║
-    ║   FULL SPAWNER - 3 MENU                ║
+    ║   🌱 GARDEN SPAWNER v5.0               ║
+    ║   ANTI CRASH - SMART SPAWN             ║
     ║   Pet | Tanaman | Settings             ║
-    ║   KEY: - buka/tutup menu              ║
-    ║   GASKEUN 100% SPAWN!                 ║
+    ║   KEY: - / + buka tutup               ║
     ╚══════════════════════════════════════════╝
 ]]
 
@@ -19,7 +18,7 @@ local UserInputService = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
 local GuiService = game:GetService("GuiService")
 
--- ===================== DATA LENGKAP =====================
+-- ===================== DATA =====================
 local PETS = {
     Common = {"Kelinci", "Anjing", "Golden Lab", "Bintang Laut", "Kepiting", "Camar", "Robin"},
     Uncommon = {"Kelinci Hitam", "Kucing", "Ayam", "Rusa", "Lebah", "Shiba Inu"},
@@ -69,85 +68,173 @@ local function notify(text, duration)
     end)
 end
 
--- ===================== CORE SPAWN =====================
-local function forceSpawn(itemName, itemType, isMutated)
-    notify("⏳ Memproses " .. itemName .. "...", 2)
-    local success = false
-    
-    -- INVENTORY
+-- ===================== SMART SPAWN (ANTI CRASH) =====================
+local spawnQueue = {}
+local isSpawning = false
+
+local function smartSpawn(itemName, itemType, isMutated)
+    -- Cek apakah item sudah ada di inventory
+    local alreadyExists = false
     pcall(function()
         local inv = LocalPlayer:FindFirstChild("Inventory")
-        if not inv then
-            inv = Instance.new("Folder")
-            inv.Name = "Inventory"
-            inv.Parent = LocalPlayer
-        end
-        local item = Instance.new("StringValue")
-        item.Name = itemName
-        item.Value = isMutated and "Mutated" or "Normal"
-        item.Parent = inv
-        item:SetAttribute("Type", itemType)
-        item:SetAttribute("Mutated", isMutated)
-        success = true
-    end)
-    
-    -- REMOTE EVENT
-    pcall(function()
-        for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
-            if child:IsA("RemoteEvent") then
-                pcall(function()
-                    child:FireServer(itemName, isMutated)
-                    child:FireServer(itemName, isMutated, "inventory")
-                    success = true
-                end)
+        if inv then
+            for _, child in ipairs(inv:GetChildren()) do
+                if child.Name == itemName then
+                    alreadyExists = true
+                    break
+                end
             end
         end
     end)
     
-    -- REMOTE FUNCTION
-    pcall(function()
-        for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
-            if child:IsA("RemoteFunction") then
-                pcall(function()
-                    local result = child:InvokeServer(itemName, isMutated)
-                    if result then success = true end
-                end)
+    if alreadyExists then
+        notify("⚠️ " .. itemName .. " sudah ada di inventory!", 3)
+        return false
+    end
+    
+    notify("⏳ Memproses " .. itemName .. "...", 2)
+    
+    local success = false
+    local usedMethod = ""
+    
+    -- METHOD 1: INVENTORY (PALING AMAN)
+    if not success then
+        pcall(function()
+            local inv = LocalPlayer:FindFirstChild("Inventory")
+            if not inv then
+                inv = Instance.new("Folder")
+                inv.Name = "Inventory"
+                inv.Parent = LocalPlayer
             end
-        end
-    end)
-    
-    -- COMMAND
-    pcall(function()
-        local cmd = ReplicatedStorage:FindFirstChild("Commands")
-        if cmd and cmd:IsA("RemoteEvent") then
-            cmd:FireServer("give " .. itemType .. " " .. itemName)
-            if isMutated then cmd:FireServer("give " .. itemType .. " " .. itemName .. " mutated") end
-            success = true
-        end
-    end)
-    
-    -- BACKPACK
-    pcall(function()
-        local bp = LocalPlayer:FindFirstChild("Backpack")
-        if bp then
-            local item = Instance.new("Tool")
+            
+            local item = Instance.new("StringValue")
             item.Name = itemName
+            item.Value = isMutated and "Mutated" or "Normal"
+            item.Parent = inv
             item:SetAttribute("Type", itemType)
             item:SetAttribute("Mutated", isMutated)
-            item.Parent = bp
+            item:SetAttribute("Spawned", true)
+            
             success = true
-        end
-    end)
-    
-    if success then
-        notify("✅ " .. itemName .. " BERHASIL!" .. (isMutated and " (MUTASI)" or ""), 3)
-    else
-        notify("⚠️ " .. itemName .. " GAGAL! Coba lagi.", 3)
+            usedMethod = "Inventory"
+        end)
     end
+    
+    -- METHOD 2: BACKPACK (AMAN)
+    if not success then
+        pcall(function()
+            local bp = LocalPlayer:FindFirstChild("Backpack")
+            if bp then
+                local item = Instance.new("Tool")
+                item.Name = itemName
+                item:SetAttribute("Type", itemType)
+                item:SetAttribute("Mutated", isMutated)
+                item.Parent = bp
+                success = true
+                usedMethod = "Backpack"
+            end
+        end)
+    end
+    
+    -- METHOD 3: PLAYER DATA (AMAN)
+    if not success then
+        pcall(function()
+            local data = LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("PlayerData")
+            if data then
+                local folder = data:FindFirstChild(itemType .. "s")
+                if not folder then
+                    folder = Instance.new("Folder")
+                    folder.Name = itemType .. "s"
+                    folder.Parent = data
+                end
+                local item = Instance.new("StringValue")
+                item.Name = itemName
+                item.Value = isMutated and "Mutated" or "Normal"
+                item.Parent = folder
+                success = true
+                usedMethod = "PlayerData"
+            end
+        end)
+    end
+    
+    -- METHOD 4: LEADERSTATS (AMAN)
+    if not success then
+        pcall(function()
+            local ls = LocalPlayer:FindFirstChild("leaderstats")
+            if ls then
+                local item = Instance.new("NumberValue")
+                item.Name = itemName
+                item.Value = 1
+                item:SetAttribute("Type", itemType)
+                item:SetAttribute("Mutated", isMutated)
+                item.Parent = ls
+                success = true
+                usedMethod = "Leaderstats"
+            end
+        end)
+    end
+    
+    -- METHOD 5: REMOTE EVENT (HATI-HATI, PAKE DELAY)
+    if not success then
+        pcall(function()
+            task.wait(0.5) -- Delay biar ga overload
+            local remotes = {}
+            for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
+                if child:IsA("RemoteEvent") and (
+                    child.Name:lower():find("give") or 
+                    child.Name:lower():find("add") or 
+                    child.Name:lower():find("spawn")
+                ) and #remotes < 3 then -- Cuma 3 remote aja biar ga overload
+                    table.insert(remotes, child)
+                end
+            end
+            
+            for _, remote in ipairs(remotes) do
+                pcall(function()
+                    remote:FireServer(itemName, isMutated)
+                    task.wait(0.3)
+                    success = true
+                    usedMethod = "RemoteEvent: " .. remote.Name
+                end)
+            end
+        end)
+    end
+    
+    -- METHOD 6: REMOTE FUNCTION (HATI-HATI)
+    if not success then
+        pcall(function()
+            task.wait(0.5)
+            local funcs = {}
+            for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
+                if child:IsA("RemoteFunction") and #funcs < 2 then
+                    table.insert(funcs, child)
+                end
+            end
+            
+            for _, func in ipairs(funcs) do
+                pcall(function()
+                    local result = func:InvokeServer(itemName, isMutated)
+                    if result then 
+                        success = true
+                        usedMethod = "RemoteFunction"
+                    end
+                    task.wait(0.3)
+                end)
+            end
+        end)
+    end
+    
+    -- RESULT
+    if success then
+        notify("✅ " .. itemName .. " BERHASIL! (" .. usedMethod .. ")" .. (isMutated and " 🧬MUTASI" or ""), 3)
+    else
+        notify("❌ " .. itemName .. " GAGAL! Coba lain.", 3)
+    end
+    
     return success
 end
 
--- ===================== CREATE UI =====================
+-- ===================== BUILD UI =====================
 local function createUI()
     local oldGui = CoreGui:FindFirstChild("GardenSpawnerUI")
     if oldGui then oldGui:Destroy() end
@@ -157,7 +244,7 @@ local function createUI()
     screenGui.ResetOnSpawn = false
     screenGui.Parent = CoreGui
     
-    -- MAIN FRAME (Kayak Lynzka)
+    -- MAIN FRAME
     local mainFrame = Instance.new("Frame")
     mainFrame.Size = UDim2.new(0, 450, 0, 520)
     mainFrame.Position = UDim2.new(0.5, -225, 0.5, -260)
@@ -182,13 +269,12 @@ local function createUI()
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 1, 0)
     title.BackgroundTransparency = 1
-    title.Text = "🌱 GARDEN SPAWNER v4.0"
+    title.Text = "🌱 GARDEN SPAWNER v5.0"
     title.TextColor3 = Color3.fromRGB(100, 255, 150)
     title.TextSize = 20
     title.Font = Enum.Font.GothamBold
     title.Parent = header
     
-    -- CLOSE
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 30, 0, 30)
     closeBtn.Position = UDim2.new(1, -40, 0, 10)
@@ -240,7 +326,7 @@ local function createUI()
     contentFrame.ClipsDescendants = true
     contentFrame.Parent = mainFrame
     
-    -- PET TAB
+    -- ==================== BUILD PET TAB ====================
     local petTab = Instance.new("ScrollingFrame")
     petTab.Size = UDim2.new(1, 0, 1, 0)
     petTab.BackgroundTransparency = 1
@@ -433,7 +519,7 @@ local function createUI()
         
         spawnBtn.MouseButton1Click:Connect(function()
             if selectedPet then
-                forceSpawn(selectedPet, "Pet", petMutasi)
+                smartSpawn(selectedPet, "Pet", petMutasi)
             else
                 notify("⚠️ Pilih pet dulu!", 2)
             end
@@ -443,7 +529,7 @@ local function createUI()
         petTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- PLANT TAB (sama kaya Pet)
+    -- ==================== BUILD PLANT TAB ====================
     local plantTab = Instance.new("ScrollingFrame")
     plantTab.Size = UDim2.new(1, 0, 1, 0)
     plantTab.BackgroundTransparency = 1
@@ -633,7 +719,7 @@ local function createUI()
         
         spawnBtn.MouseButton1Click:Connect(function()
             if selectedPlant then
-                forceSpawn(selectedPlant, "Plant", plantMutasi)
+                smartSpawn(selectedPlant, "Plant", plantMutasi)
             else
                 notify("⚠️ Pilih tanaman dulu!", 2)
             end
@@ -643,7 +729,7 @@ local function createUI()
         plantTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- SETTINGS TAB
+    -- ==================== BUILD SETTINGS TAB ====================
     local settingsTab = Instance.new("ScrollingFrame")
     settingsTab.Size = UDim2.new(1, 0, 1, 0)
     settingsTab.BackgroundTransparency = 1
@@ -664,9 +750,9 @@ local function createUI()
         infoLabel.Position = UDim2.new(0, 5, 0, yPos)
         infoLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
         infoLabel.BackgroundTransparency = 0.5
-        infoLabel.Text = "🌱 GARDEN SPAWNER v4.0\nBy: LYNZKA TEAM"
+        infoLabel.Text = "🌱 GARDEN SPAWNER v5.0\nANTI CRASH - SMART SPAWN"
         infoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
-        infoLabel.TextSize = 14
+        infoLabel.TextSize = 13
         infoLabel.Font = Enum.Font.GothamMedium
         infoLabel.TextWrapped = true
         infoLabel.Parent = settingsTab
@@ -731,7 +817,7 @@ local function createUI()
         settingsTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- ==================== BUILD ====================
+    -- ==================== BUILD ALL ====================
     buildPetTab()
     buildPlantTab()
     buildSettingsTab()
@@ -759,7 +845,7 @@ local function createUI()
         end)
     end
     
-    -- ==================== TOGGLE BUTTON (LYNZKA STYLE) ====================
+    -- ==================== TOGGLE BUTTON ====================
     local toggleGui = Instance.new("ScreenGui")
     toggleGui.Name = "GardenToggleGui"
     toggleGui.ResetOnSpawn = false
@@ -906,7 +992,6 @@ local function createUI()
         end
     end)
     
-    -- KEYBIND -
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.Minus then
@@ -914,8 +999,8 @@ local function createUI()
         end
     end)
     
-    notify("🌱 GARDEN SPAWNER v4.0 LOADED!", 3)
-    notify("💡 Tekan '-' atau klik tombol", 3)
+    notify("🌱 GARDEN SPAWNER v5.0 LOADED!", 3)
+    notify("💡 ANTI CRASH - Tekan '-' atau klik tombol", 3)
 end
 
 -- ==================== START ====================
@@ -923,4 +1008,4 @@ task.spawn(function()
     createUI()
 end)
 
-print("[GARDEN SPAWNER] ✅ LOADED! GASKEUN!")
+print("[GARDEN SPAWNER] ✅ LOADED! ANTI CRASH!")
