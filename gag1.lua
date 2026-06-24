@@ -1,9 +1,10 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║   🌱 GARDEN SPAWNER v9.0               ║
+    ║   🌱 GARDEN SPAWNER v9.0 FINAL         ║
     ║   LYNZKA STYLE - VISUAL ONLY           ║
+    ║   KHUSUS Grow a Garden Roblox          ║
     ║   Pet | Plants | Settings             ║
-    ║   SPAWN PET VISUAL DI DEPAN KAMU      ║
+    ║   SPAWN PET DI DEPAN KAMU            ║
     ║   KEY: - / + buka tutup               ║
     ╚══════════════════════════════════════════╝
 ]]
@@ -18,8 +19,9 @@ local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
 
--- ===================== DATA (ENGLISH) =====================
+-- ===================== DATA PET (Grow a Garden Roblox) =====================
 local PETS = {
     Common = {"Rabbit", "Dog", "Golden Lab", "Starfish", "Crab", "Seagull", "Robin"},
     Uncommon = {"Black Rabbit", "Cat", "Chicken", "Deer", "Bee", "Shiba Inu"},
@@ -69,11 +71,11 @@ local function notify(text, duration)
     end)
 end
 
--- ===================== VISUAL SPAWN =====================
+-- ===================== SPAWN VISUAL =====================
 local spawnedObjects = {}
 
 local function spawnVisual(itemName, itemType)
-    notify("👁️ Spawning " .. itemName .. " visual...", 2)
+    notify("👁️ Spawning " .. itemName .. "...", 2)
     
     local char = LocalPlayer.Character
     if not char then 
@@ -87,9 +89,9 @@ local function spawnVisual(itemName, itemType)
         return 
     end
     
-    local spawnPos = hrp.Position + Vector3.new(0, 3, 5) + hrp.CFrame.LookVector * 5
+    local spawnPos = hrp.Position + Vector3.new(0, 3, 0) + hrp.CFrame.LookVector * 5
     
-    -- CARI MODEL DARI WORKSPACE ATAU REPLICATEDSTORAGE
+    -- CARI MODEL
     local foundModel = nil
     
     -- Cari di Workspace
@@ -112,7 +114,7 @@ local function spawnVisual(itemName, itemType)
     
     -- Cari di Lighting
     if not foundModel then
-        for _, model in ipairs(game:GetService("Lighting"):GetDescendants()) do
+        for _, model in ipairs(Lighting:GetDescendants()) do
             if model:IsA("Model") and model.Name:lower():find(itemName:lower()) then
                 foundModel = model
                 break
@@ -123,31 +125,19 @@ local function spawnVisual(itemName, itemType)
     if foundModel then
         local clone = foundModel:Clone()
         clone.Parent = Workspace
-        clone.Position = spawnPos
+        clone:SetPrimaryPartCFrame(CFrame.new(spawnPos))
         
-        -- Tambahkan efek spawn
-        clone:SetAttribute("Spawned", true)
-        clone:SetAttribute("ItemName", itemName)
-        clone:SetAttribute("ItemType", itemType)
-        
-        -- Simpan untuk dihapus nanti
+        -- Simpan
         table.insert(spawnedObjects, clone)
         
-        -- Animasi muncul (scale up)
-        local originalSize = clone:FindFirstChild("HumanoidRootPart") and clone.HumanoidRootPart.Size or Vector3.new(1, 1, 1)
-        if clone:FindFirstChild("HumanoidRootPart") then
-            clone.HumanoidRootPart.Size = Vector3.new(0, 0, 0)
-        end
-        
-        -- Efek floating
+        -- Animasi floating
         local floatConnection
         local startY = spawnPos.Y
         local elapsed = 0
         floatConnection = RunService.Heartbeat:Connect(function(dt)
             elapsed = elapsed + dt
             local newY = startY + math.sin(elapsed * 2) * 0.5
-            clone.Position = Vector3.new(spawnPos.X, newY, spawnPos.Z)
-            clone.Orientation = Vector3.new(0, elapsed * 30, 0)
+            clone:SetPrimaryPartCFrame(CFrame.new(Vector3.new(spawnPos.X, newY, spawnPos.Z)))
         end)
         
         -- Auto delete setelah 30 detik
@@ -164,21 +154,20 @@ local function spawnVisual(itemName, itemType)
             end)
         end)
         
-        notify("✅ " .. itemName .. " visual spawned! (30s)", 3)
-        print("[VISUAL] " .. itemName .. " spawned at " .. spawnPos)
+        notify("✅ " .. itemName .. " spawned! (30s)", 3)
     else
-        -- Jika model tidak ditemukan, buat part sederhana
+        -- Buat part
         local part = Instance.new("Part")
         part.Name = itemName
         part.Size = Vector3.new(2, 2, 2)
         part.Position = spawnPos
         part.Anchored = true
         part.CanCollide = false
-        part.Transparency = 0
+        part.Transparency = 0.3
         part.Color = Color3.fromRGB(100, 200, 255)
         part.Parent = Workspace
         
-        -- Buat text label di atas part
+        -- Billboard
         local billboard = Instance.new("BillboardGui")
         billboard.Size = UDim2.new(0, 200, 0, 50)
         billboard.Adornee = part
@@ -195,7 +184,6 @@ local function spawnVisual(itemName, itemType)
         
         table.insert(spawnedObjects, part)
         
-        -- Animasi floating
         local floatConnection
         local startY = spawnPos.Y
         local elapsed = 0
@@ -218,11 +206,11 @@ local function spawnVisual(itemName, itemType)
             end)
         end)
         
-        notify("🔮 " .. itemName .. " (visual) spawned!", 3)
+        notify("🔮 " .. itemName .. " (visual)", 3)
     end
 end
 
--- ===================== CREATE UI (LYNZKA STYLE) =====================
+-- ===================== CREATE UI =====================
 local function createUI()
     local oldGui = CoreGui:FindFirstChild("GardenSpawnerUI")
     if oldGui then oldGui:Destroy() end
@@ -235,7 +223,7 @@ local function createUI()
     screenGui.ResetOnSpawn = false
     screenGui.Parent = CoreGui
     
-    -- MAIN FRAME (LYNZKA STYLE)
+    -- MAIN FRAME
     local mainFrame = Instance.new("Frame")
     mainFrame.Size = UDim2.new(0, 480, 0, 520)
     mainFrame.Position = UDim2.new(0.5, -240, 0.5, -260)
@@ -260,7 +248,7 @@ local function createUI()
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 1, 0)
     title.BackgroundTransparency = 1
-    title.Text = "🌱 VISUAL SPAWNER v9.0"
+    title.Text = "🌱 GARDEN SPAWNER v9.0"
     title.TextColor3 = Color3.fromRGB(100, 255, 150)
     title.TextSize = 18
     title.Font = Enum.Font.GothamBold
@@ -337,7 +325,7 @@ local function createUI()
         local selectedItem = nil
         local rarityListVisible = false
         
-        -- RARITY DROPDOWN (TOP)
+        -- RARITY DROPDOWN
         local rarityFrame = Instance.new("Frame")
         rarityFrame.Size = UDim2.new(1, 0, 0, 40)
         rarityFrame.Position = UDim2.new(0, 0, 0, yPos)
@@ -509,7 +497,7 @@ local function createUI()
         local selectedItem = nil
         local rarityListVisible = false
         
-        -- RARITY DROPDOWN (TOP)
+        -- RARITY DROPDOWN
         local rarityFrame = Instance.new("Frame")
         rarityFrame.Size = UDim2.new(1, 0, 0, 40)
         rarityFrame.Position = UDim2.new(0, 0, 0, yPos)
@@ -681,7 +669,7 @@ local function createUI()
         infoLabel.Position = UDim2.new(0, 5, 0, yPos)
         infoLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
         infoLabel.BackgroundTransparency = 0.5
-        infoLabel.Text = "🌱 VISUAL SPAWNER v9.0\nLYNZKA STYLE - VISUAL ONLY"
+        infoLabel.Text = "🌱 GARDEN SPAWNER v9.0\nLYNZKA STYLE - VISUAL ONLY"
         infoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
         infoLabel.TextSize = 14
         infoLabel.Font = Enum.Font.GothamMedium
@@ -709,7 +697,7 @@ local function createUI()
         Instance.new("UICorner", stats).CornerRadius = UDim.new(0, 8)
         yPos = yPos + 70
         
-        -- Clear Visuals Button
+        -- Clear Visuals
         local clearBtn = Instance.new("TextButton")
         clearBtn.Size = UDim2.new(1, -10, 0, 45)
         clearBtn.Position = UDim2.new(0, 5, 0, yPos)
@@ -946,7 +934,7 @@ local function createUI()
         end
     end)
     
-    notify("🌱 VISUAL SPAWNER v9.0 LOADED!", 3)
+    notify("🌱 GARDEN SPAWNER v9.0 LOADED!", 3)
     notify("💡 Press '-' or '+' to toggle menu", 3)
 end
 
@@ -955,6 +943,6 @@ task.spawn(function()
     createUI()
 end)
 
-print("[VISUAL SPAWNER] ✅ LOADED!")
+print("[GARDEN SPAWNER] ✅ LOADED!")
 print("💡 Press '-' or '+' to toggle menu")
-print("👁️ VISUAL ONLY - Pet will appear in front of you!")
+print("👁️ KHUSUS Grow a Garden Roblox!")
