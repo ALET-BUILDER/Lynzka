@@ -1,7 +1,7 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║   🌱 GARDEN SPAWNER v10.0 FINAL        ║
-    ║   REAL PET MOVEMENT - ANIMASI LENGKAP  ║
+    ║   🌱 GARDEN SPAWNER v11.0 ULTIMATE     ║
+    ║   REAL PETS + PLANTING SYSTEM          ║
     ║   KHUSUS Grow a Garden Roblox          ║
     ║   Pet | Plants | Settings             ║
     ║   KEY: - / + buka tutup               ║
@@ -19,16 +19,15 @@ local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
-local PathfindingService = game:GetService("PathfindingService")
 
--- ===================== DATA PET (Grow a Garden Roblox) =====================
+-- ===================== DATA PET (LENGKAP DARI GAG) =====================
 local PETS = {
-    Common = {"Rabbit", "Dog", "Golden Lab", "Starfish", "Crab", "Seagull", "Robin"},
-    Uncommon = {"Black Rabbit", "Cat", "Chicken", "Deer", "Bee", "Shiba Inu"},
-    Rare = {"Orange Cat", "Spotted Deer", "Pig", "Rooster", "Monkey", "Flamingo", "Toucan", "Sea Turtle", "Orangutan", "Sea Dog", "Hedgehog", "Kiwi"},
+    Common = {"Bunny", "Dog", "Golden Lab", "Starfish", "Crab", "Seagull", "Robin"},
+    Uncommon = {"Black Bunny", "Cat", "Chicken", "Deer", "Bee", "Shiba Inu"},
+    Rare = {"Orange Tabby", "Spotted Deer", "Pig", "Rooster", "Monkey", "Flamingo", "Toucan", "Sea Turtle", "Orangutan", "Seal", "Hedgehog", "Kiwi"},
     Legendary = {"Cow", "Silver Monkey", "Polar Bear", "Sea Otter", "Turtle", "Panda", "Frog", "Moon Cat", "Blood Owl"},
-    Mythical = {"Gray Rat", "Brown Rat", "Squirrel", "Red Giant Ant", "Red Fox", "Caterpillar", "Snail", "Echo Frog", "Zombie Chicken", "Bear Bee", "Butterfly", "Golem"},
-    Divine = {"Dragonfly", "Night Owl", "Raccoon", "Queen Bee", "Disco Bee", "T-Rex", "Spinosaurus", "French Fry Ferret", "Lobster Thermidor", "Golden Swan"},
+    Mythical = {"Grey Mouse", "Brown Mouse", "Squirrel", "Red Giant Ant", "Red Fox", "Caterpillar", "Snail", "Echo Frog", "Chicken Zombie", "Bear Bee", "Butterfly", "Golem"},
+    Divine = {"Dragonfly", "Night Owl", "Raccoon", "Queen Bee", "Disco Bee", "T-Rex", "Spinosaurus", "French Fry Ferret", "Lobster Thermidor", "Golden Goose"},
     Prismatic = {"Kitsune", "Corrupted Kitsune", "Burning Bud", "Ember Lily", "Bone Blossom"}
 }
 
@@ -71,9 +70,31 @@ local function notify(text, duration)
     end)
 end
 
--- ===================== SPAWN VISUAL DENGAN MOVEMENT =====================
+-- ===================== DATA GERAKAN HEWAN =====================
+local FLYING_PETS = {"Dragonfly", "Bee", "Queen Bee", "Disco Bee", "Bear Bee", "Butterfly", "Night Owl", "Robin", "Seagull", "Blood Owl", "Flamingo", "Toucan", "Pterodactyl", "Flying"}
+local SWIMMING_PETS = {"Sea Turtle", "Sea Otter", "Starfish", "Crab", "Seal", "Lobster Thermidor"}
+
+-- ===================== SPAWN VISUAL =====================
 local spawnedObjects = {}
 local petMovements = {}
+
+local function isFlying(petName)
+    for _, name in ipairs(FLYING_PETS) do
+        if petName:lower():find(name:lower()) then
+            return true
+        end
+    end
+    return false
+end
+
+local function isSwimming(petName)
+    for _, name in ipairs(SWIMMING_PETS) do
+        if petName:lower():find(name:lower()) then
+            return true
+        end
+    end
+    return false
+end
 
 local function spawnRealPet(itemName, itemType)
     notify("🐾 Spawning " .. itemName .. "...", 2)
@@ -96,6 +117,7 @@ local function spawnRealPet(itemName, itemType)
     local foundModel = nil
     local searchLocations = {Workspace, ReplicatedStorage, Lighting}
     
+    -- Cari model yang cocok dengan nama item
     for _, location in ipairs(searchLocations) do
         for _, model in ipairs(location:GetDescendants()) do
             if model:IsA("Model") and model.Name:lower():find(itemName:lower()) then
@@ -106,13 +128,20 @@ local function spawnRealPet(itemName, itemType)
         if foundModel then break end
     end
     
-    -- CARI PET YANG UDAH ADA DI WORKSPACE (model kaya Rabbit, Dog, dll)
+    -- Cari model pet yang mirip
     if not foundModel then
         for _, model in ipairs(Workspace:GetDescendants()) do
             if model:IsA("Model") and (
                 model.Name:lower():find("pet") or 
                 model.Name:lower():find("animal") or
-                model.Name:lower():find(itemName:lower())
+                model.Name:lower():find("rabbit") or
+                model.Name:lower():find("dog") or
+                model.Name:lower():find("cat") or
+                model.Name:lower():find("cow") or
+                model.Name:lower():find("fox") or
+                model.Name:lower():find("bear") or
+                model.Name:lower():find("bird") or
+                model.Name:lower():find("turtle")
             ) then
                 foundModel = model
                 break
@@ -121,6 +150,10 @@ local function spawnRealPet(itemName, itemType)
     end
     
     local petObject
+    
+    -- CEK APAKAH PET TERBANG
+    local flying = isFlying(itemName)
+    local swimming = isSwimming(itemName)
     
     if foundModel then
         petObject = foundModel:Clone()
@@ -141,10 +174,52 @@ local function spawnRealPet(itemName, itemType)
         end
         
     else
-        -- BUAT PART DENGAN ANIMASI
+        -- BUAT 3D PET SESUAI NAMA
         petObject = Instance.new("Model")
         petObject.Name = itemName
         petObject.Parent = Workspace
+        
+        -- Warna berdasarkan jenis hewan
+        local bodyColor = Color3.fromRGB(150, 120, 100)
+        local headColor = Color3.fromRGB(180, 150, 130)
+        local legColor = Color3.fromRGB(120, 90, 70)
+        
+        -- Tentukan warna berdasarkan nama
+        if itemName:lower():find("rabbit") or itemName:lower():find("bunny") then
+            bodyColor = Color3.fromRGB(200, 180, 160)
+            headColor = Color3.fromRGB(220, 200, 180)
+            legColor = Color3.fromRGB(180, 160, 140)
+        elseif itemName:lower():find("dog") then
+            bodyColor = Color3.fromRGB(180, 140, 100)
+            headColor = Color3.fromRGB(200, 160, 120)
+            legColor = Color3.fromRGB(150, 110, 80)
+        elseif itemName:lower():find("cat") then
+            bodyColor = Color3.fromRGB(200, 150, 100)
+            headColor = Color3.fromRGB(220, 170, 120)
+            legColor = Color3.fromRGB(180, 130, 80)
+        elseif itemName:lower():find("cow") then
+            bodyColor = Color3.fromRGB(255, 255, 255)
+            headColor = Color3.fromRGB(240, 240, 240)
+            legColor = Color3.fromRGB(200, 200, 200)
+        elseif itemName:lower():find("fox") then
+            bodyColor = Color3.fromRGB(200, 100, 50)
+            headColor = Color3.fromRGB(220, 120, 70)
+            legColor = Color3.fromRGB(150, 80, 40)
+        elseif itemName:lower():find("bear") then
+            bodyColor = Color3.fromRGB(120, 80, 60)
+            headColor = Color3.fromRGB(140, 100, 80)
+            legColor = Color3.fromRGB(100, 60, 40)
+        elseif itemName:lower():find("bird") or itemName:lower():find("owl") or itemName:lower():find("robin") or itemName:lower():find("seagull") then
+            bodyColor = Color3.fromRGB(100, 150, 200)
+            headColor = Color3.fromRGB(120, 170, 220)
+            legColor = Color3.fromRGB(80, 120, 160)
+            flying = true
+        elseif itemName:lower():find("turtle") or itemName:lower():find("sea") then
+            bodyColor = Color3.fromRGB(50, 150, 80)
+            headColor = Color3.fromRGB(70, 170, 100)
+            legColor = Color3.fromRGB(40, 120, 60)
+            swimming = true
+        end
         
         -- Body
         local body = Instance.new("Part")
@@ -154,7 +229,7 @@ local function spawnRealPet(itemName, itemType)
         body.Anchored = false
         body.CanCollide = true
         body.Transparency = 0
-        body.Color = Color3.fromRGB(100, 150, 200)
+        body.Color = bodyColor
         body.Parent = petObject
         Instance.new("UICorner", body).CornerRadius = UDim.new(0, 8)
         
@@ -166,7 +241,7 @@ local function spawnRealPet(itemName, itemType)
         head.Anchored = false
         head.CanCollide = true
         head.Transparency = 0
-        head.Color = Color3.fromRGB(150, 200, 250)
+        head.Color = headColor
         head.Parent = petObject
         Instance.new("UICorner", head).CornerRadius = UDim.new(0, 6)
         
@@ -182,6 +257,18 @@ local function spawnRealPet(itemName, itemType)
             eye.Parent = petObject
         end
         
+        -- Mata putih
+        for _, pos in ipairs({Vector3.new(-0.4, 0.35, 0.85), Vector3.new(0.6, 0.35, 0.85)}) do
+            local eyeWhite = Instance.new("Part")
+            eyeWhite.Size = Vector3.new(0.4, 0.4, 0.15)
+            eyeWhite.Position = head.Position + pos
+            eyeWhite.Anchored = false
+            eyeWhite.CanCollide = false
+            eyeWhite.Transparency = 0
+            eyeWhite.Color = Color3.fromRGB(255, 255, 255)
+            eyeWhite.Parent = petObject
+        end
+        
         -- Kaki
         for _, offset in ipairs({
             Vector3.new(-0.7, -1, 1.2),
@@ -195,8 +282,36 @@ local function spawnRealPet(itemName, itemType)
             leg.Anchored = false
             leg.CanCollide = true
             leg.Transparency = 0
-            leg.Color = Color3.fromRGB(80, 120, 180)
+            leg.Color = legColor
             leg.Parent = petObject
+        end
+        
+        -- Ekor (jika bukan hewan air/terbang)
+        if not swimming and not flying then
+            local tail = Instance.new("Part")
+            tail.Size = Vector3.new(0.3, 0.3, 0.8)
+            tail.Position = spawnPos + Vector3.new(0, 0.5, -2)
+            tail.Anchored = false
+            tail.CanCollide = false
+            tail.Transparency = 0
+            tail.Color = bodyColor
+            tail.Parent = petObject
+            Instance.new("UICorner", tail).CornerRadius = UDim.new(0, 4)
+        end
+        
+        -- Sayap (jika terbang)
+        if flying then
+            for _, side in ipairs({-1, 1}) do
+                local wing = Instance.new("Part")
+                wing.Size = Vector3.new(0.2, 1.5, 2)
+                wing.Position = spawnPos + Vector3.new(side * 1.5, 1, 0)
+                wing.Anchored = false
+                wing.CanCollide = false
+                wing.Transparency = 0.2
+                wing.Color = Color3.fromRGB(200, 200, 250)
+                wing.Parent = petObject
+                Instance.new("UICorner", wing).CornerRadius = UDim.new(0, 6)
+            end
         end
         
         -- Humanoid (biar bisa jalan)
@@ -205,7 +320,7 @@ local function spawnRealPet(itemName, itemType)
         hum.Parent = petObject
         hum.MaxHealth = 100
         hum.Health = 100
-        hum.WalkSpeed = 5
+        hum.WalkSpeed = flying and 10 or 5
         
         -- HumanoidRootPart
         local root = Instance.new("Part")
@@ -225,7 +340,7 @@ local function spawnRealPet(itemName, itemType)
         weld.Parent = body
     end
     
-    -- ----- ANIMASI BERJALAN KAYAK PET GAG -----
+    -- ----- ANIMASI SESUAI JENIS HEWAN -----
     local petInfo = {
         object = petObject,
         startPos = spawnPos,
@@ -236,7 +351,10 @@ local function spawnRealPet(itemName, itemType)
         time = 0,
         isMoving = true,
         type = itemType,
-        name = itemName
+        name = itemName,
+        flying = flying,
+        swimming = swimming,
+        moveConnection = nil
     }
     
     table.insert(spawnedObjects, petObject)
@@ -248,43 +366,68 @@ local function spawnRealPet(itemName, itemType)
         petInfo.time = petInfo.time + dt
         
         if petInfo.isMoving then
-            -- Gerak melingkar kayak pet di GAG
             petInfo.angle = petInfo.angle + dt * petInfo.speed * 30
             
             local rad = math.rad(petInfo.angle)
             local x = petInfo.startPos.X + math.cos(rad) * petInfo.radius
             local z = petInfo.startPos.Z + math.sin(rad) * petInfo.radius
-            local y = petInfo.startPos.Y + math.sin(petInfo.time * 1.5) * 0.3
+            
+            -- Ketinggian sesuai jenis
+            local y
+            if petInfo.flying then
+                -- Terbang dengan ketinggian 3-5 studs
+                y = petInfo.startPos.Y + 3 + math.sin(petInfo.time * 1.5) * 1.5
+            elseif petInfo.swimming then
+                -- Berenang di permukaan
+                y = petInfo.startPos.Y + 0.3 + math.sin(petInfo.time * 1.5) * 0.2
+            else
+                -- Jalan di tanah dengan lompatan kecil
+                y = petInfo.startPos.Y + 0.3 + math.sin(petInfo.time * 3) * 0.1
+                -- Lompat sesekali
+                if math.sin(petInfo.time * 2.5) > 0.9 then
+                    local root2 = petObject:FindFirstChild("HumanoidRootPart")
+                    if root2 then
+                        root2.Velocity = Vector3.new(0, 3, 0)
+                    end
+                end
+            end
             
             local newPos = Vector3.new(x, y, z)
             
             -- Rotasi menghadap arah gerak
             local lookDir = Vector3.new(-math.sin(rad), 0, math.cos(rad))
+            if petInfo.flying then
+                -- Burung terbang agak miring
+                lookDir = Vector3.new(-math.sin(rad), math.sin(petInfo.time * 1.5) * 0.1, math.cos(rad))
+            end
             
             -- Pindahkan pet
             local rootPart = petObject:FindFirstChild("HumanoidRootPart")
             if rootPart then
                 rootPart.CFrame = CFrame.new(newPos, newPos + lookDir)
-                
-                -- Warna berubah pelan (efek pet)
-                local bodyPart = petObject:FindFirstChild("Body")
-                if bodyPart then
-                    local hue = (math.sin(petInfo.time * 0.5) + 1) * 0.5
-                    bodyPart.Color = Color3.fromHSV(hue * 0.6 + 0.5, 0.8, 0.8)
-                end
             else
                 petObject:SetPrimaryPartCFrame(CFrame.new(newPos, newPos + lookDir))
             end
             
-            -- Lompat-lompat kecil (kayak pet GAG)
-            if math.sin(petInfo.time * 3) > 0.8 then
-                local root2 = petObject:FindFirstChild("HumanoidRootPart")
-                if root2 then
-                    root2.Velocity = Vector3.new(0, 2, 0)
+            -- Warna berubah pelan (efek pet GAG)
+            local bodyPart = petObject:FindFirstChild("Body")
+            if bodyPart then
+                local hue = (math.sin(petInfo.time * 0.3) + 1) * 0.5
+                local baseColor = Color3.fromHSV(hue * 0.6 + 0.2, 0.7, 0.8)
+                bodyPart.Color = baseColor
+            end
+            
+            -- Sayap mengepak (jika terbang)
+            if petInfo.flying then
+                for _, wing in ipairs(petObject:GetChildren()) do
+                    if wing:IsA("Part") and wing.Name == "Wing" then
+                        wing.CFrame = wing.CFrame * CFrame.Angles(0, 0, math.sin(petInfo.time * 8) * 0.3)
+                    end
                 end
             end
         end
     end)
+    petInfo.moveConnection = moveConnection
     
     -- ----- BILLBOARD NAMA -----
     local billboard = Instance.new("BillboardGui")
@@ -307,8 +450,8 @@ local function spawnRealPet(itemName, itemType)
     label.TextStrokeTransparency = 0.3
     label.Parent = billboard
     
-    -- ----- DELETE SETELAH 60 DETIK -----
-    task.delay(60, function()
+    -- ----- DELETE SETELAH 120 DETIK -----
+    task.delay(120, function()
         pcall(function()
             moveConnection:Disconnect()
             petObject:Destroy()
@@ -327,7 +470,129 @@ local function spawnRealPet(itemName, itemType)
         end)
     end)
     
-    notify("✅ " .. itemName .. " spawned! (60s)", 3)
+    notify("✅ " .. itemName .. " spawned! (120s)", 3)
+end
+
+-- ===================== TANAMAN MENJADI BERBUAH =====================
+local plantedPlants = {}
+
+local function plantFruit(itemName)
+    notify("🌱 Planting " .. itemName .. "...", 2)
+    
+    local char = LocalPlayer.Character
+    if not char then 
+        notify("❌ Character not found!", 2)
+        return 
+    end
+    
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then 
+        notify("❌ HumanoidRootPart not found!", 2)
+        return 
+    end
+    
+    local plantPos = hrp.Position + Vector3.new(0, 0, 0) + hrp.CFrame.LookVector * 5 + Vector3.new(math.random(-2, 2), 0, math.random(-2, 2))
+    
+    -- Buat tanaman
+    local plant = Instance.new("Model")
+    plant.Name = itemName .. "_Plant"
+    plant.Parent = Workspace
+    
+    -- Batang
+    local stem = Instance.new("Part")
+    stem.Name = "Stem"
+    stem.Size = Vector3.new(0.2, 1.5, 0.2)
+    stem.Position = plantPos + Vector3.new(0, 0.75, 0)
+    stem.Anchored = true
+    stem.CanCollide = false
+    stem.Transparency = 0.1
+    stem.Color = Color3.fromRGB(34, 139, 34)
+    stem.Parent = plant
+    Instance.new("UICorner", stem).CornerRadius = UDim.new(1, 0)
+    
+    -- Daun
+    for i = 1, 3 do
+        local leaf = Instance.new("Part")
+        leaf.Name = "Leaf"
+        leaf.Size = Vector3.new(0.4, 0.1, 0.4)
+        leaf.Position = plantPos + Vector3.new(math.random(-0.5, 0.5), 0.5 + i * 0.3, math.random(-0.5, 0.5))
+        leaf.Anchored = true
+        leaf.CanCollide = false
+        leaf.Transparency = 0.1
+        leaf.Color = Color3.fromRGB(50, 200, 50)
+        leaf.Parent = plant
+        Instance.new("UICorner", leaf).CornerRadius = UDim.new(1, 0)
+        
+        -- Rotasi daun
+        leaf.CFrame = leaf.CFrame * CFrame.Angles(0, math.rad(i * 120), math.rad(30))
+    end
+    
+    -- Buah (akan muncul setelah 10 detik)
+    task.delay(10, function()
+        pcall(function()
+            local fruit = Instance.new("Part")
+            fruit.Name = "Fruit_" .. itemName
+            fruit.Size = Vector3.new(0.8, 0.8, 0.8)
+            fruit.Position = plantPos + Vector3.new(0, 2.2, 0)
+            fruit.Anchored = true
+            fruit.CanCollide = false
+            fruit.Transparency = 0.2
+            fruit.Color = Color3.fromRGB(255, 100, 50)
+            fruit.Parent = plant
+            Instance.new("UICorner", fruit).CornerRadius = UDim.new(1, 0)
+            
+            -- Nama buah di atasnya
+            local fruitBillboard = Instance.new("BillboardGui")
+            fruitBillboard.Size = UDim2.new(0, 100, 0, 30)
+            fruitBillboard.Adornee = fruit
+            fruitBillboard.Parent = fruit
+            
+            local fruitLabel = Instance.new("TextLabel")
+            fruitLabel.Size = UDim2.new(1, 0, 1, 0)
+            fruitLabel.BackgroundTransparency = 1
+            fruitLabel.Text = "🍎 " .. itemName
+            fruitLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            fruitLabel.TextSize = 14
+            fruitLabel.Font = Enum.Font.GothamBold
+            fruitLabel.Parent = fruitBillboard
+            
+            -- Efek berbuah
+            TweenService:Create(fruit, TweenInfo.new(0.5), {
+                Size = Vector3.new(1.2, 1.2, 1.2)
+            }):Play()
+            
+            notify("🍎 " .. itemName .. " has grown fruit!", 2)
+            
+            -- Auto panen setelah 30 detik
+            task.delay(30, function()
+                pcall(function()
+                    TweenService:Create(fruit, TweenInfo.new(0.5), {
+                        Transparency = 1
+                    }):Play()
+                    task.delay(0.5, function()
+                        pcall(function() fruit:Destroy() end)
+                    end)
+                end)
+            end)
+        end)
+    end)
+    
+    table.insert(plantedPlants, plant)
+    
+    -- Auto delete setelah 60 detik
+    task.delay(60, function()
+        pcall(function()
+            plant:Destroy()
+            for i, obj in ipairs(plantedPlants) do
+                if obj == plant then
+                    table.remove(plantedPlants, i)
+                    break
+                end
+            end
+        end)
+    end)
+    
+    notify("🌱 " .. itemName .. " planted! Fruit in 10s", 3)
 end
 
 -- ===================== CREATE UI =====================
@@ -368,7 +633,7 @@ local function createUI()
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 1, 0)
     title.BackgroundTransparency = 1
-    title.Text = "🌱 GARDEN SPAWNER v10.0"
+    title.Text = "🌱 GARDEN SPAWNER v11.0"
     title.TextColor3 = Color3.fromRGB(100, 255, 150)
     title.TextSize = 18
     title.Font = Enum.Font.GothamBold
@@ -435,8 +700,8 @@ local function createUI()
     petTab.ScrollBarThickness = 6
     petTab.Parent = contentFrame
     
-    local selectedItem = nil
-    local selectedRarity = "All"
+    local selectedPet = nil
+    local selectedPetRarity = "All"
     
     local function buildPetTab()
         for _, child in ipairs(petTab:GetChildren()) do
@@ -446,15 +711,6 @@ local function createUI()
         local yPos = 0
         local rarityListVisible = false
         
-        -- SEMUA PET TANPA PILIHAN RARITY
-        local allPets = {}
-        for rarity, list in pairs(PETS) do
-            for _, pet in ipairs(list) do
-                table.insert(allPets, {name = pet, rarity = rarity})
-            end
-        end
-        
-        -- RARITY FILTER (TAPI TETEP ADA)
         local rarityFrame = Instance.new("Frame")
         rarityFrame.Size = UDim2.new(1, 0, 0, 40)
         rarityFrame.Position = UDim2.new(0, 0, 0, yPos)
@@ -524,7 +780,7 @@ local function createUI()
             item.Parent = rarityList
             Instance.new("UICorner", item).CornerRadius = UDim.new(0, 4)
             item.MouseButton1Click:Connect(function()
-                selectedRarity = rarityName
+                selectedPetRarity = rarityName
                 rarityLabel.Text = "📊 " .. rarityName
                 rarityList.Visible = false
                 rarityListVisible = false
@@ -541,24 +797,23 @@ local function createUI()
         
         -- FILTER PET
         local filteredPets = {}
-        if selectedRarity == "All" then
+        if selectedPetRarity == "All" then
             for rarity, list in pairs(PETS) do
                 for _, pet in ipairs(list) do
                     table.insert(filteredPets, {name = pet, rarity = rarity})
                 end
             end
         else
-            for _, pet in ipairs(PETS[selectedRarity] or {}) do
-                table.insert(filteredPets, {name = pet, rarity = selectedRarity})
+            for _, pet in ipairs(PETS[selectedPetRarity] or {}) do
+                table.insert(filteredPets, {name = pet, rarity = selectedPetRarity})
             end
         end
         
-        -- TAMPILAN PET
         for i, petData in ipairs(filteredPets) do
             local petBtn = Instance.new("TextButton")
             petBtn.Size = UDim2.new(1, -10, 0, 35)
             petBtn.Position = UDim2.new(0, 5, 0, yPos)
-            petBtn.BackgroundColor3 = (selectedItem == petData.name) and Color3.fromRGB(45, 45, 75) or Color3.fromRGB(30, 30, 55)
+            petBtn.BackgroundColor3 = (selectedPet == petData.name) and Color3.fromRGB(45, 45, 75) or Color3.fromRGB(30, 30, 55)
             petBtn.BackgroundTransparency = 0
             petBtn.BorderSizePixel = 0
             petBtn.Text = petData.name
@@ -569,17 +824,15 @@ local function createUI()
             petBtn.Parent = petTab
             Instance.new("UICorner", petBtn).CornerRadius = UDim.new(0, 6)
             
-            -- SELECTOR (HANYA 1 YANG HIJAU)
             local selector = Instance.new("Frame")
             selector.Size = UDim2.new(0, 4, 0.6, 0)
             selector.Position = UDim2.new(0, 0, 0.2, 0)
             selector.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
-            selector.BackgroundTransparency = (selectedItem == petData.name) and 0 or 1
+            selector.BackgroundTransparency = (selectedPet == petData.name) and 0 or 1
             selector.BorderSizePixel = 0
             selector.Parent = petBtn
             Instance.new("UICorner", selector).CornerRadius = UDim.new(0, 2)
             
-            -- TANDA RARITY
             local rarityTag = Instance.new("TextLabel")
             rarityTag.Size = UDim2.new(0, 80, 1, 0)
             rarityTag.Position = UDim2.new(1, -85, 0, 0)
@@ -592,7 +845,7 @@ local function createUI()
             rarityTag.Parent = petBtn
             
             petBtn.MouseButton1Click:Connect(function()
-                selectedItem = petData.name
+                selectedPet = petData.name
                 buildPetTab()
                 notify("🖱️ Selected: " .. petData.name, 2)
             end)
@@ -601,7 +854,6 @@ local function createUI()
         
         yPos = yPos + 10
         
-        -- SPAWN BUTTON
         local spawnBtn = Instance.new("TextButton")
         spawnBtn.Size = UDim2.new(1, -10, 0, 50)
         spawnBtn.Position = UDim2.new(0, 5, 0, yPos)
@@ -616,8 +868,8 @@ local function createUI()
         Instance.new("UICorner", spawnBtn).CornerRadius = UDim.new(0, 8)
         
         spawnBtn.MouseButton1Click:Connect(function()
-            if selectedItem then
-                spawnRealPet(selectedItem, "Pet")
+            if selectedPet then
+                spawnRealPet(selectedPet, "Pet")
             else
                 notify("⚠️ Select a pet first!", 2)
             end
@@ -646,13 +898,6 @@ local function createUI()
         
         local yPos = 0
         local rarityListVisible = false
-        
-        local allPlants = {}
-        for rarity, list in pairs(PLANTS) do
-            for _, plant in ipairs(list) do
-                table.insert(allPlants, {name = plant, rarity = rarity})
-            end
-        end
         
         local rarityFrame = Instance.new("Frame")
         rarityFrame.Size = UDim2.new(1, 0, 0, 40)
@@ -796,20 +1041,45 @@ local function createUI()
         
         yPos = yPos + 10
         
-        local spawnBtn = Instance.new("TextButton")
-        spawnBtn.Size = UDim2.new(1, -10, 0, 50)
-        spawnBtn.Position = UDim2.new(0, 5, 0, yPos)
-        spawnBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-        spawnBtn.BackgroundTransparency = 0
-        spawnBtn.BorderSizePixel = 0
-        spawnBtn.Text = "🌱 SPAWN PLANT"
-        spawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        spawnBtn.TextSize = 18
-        spawnBtn.Font = Enum.Font.GothamBold
-        spawnBtn.Parent = plantTab
-        Instance.new("UICorner", spawnBtn).CornerRadius = UDim.new(0, 8)
+        -- PLANT BUTTON
+        local plantBtn2 = Instance.new("TextButton")
+        plantBtn2.Size = UDim2.new(1, -10, 0, 50)
+        plantBtn2.Position = UDim2.new(0, 5, 0, yPos)
+        plantBtn2.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+        plantBtn2.BackgroundTransparency = 0
+        plantBtn2.BorderSizePixel = 0
+        plantBtn2.Text = "🌱 PLANT & GROW FRUIT"
+        plantBtn2.TextColor3 = Color3.fromRGB(255, 255, 255)
+        plantBtn2.TextSize = 16
+        plantBtn2.Font = Enum.Font.GothamBold
+        plantBtn2.Parent = plantTab
+        Instance.new("UICorner", plantBtn2).CornerRadius = UDim.new(0, 8)
         
-        spawnBtn.MouseButton1Click:Connect(function()
+        plantBtn2.MouseButton1Click:Connect(function()
+            if selectedPlant then
+                plantFruit(selectedPlant)
+            else
+                notify("⚠️ Select a plant first!", 2)
+            end
+        end)
+        
+        yPos = yPos + 60
+        
+        -- SPAWN VISUAL PLANT
+        local spawnVisualBtn = Instance.new("TextButton")
+        spawnVisualBtn.Size = UDim2.new(1, -10, 0, 40)
+        spawnVisualBtn.Position = UDim2.new(0, 5, 0, yPos)
+        spawnVisualBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+        spawnVisualBtn.BackgroundTransparency = 0
+        spawnVisualBtn.BorderSizePixel = 0
+        spawnVisualBtn.Text = "👁️ Spawn Visual Only"
+        spawnVisualBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+        spawnVisualBtn.TextSize = 13
+        spawnVisualBtn.Font = Enum.Font.GothamMedium
+        spawnVisualBtn.Parent = plantTab
+        Instance.new("UICorner", spawnVisualBtn).CornerRadius = UDim.new(0, 8)
+        
+        spawnVisualBtn.MouseButton1Click:Connect(function()
             if selectedPlant then
                 spawnRealPet(selectedPlant, "Plant")
             else
@@ -817,7 +1087,7 @@ local function createUI()
             end
         end)
         
-        yPos = yPos + 60
+        yPos = yPos + 50
         plantTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
@@ -842,7 +1112,7 @@ local function createUI()
         infoLabel.Position = UDim2.new(0, 5, 0, yPos)
         infoLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
         infoLabel.BackgroundTransparency = 0.5
-        infoLabel.Text = "🌱 GARDEN SPAWNER v10.0\nREAL PET MOVEMENT - 60s DURATION"
+        infoLabel.Text = "🌱 GARDEN SPAWNER v11.0\nREAL PET MOVEMENT - 120s DURATION"
         infoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
         infoLabel.TextSize = 14
         infoLabel.Font = Enum.Font.GothamMedium
@@ -861,7 +1131,7 @@ local function createUI()
         stats.Position = UDim2.new(0, 5, 0, yPos)
         stats.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
         stats.BackgroundTransparency = 0.5
-        stats.Text = "📊 Total Pets: " .. totalPets .. "\n🌱 Total Plants: " .. totalPlants .. "\n🐾 Real Movement - 60s Duration"
+        stats.Text = "📊 Total Pets: " .. totalPets .. "\n🌱 Total Plants: " .. totalPlants .. "\n🐾 Real Movement - 120s Duration"
         stats.TextColor3 = Color3.fromRGB(200, 200, 220)
         stats.TextSize = 13
         stats.Font = Enum.Font.GothamMedium
@@ -888,10 +1158,15 @@ local function createUI()
                 pcall(function() obj:Destroy() end)
             end
             for _, info in ipairs(petMovements) do
+                pcall(function() info.moveConnection:Disconnect() end)
                 pcall(function() info.object:Destroy() end)
+            end
+            for _, obj in ipairs(plantedPlants) do
+                pcall(function() obj:Destroy() end)
             end
             spawnedObjects = {}
             petMovements = {}
+            plantedPlants = {}
             notify("🗑️ All visuals cleared!", 2)
         end)
         yPos = yPos + 55
@@ -1110,8 +1385,8 @@ local function createUI()
         end
     end)
     
-    notify("🌱 GARDEN SPAWNER v10.0 LOADED!", 3)
-    notify("🐾 REAL PET MOVEMENT - 60s DURATION", 3)
+    notify("🌱 GARDEN SPAWNER v11.0 LOADED!", 3)
+    notify("🐾 REAL PET MOVEMENT - 120s DURATION", 3)
 end
 
 -- ==================== START ====================
@@ -1119,5 +1394,6 @@ task.spawn(function()
     createUI()
 end)
 
-print("[GARDEN SPAWNER] ✅ v10.0 LOADED!")
-print("🐾 REAL PET MOVEMENT - 60s DURATION!")
+print("[GARDEN SPAWNER] ✅ v11.0 LOADED!")
+print("🐾 REAL PET MOVEMENT - 120s DURATION!")
+print("🌱 Tanaman bisa berbuah setelah 10 detik!")
