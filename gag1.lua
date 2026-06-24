@@ -96,6 +96,47 @@ local function isSwimming(petName)
     return false
 end
 
+-- ===================== CARI MODEL PET ASLI DARI GAME =====================
+local function findPetModel(petName)
+    local searchLocations = {Workspace, ReplicatedStorage, Lighting}
+    
+    -- Cari model yang namanya persis atau mengandung nama pet
+    for _, location in ipairs(searchLocations) do
+        for _, model in ipairs(location:GetDescendants()) do
+            if model:IsA("Model") then
+                local modelName = model.Name:lower()
+                local petLower = petName:lower()
+                
+                -- Cek apakah nama model mengandung nama pet (case insensitive)
+                if modelName:find(petLower) or petLower:find(modelName) then
+                    return model
+                end
+            end
+        end
+    end
+    
+    -- Cari model yang mirip (fallback)
+    for _, location in ipairs(searchLocations) do
+        for _, model in ipairs(location:GetDescendants()) do
+            if model:IsA("Model") then
+                local modelName = model.Name:lower()
+                -- Cek kata kunci umum
+                if modelName:find("pet") or modelName:find("animal") or 
+                   modelName:find("rabbit") or modelName:find("bunny") or
+                   modelName:find("dog") or modelName:find("cat") or
+                   modelName:find("cow") or modelName:find("fox") or
+                   modelName:find("bear") or modelName:find("bird") or
+                   modelName:find("turtle") or modelName:find("monkey") then
+                    return model
+                end
+            end
+        end
+    end
+    
+    return nil
+end
+
+-- ===================== SPAWN PET SESUAI DARI GAG =====================
 local function spawnRealPet(itemName, itemType)
     notify("🐾 Spawning " .. itemName .. "...", 2)
     
@@ -113,113 +154,75 @@ local function spawnRealPet(itemName, itemType)
     
     local spawnPos = hrp.Position + Vector3.new(0, 0.5, 0) + hrp.CFrame.LookVector * 8 + Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))
     
-    -- CARI MODEL DARI WORKSPACE
-    local foundModel = nil
-    local searchLocations = {Workspace, ReplicatedStorage, Lighting}
-    
-    -- Cari model yang cocok dengan nama item
-    for _, location in ipairs(searchLocations) do
-        for _, model in ipairs(location:GetDescendants()) do
-            if model:IsA("Model") and model.Name:lower():find(itemName:lower()) then
-                foundModel = model
-                break
-            end
-        end
-        if foundModel then break end
-    end
-    
-    -- Cari model pet yang mirip
-    if not foundModel then
-        for _, model in ipairs(Workspace:GetDescendants()) do
-            if model:IsA("Model") and (
-                model.Name:lower():find("pet") or 
-                model.Name:lower():find("animal") or
-                model.Name:lower():find("rabbit") or
-                model.Name:lower():find("dog") or
-                model.Name:lower():find("cat") or
-                model.Name:lower():find("cow") or
-                model.Name:lower():find("fox") or
-                model.Name:lower():find("bear") or
-                model.Name:lower():find("bird") or
-                model.Name:lower():find("turtle")
-            ) then
-                foundModel = model
-                break
-            end
-        end
-    end
+    -- ========== CARI MODEL PET ASLI DARI GAME ==========
+    local foundModel = findPetModel(itemName)
     
     local petObject
     
-    -- CEK APAKAH PET TERBANG
-    local flying = isFlying(itemName)
-    local swimming = isSwimming(itemName)
-    
     if foundModel then
+        -- CLONE MODEL ASLI DARI GAME
         petObject = foundModel:Clone()
         petObject.Parent = Workspace
         petObject:SetPrimaryPartCFrame(CFrame.new(spawnPos))
         
         -- HAPUS SCRIPT YANG BISA BIKIN ERROR
         for _, script in ipairs(petObject:GetDescendants()) do
-            if script:IsA("Script") or script:IsA("LocalScript") then
+            if script:IsA("Script") or script:IsA("LocalScript") or script:IsA("ModuleScript") then
                 script:Destroy()
             end
         end
         
-        -- SIZE SESUAI
-        local hrp2 = petObject:FindFirstChild("HumanoidRootPart")
-        if hrp2 then
-            hrp2.Size = Vector3.new(2, 2, 2)
+        -- Bersihin semua weld/anchor biar bisa digerakin
+        for _, part in ipairs(petObject:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Anchored = false
+                part.CanCollide = true
+            end
+            if part:IsA("Weld") or part:IsA("Motor6D") then
+                part:Destroy()
+            end
         end
         
+        -- Cari atau buat HumanoidRootPart
+        local rootPart = petObject:FindFirstChild("HumanoidRootPart")
+        if not rootPart then
+            rootPart = Instance.new("Part")
+            rootPart.Name = "HumanoidRootPart"
+            rootPart.Size = Vector3.new(2, 1, 2)
+            rootPart.Position = spawnPos
+            rootPart.Anchored = false
+            rootPart.CanCollide = true
+            rootPart.Transparency = 1
+            rootPart.Parent = petObject
+        end
+        
+        -- Cari atau buat Humanoid
+        local hum = petObject:FindFirstChildOfClass("Humanoid")
+        if not hum then
+            hum = Instance.new("Humanoid")
+            hum.Name = "Humanoid"
+            hum.Parent = petObject
+            hum.MaxHealth = 100
+            hum.Health = 100
+            hum.WalkSpeed = 8
+        end
+        
+        -- Set posisi awal
+        petObject:SetPrimaryPartCFrame(CFrame.new(spawnPos))
+        
+        notify("✅ Found model: " .. foundModel.Name, 2)
+        
     else
-        -- BUAT 3D PET SESUAI NAMA
+        notify("⚠️ Model not found for: " .. itemName .. ", creating fallback", 2)
+        
+        -- FALLBACK: BUAT 3D SEDERHANA JIKA MODEL TIDAK DITEMUKAN
         petObject = Instance.new("Model")
         petObject.Name = itemName
         petObject.Parent = Workspace
         
-        -- Warna berdasarkan jenis hewan
         local bodyColor = Color3.fromRGB(150, 120, 100)
         local headColor = Color3.fromRGB(180, 150, 130)
         local legColor = Color3.fromRGB(120, 90, 70)
-        
-        -- Tentukan warna berdasarkan nama
-        if itemName:lower():find("rabbit") or itemName:lower():find("bunny") then
-            bodyColor = Color3.fromRGB(200, 180, 160)
-            headColor = Color3.fromRGB(220, 200, 180)
-            legColor = Color3.fromRGB(180, 160, 140)
-        elseif itemName:lower():find("dog") then
-            bodyColor = Color3.fromRGB(180, 140, 100)
-            headColor = Color3.fromRGB(200, 160, 120)
-            legColor = Color3.fromRGB(150, 110, 80)
-        elseif itemName:lower():find("cat") then
-            bodyColor = Color3.fromRGB(200, 150, 100)
-            headColor = Color3.fromRGB(220, 170, 120)
-            legColor = Color3.fromRGB(180, 130, 80)
-        elseif itemName:lower():find("cow") then
-            bodyColor = Color3.fromRGB(255, 255, 255)
-            headColor = Color3.fromRGB(240, 240, 240)
-            legColor = Color3.fromRGB(200, 200, 200)
-        elseif itemName:lower():find("fox") then
-            bodyColor = Color3.fromRGB(200, 100, 50)
-            headColor = Color3.fromRGB(220, 120, 70)
-            legColor = Color3.fromRGB(150, 80, 40)
-        elseif itemName:lower():find("bear") then
-            bodyColor = Color3.fromRGB(120, 80, 60)
-            headColor = Color3.fromRGB(140, 100, 80)
-            legColor = Color3.fromRGB(100, 60, 40)
-        elseif itemName:lower():find("bird") or itemName:lower():find("owl") or itemName:lower():find("robin") or itemName:lower():find("seagull") then
-            bodyColor = Color3.fromRGB(100, 150, 200)
-            headColor = Color3.fromRGB(120, 170, 220)
-            legColor = Color3.fromRGB(80, 120, 160)
-            flying = true
-        elseif itemName:lower():find("turtle") or itemName:lower():find("sea") then
-            bodyColor = Color3.fromRGB(50, 150, 80)
-            headColor = Color3.fromRGB(70, 170, 100)
-            legColor = Color3.fromRGB(40, 120, 60)
-            swimming = true
-        end
         
         -- Body
         local body = Instance.new("Part")
@@ -228,10 +231,8 @@ local function spawnRealPet(itemName, itemType)
         body.Position = spawnPos
         body.Anchored = false
         body.CanCollide = true
-        body.Transparency = 0
         body.Color = bodyColor
         body.Parent = petObject
-        Instance.new("UICorner", body).CornerRadius = UDim.new(0, 8)
         
         -- Head
         local head = Instance.new("Part")
@@ -240,89 +241,17 @@ local function spawnRealPet(itemName, itemType)
         head.Position = spawnPos + Vector3.new(0, 1.5, 1.8)
         head.Anchored = false
         head.CanCollide = true
-        head.Transparency = 0
         head.Color = headColor
         head.Parent = petObject
-        Instance.new("UICorner", head).CornerRadius = UDim.new(0, 6)
         
-        -- Mata
-        for _, pos in ipairs({Vector3.new(-0.5, 0.3, 0.8), Vector3.new(0.5, 0.3, 0.8)}) do
-            local eye = Instance.new("Part")
-            eye.Size = Vector3.new(0.3, 0.3, 0.2)
-            eye.Position = head.Position + pos
-            eye.Anchored = false
-            eye.CanCollide = false
-            eye.Transparency = 0
-            eye.Color = Color3.fromRGB(0, 0, 0)
-            eye.Parent = petObject
-        end
-        
-        -- Mata putih
-        for _, pos in ipairs({Vector3.new(-0.4, 0.35, 0.85), Vector3.new(0.6, 0.35, 0.85)}) do
-            local eyeWhite = Instance.new("Part")
-            eyeWhite.Size = Vector3.new(0.4, 0.4, 0.15)
-            eyeWhite.Position = head.Position + pos
-            eyeWhite.Anchored = false
-            eyeWhite.CanCollide = false
-            eyeWhite.Transparency = 0
-            eyeWhite.Color = Color3.fromRGB(255, 255, 255)
-            eyeWhite.Parent = petObject
-        end
-        
-        -- Kaki
-        for _, offset in ipairs({
-            Vector3.new(-0.7, -1, 1.2),
-            Vector3.new(0.7, -1, 1.2),
-            Vector3.new(-0.7, -1, -1.2),
-            Vector3.new(0.7, -1, -1.2)
-        }) do
-            local leg = Instance.new("Part")
-            leg.Size = Vector3.new(0.4, 0.8, 0.4)
-            leg.Position = spawnPos + offset
-            leg.Anchored = false
-            leg.CanCollide = true
-            leg.Transparency = 0
-            leg.Color = legColor
-            leg.Parent = petObject
-        end
-        
-        -- Ekor (jika bukan hewan air/terbang)
-        if not swimming and not flying then
-            local tail = Instance.new("Part")
-            tail.Size = Vector3.new(0.3, 0.3, 0.8)
-            tail.Position = spawnPos + Vector3.new(0, 0.5, -2)
-            tail.Anchored = false
-            tail.CanCollide = false
-            tail.Transparency = 0
-            tail.Color = bodyColor
-            tail.Parent = petObject
-            Instance.new("UICorner", tail).CornerRadius = UDim.new(0, 4)
-        end
-        
-        -- Sayap (jika terbang)
-        if flying then
-            for _, side in ipairs({-1, 1}) do
-                local wing = Instance.new("Part")
-                wing.Size = Vector3.new(0.2, 1.5, 2)
-                wing.Position = spawnPos + Vector3.new(side * 1.5, 1, 0)
-                wing.Anchored = false
-                wing.CanCollide = false
-                wing.Transparency = 0.2
-                wing.Color = Color3.fromRGB(200, 200, 250)
-                wing.Parent = petObject
-                Instance.new("UICorner", wing).CornerRadius = UDim.new(0, 6)
-            end
-        end
-        
-        -- Humanoid (biar bisa jalan)
+        -- Humanoid
         local hum = Instance.new("Humanoid")
         hum.Name = "Humanoid"
         hum.Parent = petObject
         hum.MaxHealth = 100
         hum.Health = 100
-        hum.WalkSpeed = flying and 10 or 5
+        hum.WalkSpeed = 5
         
-        -- HumanoidRootPart
         local root = Instance.new("Part")
         root.Name = "HumanoidRootPart"
         root.Size = Vector3.new(2, 1, 2)
@@ -331,23 +260,18 @@ local function spawnRealPet(itemName, itemType)
         root.CanCollide = true
         root.Transparency = 1
         root.Parent = petObject
-        
-        -- Weld body ke root
-        local weld = Instance.new("Weld")
-        weld.Part0 = root
-        weld.Part1 = body
-        weld.C0 = CFrame.new(0, 0, 0)
-        weld.Parent = body
     end
     
-    -- ----- ANIMASI SESUAI JENIS HEWAN -----
+    -- ========== ANIMASI GERAK ==========
+    local flying = isFlying(itemName)
+    local swimming = isSwimming(itemName)
+    
     local petInfo = {
         object = petObject,
         startPos = spawnPos,
         radius = 3 + math.random(0, 3),
         speed = 0.5 + math.random() * 1,
         angle = math.random() * 360,
-        heightOffset = 0,
         time = 0,
         isMoving = true,
         type = itemType,
@@ -372,69 +296,38 @@ local function spawnRealPet(itemName, itemType)
             local x = petInfo.startPos.X + math.cos(rad) * petInfo.radius
             local z = petInfo.startPos.Z + math.sin(rad) * petInfo.radius
             
-            -- Ketinggian sesuai jenis
             local y
             if petInfo.flying then
-                -- Terbang dengan ketinggian 3-5 studs
                 y = petInfo.startPos.Y + 3 + math.sin(petInfo.time * 1.5) * 1.5
             elseif petInfo.swimming then
-                -- Berenang di permukaan
                 y = petInfo.startPos.Y + 0.3 + math.sin(petInfo.time * 1.5) * 0.2
             else
-                -- Jalan di tanah dengan lompatan kecil
                 y = petInfo.startPos.Y + 0.3 + math.sin(petInfo.time * 3) * 0.1
-                -- Lompat sesekali
-                if math.sin(petInfo.time * 2.5) > 0.9 then
-                    local root2 = petObject:FindFirstChild("HumanoidRootPart")
-                    if root2 then
-                        root2.Velocity = Vector3.new(0, 3, 0)
-                    end
-                end
             end
             
             local newPos = Vector3.new(x, y, z)
-            
-            -- Rotasi menghadap arah gerak
             local lookDir = Vector3.new(-math.sin(rad), 0, math.cos(rad))
-            if petInfo.flying then
-                -- Burung terbang agak miring
-                lookDir = Vector3.new(-math.sin(rad), math.sin(petInfo.time * 1.5) * 0.1, math.cos(rad))
-            end
             
-            -- Pindahkan pet
             local rootPart = petObject:FindFirstChild("HumanoidRootPart")
             if rootPart then
                 rootPart.CFrame = CFrame.new(newPos, newPos + lookDir)
             else
-                petObject:SetPrimaryPartCFrame(CFrame.new(newPos, newPos + lookDir))
-            end
-            
-            -- Warna berubah pelan (efek pet GAG)
-            local bodyPart = petObject:FindFirstChild("Body")
-            if bodyPart then
-                local hue = (math.sin(petInfo.time * 0.3) + 1) * 0.5
-                local baseColor = Color3.fromHSV(hue * 0.6 + 0.2, 0.7, 0.8)
-                bodyPart.Color = baseColor
-            end
-            
-            -- Sayap mengepak (jika terbang)
-            if petInfo.flying then
-                for _, wing in ipairs(petObject:GetChildren()) do
-                    if wing:IsA("Part") and wing.Name == "Wing" then
-                        wing.CFrame = wing.CFrame * CFrame.Angles(0, 0, math.sin(petInfo.time * 8) * 0.3)
-                    end
-                end
+                pcall(function()
+                    petObject:SetPrimaryPartCFrame(CFrame.new(newPos, newPos + lookDir))
+                end)
             end
         end
     end)
     petInfo.moveConnection = moveConnection
     
-    -- ----- BILLBOARD NAMA -----
+    -- ========== BILLBOARD NAMA ==========
+    local adornee = petObject:FindFirstChild("Head") or petObject:FindFirstChild("HumanoidRootPart") or petObject:FindFirstChildOfClass("Part")
+    
     local billboard = Instance.new("BillboardGui")
     billboard.Size = UDim2.new(0, 150, 0, 35)
-    billboard.Adornee = petObject:FindFirstChild("Head") or petObject:FindFirstChild("HumanoidRootPart") or petObject:FindFirstChild("Body")
-    if billboard.Adornee then
-        billboard.Parent = billboard.Adornee
+    if adornee then
+        billboard.Adornee = adornee
+        billboard.Parent = adornee
     else
         billboard.Parent = petObject
     end
@@ -450,7 +343,7 @@ local function spawnRealPet(itemName, itemType)
     label.TextStrokeTransparency = 0.3
     label.Parent = billboard
     
-    -- ----- DELETE SETELAH 120 DETIK -----
+    -- ========== AUTO DELETE 120 DETIK ==========
     task.delay(120, function()
         pcall(function()
             moveConnection:Disconnect()
@@ -493,12 +386,10 @@ local function plantFruit(itemName)
     
     local plantPos = hrp.Position + Vector3.new(0, 0, 0) + hrp.CFrame.LookVector * 5 + Vector3.new(math.random(-2, 2), 0, math.random(-2, 2))
     
-    -- Buat tanaman
     local plant = Instance.new("Model")
     plant.Name = itemName .. "_Plant"
     plant.Parent = Workspace
     
-    -- Batang
     local stem = Instance.new("Part")
     stem.Name = "Stem"
     stem.Size = Vector3.new(0.2, 1.5, 0.2)
@@ -510,7 +401,6 @@ local function plantFruit(itemName)
     stem.Parent = plant
     Instance.new("UICorner", stem).CornerRadius = UDim.new(1, 0)
     
-    -- Daun
     for i = 1, 3 do
         local leaf = Instance.new("Part")
         leaf.Name = "Leaf"
@@ -522,12 +412,9 @@ local function plantFruit(itemName)
         leaf.Color = Color3.fromRGB(50, 200, 50)
         leaf.Parent = plant
         Instance.new("UICorner", leaf).CornerRadius = UDim.new(1, 0)
-        
-        -- Rotasi daun
         leaf.CFrame = leaf.CFrame * CFrame.Angles(0, math.rad(i * 120), math.rad(30))
     end
     
-    -- Buah (akan muncul setelah 10 detik)
     task.delay(10, function()
         pcall(function()
             local fruit = Instance.new("Part")
@@ -541,7 +428,6 @@ local function plantFruit(itemName)
             fruit.Parent = plant
             Instance.new("UICorner", fruit).CornerRadius = UDim.new(1, 0)
             
-            -- Nama buah di atasnya
             local fruitBillboard = Instance.new("BillboardGui")
             fruitBillboard.Size = UDim2.new(0, 100, 0, 30)
             fruitBillboard.Adornee = fruit
@@ -556,14 +442,12 @@ local function plantFruit(itemName)
             fruitLabel.Font = Enum.Font.GothamBold
             fruitLabel.Parent = fruitBillboard
             
-            -- Efek berbuah
             TweenService:Create(fruit, TweenInfo.new(0.5), {
                 Size = Vector3.new(1.2, 1.2, 1.2)
             }):Play()
             
             notify("🍎 " .. itemName .. " has grown fruit!", 2)
             
-            -- Auto panen setelah 30 detik
             task.delay(30, function()
                 pcall(function()
                     TweenService:Create(fruit, TweenInfo.new(0.5), {
@@ -579,7 +463,6 @@ local function plantFruit(itemName)
     
     table.insert(plantedPlants, plant)
     
-    -- Auto delete setelah 60 detik
     task.delay(60, function()
         pcall(function()
             plant:Destroy()
@@ -608,7 +491,6 @@ local function createUI()
     screenGui.ResetOnSpawn = false
     screenGui.Parent = CoreGui
     
-    -- MAIN FRAME
     local mainFrame = Instance.new("Frame")
     mainFrame.Size = UDim2.new(0, 480, 0, 520)
     mainFrame.Position = UDim2.new(0.5, -240, 0.5, -260)
@@ -621,7 +503,6 @@ local function createUI()
     mainFrame.Parent = screenGui
     Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
     
-    -- HEADER
     local header = Instance.new("Frame")
     header.Size = UDim2.new(1, 0, 0, 50)
     header.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
@@ -657,7 +538,6 @@ local function createUI()
         if tg then tg:Destroy() end
     end)
     
-    -- TAB BUTTONS
     local tabContainer = Instance.new("Frame")
     tabContainer.Size = UDim2.new(1, 0, 0, 45)
     tabContainer.Position = UDim2.new(0, 0, 0, 50)
@@ -684,7 +564,6 @@ local function createUI()
         tabButtons[tabName] = btn
     end
     
-    -- CONTENT
     local contentFrame = Instance.new("Frame")
     contentFrame.Size = UDim2.new(1, -20, 1, -120)
     contentFrame.Position = UDim2.new(0, 10, 0, 100)
@@ -692,7 +571,7 @@ local function createUI()
     contentFrame.ClipsDescendants = true
     contentFrame.Parent = mainFrame
     
-    -- ==================== PET TAB ====================
+    -- PET TAB
     local petTab = Instance.new("ScrollingFrame")
     petTab.Size = UDim2.new(1, 0, 1, 0)
     petTab.BackgroundTransparency = 1
@@ -795,7 +674,6 @@ local function createUI()
         
         yPos = yPos + 50
         
-        -- FILTER PET
         local filteredPets = {}
         if selectedPetRarity == "All" then
             for rarity, list in pairs(PETS) do
@@ -879,7 +757,7 @@ local function createUI()
         petTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- ==================== PLANTS TAB ====================
+    -- PLANTS TAB
     local plantTab = Instance.new("ScrollingFrame")
     plantTab.Size = UDim2.new(1, 0, 1, 0)
     plantTab.BackgroundTransparency = 1
@@ -1041,7 +919,6 @@ local function createUI()
         
         yPos = yPos + 10
         
-        -- PLANT BUTTON
         local plantBtn2 = Instance.new("TextButton")
         plantBtn2.Size = UDim2.new(1, -10, 0, 50)
         plantBtn2.Position = UDim2.new(0, 5, 0, yPos)
@@ -1065,7 +942,6 @@ local function createUI()
         
         yPos = yPos + 60
         
-        -- SPAWN VISUAL PLANT
         local spawnVisualBtn = Instance.new("TextButton")
         spawnVisualBtn.Size = UDim2.new(1, -10, 0, 40)
         spawnVisualBtn.Position = UDim2.new(0, 5, 0, yPos)
@@ -1091,7 +967,7 @@ local function createUI()
         plantTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- ==================== SETTINGS TAB ====================
+    -- SETTINGS TAB
     local settingsTab = Instance.new("ScrollingFrame")
     settingsTab.Size = UDim2.new(1, 0, 1, 0)
     settingsTab.BackgroundTransparency = 1
@@ -1112,7 +988,7 @@ local function createUI()
         infoLabel.Position = UDim2.new(0, 5, 0, yPos)
         infoLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
         infoLabel.BackgroundTransparency = 0.5
-        infoLabel.Text = "🌱 GARDEN SPAWNER v11.0\nREAL PET MOVEMENT - 120s DURATION"
+        infoLabel.Text = "🌱 GARDEN SPAWNER v11.0\nREAL PET FROM GAG - 120s DURATION"
         infoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
         infoLabel.TextSize = 14
         infoLabel.Font = Enum.Font.GothamMedium
@@ -1131,7 +1007,7 @@ local function createUI()
         stats.Position = UDim2.new(0, 5, 0, yPos)
         stats.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
         stats.BackgroundTransparency = 0.5
-        stats.Text = "📊 Total Pets: " .. totalPets .. "\n🌱 Total Plants: " .. totalPlants .. "\n🐾 Real Movement - 120s Duration"
+        stats.Text = "📊 Total Pets: " .. totalPets .. "\n🌱 Total Plants: " .. totalPlants .. "\n🐾 Real GAG Models - 120s Duration"
         stats.TextColor3 = Color3.fromRGB(200, 200, 220)
         stats.TextSize = 13
         stats.Font = Enum.Font.GothamMedium
@@ -1140,7 +1016,6 @@ local function createUI()
         Instance.new("UICorner", stats).CornerRadius = UDim.new(0, 8)
         yPos = yPos + 70
         
-        -- Clear Visuals
         local clearBtn = Instance.new("TextButton")
         clearBtn.Size = UDim2.new(1, -10, 0, 45)
         clearBtn.Position = UDim2.new(0, 5, 0, yPos)
@@ -1193,12 +1068,10 @@ local function createUI()
         settingsTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- ==================== BUILD ALL ====================
     buildPetTab()
     buildPlantTab()
     buildSettingsTab()
     
-    -- ==================== TAB SWITCH ====================
     local function switchTab(tabName)
         selectedTab = tabName
         for name, btn in pairs(tabButtons) do
@@ -1221,7 +1094,7 @@ local function createUI()
         end)
     end
     
-    -- ==================== TOGGLE BUTTON (LYNZKA STYLE) ====================
+    -- TOGGLE BUTTON
     local toggleGui = Instance.new("ScreenGui")
     toggleGui.Name = "GardenToggleGui"
     toggleGui.ResetOnSpawn = false
@@ -1370,7 +1243,6 @@ local function createUI()
         end
     end)
     
-    -- KEYBIND
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.Minus then
@@ -1386,14 +1258,12 @@ local function createUI()
     end)
     
     notify("🌱 GARDEN SPAWNER v11.0 LOADED!", 3)
-    notify("🐾 REAL PET MOVEMENT - 120s DURATION", 3)
+    notify("🐾 REAL GAG PET MODELS!", 3)
 end
 
--- ==================== START ====================
 task.spawn(function()
     createUI()
 end)
 
 print("[GARDEN SPAWNER] ✅ v11.0 LOADED!")
-print("🐾 REAL PET MOVEMENT - 120s DURATION!")
-print("🌱 Tanaman bisa berbuah setelah 10 detik!")
+print("🐾 Using REAL GAG Pet Models!")
