@@ -1,10 +1,9 @@
 --[[
     ╔══════════════════════════════════════════╗
-    ║   🌱 GARDEN SPAWNER v9.0 FINAL         ║
-    ║   LYNZKA STYLE - VISUAL ONLY           ║
+    ║   🌱 GARDEN SPAWNER v10.0 FINAL        ║
+    ║   REAL PET MOVEMENT - ANIMASI LENGKAP  ║
     ║   KHUSUS Grow a Garden Roblox          ║
     ║   Pet | Plants | Settings             ║
-    ║   SPAWN PET DI DEPAN KAMU            ║
     ║   KEY: - / + buka tutup               ║
     ╚══════════════════════════════════════════╝
 ]]
@@ -20,6 +19,7 @@ local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
+local PathfindingService = game:GetService("PathfindingService")
 
 -- ===================== DATA PET (Grow a Garden Roblox) =====================
 local PETS = {
@@ -71,11 +71,12 @@ local function notify(text, duration)
     end)
 end
 
--- ===================== SPAWN VISUAL =====================
+-- ===================== SPAWN VISUAL DENGAN MOVEMENT =====================
 local spawnedObjects = {}
+local petMovements = {}
 
-local function spawnVisual(itemName, itemType)
-    notify("👁️ Spawning " .. itemName .. "...", 2)
+local function spawnRealPet(itemName, itemType)
+    notify("🐾 Spawning " .. itemName .. "...", 2)
     
     local char = LocalPlayer.Character
     if not char then 
@@ -89,125 +90,244 @@ local function spawnVisual(itemName, itemType)
         return 
     end
     
-    local spawnPos = hrp.Position + Vector3.new(0, 3, 0) + hrp.CFrame.LookVector * 5
+    local spawnPos = hrp.Position + Vector3.new(0, 0.5, 0) + hrp.CFrame.LookVector * 8 + Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))
     
-    -- CARI MODEL
+    -- CARI MODEL DARI WORKSPACE
     local foundModel = nil
+    local searchLocations = {Workspace, ReplicatedStorage, Lighting}
     
-    -- Cari di Workspace
-    for _, model in ipairs(Workspace:GetDescendants()) do
-        if model:IsA("Model") and model.Name:lower():find(itemName:lower()) then
-            foundModel = model
-            break
+    for _, location in ipairs(searchLocations) do
+        for _, model in ipairs(location:GetDescendants()) do
+            if model:IsA("Model") and model.Name:lower():find(itemName:lower()) then
+                foundModel = model
+                break
+            end
         end
+        if foundModel then break end
     end
     
-    -- Cari di ReplicatedStorage
+    -- CARI PET YANG UDAH ADA DI WORKSPACE (model kaya Rabbit, Dog, dll)
     if not foundModel then
-        for _, model in ipairs(ReplicatedStorage:GetDescendants()) do
-            if model:IsA("Model") and model.Name:lower():find(itemName:lower()) then
+        for _, model in ipairs(Workspace:GetDescendants()) do
+            if model:IsA("Model") and (
+                model.Name:lower():find("pet") or 
+                model.Name:lower():find("animal") or
+                model.Name:lower():find(itemName:lower())
+            ) then
                 foundModel = model
                 break
             end
         end
     end
     
-    -- Cari di Lighting
-    if not foundModel then
-        for _, model in ipairs(Lighting:GetDescendants()) do
-            if model:IsA("Model") and model.Name:lower():find(itemName:lower()) then
-                foundModel = model
-                break
-            end
-        end
-    end
+    local petObject
     
     if foundModel then
-        local clone = foundModel:Clone()
-        clone.Parent = Workspace
-        clone:SetPrimaryPartCFrame(CFrame.new(spawnPos))
+        petObject = foundModel:Clone()
+        petObject.Parent = Workspace
+        petObject:SetPrimaryPartCFrame(CFrame.new(spawnPos))
         
-        -- Simpan
-        table.insert(spawnedObjects, clone)
+        -- HAPUS SCRIPT YANG BISA BIKIN ERROR
+        for _, script in ipairs(petObject:GetDescendants()) do
+            if script:IsA("Script") or script:IsA("LocalScript") then
+                script:Destroy()
+            end
+        end
         
-        -- Animasi floating
-        local floatConnection
-        local startY = spawnPos.Y
-        local elapsed = 0
-        floatConnection = RunService.Heartbeat:Connect(function(dt)
-            elapsed = elapsed + dt
-            local newY = startY + math.sin(elapsed * 2) * 0.5
-            clone:SetPrimaryPartCFrame(CFrame.new(Vector3.new(spawnPos.X, newY, spawnPos.Z)))
-        end)
+        -- SIZE SESUAI
+        local hrp2 = petObject:FindFirstChild("HumanoidRootPart")
+        if hrp2 then
+            hrp2.Size = Vector3.new(2, 2, 2)
+        end
         
-        -- Auto delete setelah 30 detik
-        task.delay(30, function()
-            pcall(function()
-                floatConnection:Disconnect()
-                clone:Destroy()
-                for i, obj in ipairs(spawnedObjects) do
-                    if obj == clone then
-                        table.remove(spawnedObjects, i)
-                        break
-                    end
-                end
-            end)
-        end)
-        
-        notify("✅ " .. itemName .. " spawned! (30s)", 3)
     else
-        -- Buat part
-        local part = Instance.new("Part")
-        part.Name = itemName
-        part.Size = Vector3.new(2, 2, 2)
-        part.Position = spawnPos
-        part.Anchored = true
-        part.CanCollide = false
-        part.Transparency = 0.3
-        part.Color = Color3.fromRGB(100, 200, 255)
-        part.Parent = Workspace
+        -- BUAT PART DENGAN ANIMASI
+        petObject = Instance.new("Model")
+        petObject.Name = itemName
+        petObject.Parent = Workspace
         
-        -- Billboard
-        local billboard = Instance.new("BillboardGui")
-        billboard.Size = UDim2.new(0, 200, 0, 50)
-        billboard.Adornee = part
-        billboard.Parent = part
+        -- Body
+        local body = Instance.new("Part")
+        body.Name = "Body"
+        body.Size = Vector3.new(2, 1.5, 3)
+        body.Position = spawnPos
+        body.Anchored = false
+        body.CanCollide = true
+        body.Transparency = 0
+        body.Color = Color3.fromRGB(100, 150, 200)
+        body.Parent = petObject
+        Instance.new("UICorner", body).CornerRadius = UDim.new(0, 8)
         
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.Text = "🔮 " .. itemName
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 18
-        label.Font = Enum.Font.GothamBold
-        label.Parent = billboard
+        -- Head
+        local head = Instance.new("Part")
+        head.Name = "Head"
+        head.Size = Vector3.new(1.5, 1.2, 1.5)
+        head.Position = spawnPos + Vector3.new(0, 1.5, 1.8)
+        head.Anchored = false
+        head.CanCollide = true
+        head.Transparency = 0
+        head.Color = Color3.fromRGB(150, 200, 250)
+        head.Parent = petObject
+        Instance.new("UICorner", head).CornerRadius = UDim.new(0, 6)
         
-        table.insert(spawnedObjects, part)
+        -- Mata
+        for _, pos in ipairs({Vector3.new(-0.5, 0.3, 0.8), Vector3.new(0.5, 0.3, 0.8)}) do
+            local eye = Instance.new("Part")
+            eye.Size = Vector3.new(0.3, 0.3, 0.2)
+            eye.Position = head.Position + pos
+            eye.Anchored = false
+            eye.CanCollide = false
+            eye.Transparency = 0
+            eye.Color = Color3.fromRGB(0, 0, 0)
+            eye.Parent = petObject
+        end
         
-        local floatConnection
-        local startY = spawnPos.Y
-        local elapsed = 0
-        floatConnection = RunService.Heartbeat:Connect(function(dt)
-            elapsed = elapsed + dt
-            local newY = startY + math.sin(elapsed * 2) * 0.5
-            part.Position = Vector3.new(spawnPos.X, newY, spawnPos.Z)
-        end)
+        -- Kaki
+        for _, offset in ipairs({
+            Vector3.new(-0.7, -1, 1.2),
+            Vector3.new(0.7, -1, 1.2),
+            Vector3.new(-0.7, -1, -1.2),
+            Vector3.new(0.7, -1, -1.2)
+        }) do
+            local leg = Instance.new("Part")
+            leg.Size = Vector3.new(0.4, 0.8, 0.4)
+            leg.Position = spawnPos + offset
+            leg.Anchored = false
+            leg.CanCollide = true
+            leg.Transparency = 0
+            leg.Color = Color3.fromRGB(80, 120, 180)
+            leg.Parent = petObject
+        end
         
-        task.delay(30, function()
-            pcall(function()
-                floatConnection:Disconnect()
-                part:Destroy()
-                for i, obj in ipairs(spawnedObjects) do
-                    if obj == part then
-                        table.remove(spawnedObjects, i)
-                        break
-                    end
-                end
-            end)
-        end)
+        -- Humanoid (biar bisa jalan)
+        local hum = Instance.new("Humanoid")
+        hum.Name = "Humanoid"
+        hum.Parent = petObject
+        hum.MaxHealth = 100
+        hum.Health = 100
+        hum.WalkSpeed = 5
         
-        notify("🔮 " .. itemName .. " (visual)", 3)
+        -- HumanoidRootPart
+        local root = Instance.new("Part")
+        root.Name = "HumanoidRootPart"
+        root.Size = Vector3.new(2, 1, 2)
+        root.Position = spawnPos
+        root.Anchored = false
+        root.CanCollide = true
+        root.Transparency = 1
+        root.Parent = petObject
+        
+        -- Weld body ke root
+        local weld = Instance.new("Weld")
+        weld.Part0 = root
+        weld.Part1 = body
+        weld.C0 = CFrame.new(0, 0, 0)
+        weld.Parent = body
     end
+    
+    -- ----- ANIMASI BERJALAN KAYAK PET GAG -----
+    local petInfo = {
+        object = petObject,
+        startPos = spawnPos,
+        radius = 3 + math.random(0, 3),
+        speed = 0.5 + math.random() * 1,
+        angle = math.random() * 360,
+        heightOffset = 0,
+        time = 0,
+        isMoving = true,
+        type = itemType,
+        name = itemName
+    }
+    
+    table.insert(spawnedObjects, petObject)
+    table.insert(petMovements, petInfo)
+    
+    -- MOVEMENT LOOP
+    local moveConnection
+    moveConnection = RunService.Heartbeat:Connect(function(dt)
+        petInfo.time = petInfo.time + dt
+        
+        if petInfo.isMoving then
+            -- Gerak melingkar kayak pet di GAG
+            petInfo.angle = petInfo.angle + dt * petInfo.speed * 30
+            
+            local rad = math.rad(petInfo.angle)
+            local x = petInfo.startPos.X + math.cos(rad) * petInfo.radius
+            local z = petInfo.startPos.Z + math.sin(rad) * petInfo.radius
+            local y = petInfo.startPos.Y + math.sin(petInfo.time * 1.5) * 0.3
+            
+            local newPos = Vector3.new(x, y, z)
+            
+            -- Rotasi menghadap arah gerak
+            local lookDir = Vector3.new(-math.sin(rad), 0, math.cos(rad))
+            
+            -- Pindahkan pet
+            local rootPart = petObject:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                rootPart.CFrame = CFrame.new(newPos, newPos + lookDir)
+                
+                -- Warna berubah pelan (efek pet)
+                local bodyPart = petObject:FindFirstChild("Body")
+                if bodyPart then
+                    local hue = (math.sin(petInfo.time * 0.5) + 1) * 0.5
+                    bodyPart.Color = Color3.fromHSV(hue * 0.6 + 0.5, 0.8, 0.8)
+                end
+            else
+                petObject:SetPrimaryPartCFrame(CFrame.new(newPos, newPos + lookDir))
+            end
+            
+            -- Lompat-lompat kecil (kayak pet GAG)
+            if math.sin(petInfo.time * 3) > 0.8 then
+                local root2 = petObject:FindFirstChild("HumanoidRootPart")
+                if root2 then
+                    root2.Velocity = Vector3.new(0, 2, 0)
+                end
+            end
+        end
+    end)
+    
+    -- ----- BILLBOARD NAMA -----
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(0, 150, 0, 35)
+    billboard.Adornee = petObject:FindFirstChild("Head") or petObject:FindFirstChild("HumanoidRootPart") or petObject:FindFirstChild("Body")
+    if billboard.Adornee then
+        billboard.Parent = billboard.Adornee
+    else
+        billboard.Parent = petObject
+    end
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "🐾 " .. itemName
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 16
+    label.Font = Enum.Font.GothamBold
+    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    label.TextStrokeTransparency = 0.3
+    label.Parent = billboard
+    
+    -- ----- DELETE SETELAH 60 DETIK -----
+    task.delay(60, function()
+        pcall(function()
+            moveConnection:Disconnect()
+            petObject:Destroy()
+            for i, obj in ipairs(spawnedObjects) do
+                if obj == petObject then
+                    table.remove(spawnedObjects, i)
+                    break
+                end
+            end
+            for i, info in ipairs(petMovements) do
+                if info.object == petObject then
+                    table.remove(petMovements, i)
+                    break
+                end
+            end
+        end)
+    end)
+    
+    notify("✅ " .. itemName .. " spawned! (60s)", 3)
 end
 
 -- ===================== CREATE UI =====================
@@ -248,7 +368,7 @@ local function createUI()
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 1, 0)
     title.BackgroundTransparency = 1
-    title.Text = "🌱 GARDEN SPAWNER v9.0"
+    title.Text = "🌱 GARDEN SPAWNER v10.0"
     title.TextColor3 = Color3.fromRGB(100, 255, 150)
     title.TextSize = 18
     title.Font = Enum.Font.GothamBold
@@ -307,7 +427,7 @@ local function createUI()
     contentFrame.ClipsDescendants = true
     contentFrame.Parent = mainFrame
     
-    -- ==================== BUILD PET TAB ====================
+    -- ==================== PET TAB ====================
     local petTab = Instance.new("ScrollingFrame")
     petTab.Size = UDim2.new(1, 0, 1, 0)
     petTab.BackgroundTransparency = 1
@@ -315,17 +435,26 @@ local function createUI()
     petTab.ScrollBarThickness = 6
     petTab.Parent = contentFrame
     
+    local selectedItem = nil
+    local selectedRarity = "All"
+    
     local function buildPetTab()
         for _, child in ipairs(petTab:GetChildren()) do
             if child:IsA("Frame") or child:IsA("TextButton") then child:Destroy() end
         end
         
         local yPos = 0
-        local selectedRarity = "Common"
-        local selectedItem = nil
         local rarityListVisible = false
         
-        -- RARITY DROPDOWN
+        -- SEMUA PET TANPA PILIHAN RARITY
+        local allPets = {}
+        for rarity, list in pairs(PETS) do
+            for _, pet in ipairs(list) do
+                table.insert(allPets, {name = pet, rarity = rarity})
+            end
+        end
+        
+        -- RARITY FILTER (TAPI TETEP ADA)
         local rarityFrame = Instance.new("Frame")
         rarityFrame.Size = UDim2.new(1, 0, 0, 40)
         rarityFrame.Position = UDim2.new(0, 0, 0, yPos)
@@ -337,7 +466,7 @@ local function createUI()
         local rarityLabel = Instance.new("TextLabel")
         rarityLabel.Size = UDim2.new(0.7, 0, 1, 0)
         rarityLabel.BackgroundTransparency = 1
-        rarityLabel.Text = "📊 Rarity: Common"
+        rarityLabel.Text = "📊 All Pets"
         rarityLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
         rarityLabel.TextSize = 14
         rarityLabel.Font = Enum.Font.GothamBold
@@ -359,7 +488,7 @@ local function createUI()
         Instance.new("UICorner", rarityBtn).CornerRadius = UDim.new(0, 4)
         
         local rarityList = Instance.new("Frame")
-        rarityList.Size = UDim2.new(1, 0, 0, 210)
+        rarityList.Size = UDim2.new(1, 0, 0, 250)
         rarityList.Position = UDim2.new(0, 0, 0, 45)
         rarityList.BackgroundColor3 = Color3.fromRGB(15, 15, 35)
         rarityList.BackgroundTransparency = 0
@@ -368,8 +497,9 @@ local function createUI()
         rarityList.Parent = petTab
         Instance.new("UICorner", rarityList).CornerRadius = UDim.new(0, 6)
         
-        local rarities = {"Common", "Uncommon", "Rare", "Legendary", "Mythical", "Divine", "Prismatic"}
+        local rarities = {"All", "Common", "Uncommon", "Rare", "Legendary", "Mythical", "Divine", "Prismatic"}
         local rarityColors = {
+            All = Color3.fromRGB(255, 255, 255),
             Common = Color3.fromRGB(200, 200, 200),
             Uncommon = Color3.fromRGB(100, 200, 100),
             Rare = Color3.fromRGB(100, 150, 255),
@@ -395,7 +525,7 @@ local function createUI()
             Instance.new("UICorner", item).CornerRadius = UDim.new(0, 4)
             item.MouseButton1Click:Connect(function()
                 selectedRarity = rarityName
-                rarityLabel.Text = "📊 Rarity: " .. rarityName
+                rarityLabel.Text = "📊 " .. rarityName
                 rarityList.Visible = false
                 rarityListVisible = false
                 buildPetTab()
@@ -409,43 +539,62 @@ local function createUI()
         
         yPos = yPos + 50
         
-        -- ITEM LIST
-        local itemList = PETS[selectedRarity] or {}
-        for i, itemName in ipairs(itemList) do
-            local itemBtn = Instance.new("TextButton")
-            itemBtn.Size = UDim2.new(1, -10, 0, 35)
-            itemBtn.Position = UDim2.new(0, 5, 0, yPos)
-            itemBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-            itemBtn.BackgroundTransparency = 0
-            itemBtn.BorderSizePixel = 0
-            itemBtn.Text = itemName
-            itemBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
-            itemBtn.TextSize = 14
-            itemBtn.Font = Enum.Font.GothamMedium
-            itemBtn.TextXAlignment = Enum.TextXAlignment.Left
-            itemBtn.Parent = petTab
-            Instance.new("UICorner", itemBtn).CornerRadius = UDim.new(0, 6)
+        -- FILTER PET
+        local filteredPets = {}
+        if selectedRarity == "All" then
+            for rarity, list in pairs(PETS) do
+                for _, pet in ipairs(list) do
+                    table.insert(filteredPets, {name = pet, rarity = rarity})
+                end
+            end
+        else
+            for _, pet in ipairs(PETS[selectedRarity] or {}) do
+                table.insert(filteredPets, {name = pet, rarity = selectedRarity})
+            end
+        end
+        
+        -- TAMPILAN PET
+        for i, petData in ipairs(filteredPets) do
+            local petBtn = Instance.new("TextButton")
+            petBtn.Size = UDim2.new(1, -10, 0, 35)
+            petBtn.Position = UDim2.new(0, 5, 0, yPos)
+            petBtn.BackgroundColor3 = (selectedItem == petData.name) and Color3.fromRGB(45, 45, 75) or Color3.fromRGB(30, 30, 55)
+            petBtn.BackgroundTransparency = 0
+            petBtn.BorderSizePixel = 0
+            petBtn.Text = petData.name
+            petBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+            petBtn.TextSize = 14
+            petBtn.Font = Enum.Font.GothamMedium
+            petBtn.TextXAlignment = Enum.TextXAlignment.Left
+            petBtn.Parent = petTab
+            Instance.new("UICorner", petBtn).CornerRadius = UDim.new(0, 6)
             
+            -- SELECTOR (HANYA 1 YANG HIJAU)
             local selector = Instance.new("Frame")
             selector.Size = UDim2.new(0, 4, 0.6, 0)
             selector.Position = UDim2.new(0, 0, 0.2, 0)
             selector.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
-            selector.BackgroundTransparency = 1
+            selector.BackgroundTransparency = (selectedItem == petData.name) and 0 or 1
             selector.BorderSizePixel = 0
-            selector.Parent = itemBtn
+            selector.Parent = petBtn
             Instance.new("UICorner", selector).CornerRadius = UDim.new(0, 2)
             
-            itemBtn.MouseButton1Click:Connect(function()
-                selectedItem = itemName
-                for _, child in ipairs(petTab:GetChildren()) do
-                    if child:IsA("TextButton") and child:FindFirstChild("Selector") then
-                        child.Selector.BackgroundTransparency = 1
-                        child.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-                    end
-                end
-                selector.BackgroundTransparency = 0
-                itemBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
-                notify("🖱️ Selected: " .. itemName, 2)
+            -- TANDA RARITY
+            local rarityTag = Instance.new("TextLabel")
+            rarityTag.Size = UDim2.new(0, 80, 1, 0)
+            rarityTag.Position = UDim2.new(1, -85, 0, 0)
+            rarityTag.BackgroundTransparency = 1
+            rarityTag.Text = petData.rarity
+            rarityTag.TextColor3 = rarityColors[petData.rarity] or Color3.fromRGB(200, 200, 200)
+            rarityTag.TextSize = 11
+            rarityTag.Font = Enum.Font.GothamMedium
+            rarityTag.TextXAlignment = Enum.TextXAlignment.Right
+            rarityTag.Parent = petBtn
+            
+            petBtn.MouseButton1Click:Connect(function()
+                selectedItem = petData.name
+                buildPetTab()
+                notify("🖱️ Selected: " .. petData.name, 2)
             end)
             yPos = yPos + 40
         end
@@ -459,7 +608,7 @@ local function createUI()
         spawnBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
         spawnBtn.BackgroundTransparency = 0
         spawnBtn.BorderSizePixel = 0
-        spawnBtn.Text = "👁️ SPAWN VISUAL"
+        spawnBtn.Text = "🐾 SPAWN PET"
         spawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         spawnBtn.TextSize = 18
         spawnBtn.Font = Enum.Font.GothamBold
@@ -468,7 +617,7 @@ local function createUI()
         
         spawnBtn.MouseButton1Click:Connect(function()
             if selectedItem then
-                spawnVisual(selectedItem, "Pet")
+                spawnRealPet(selectedItem, "Pet")
             else
                 notify("⚠️ Select a pet first!", 2)
             end
@@ -478,7 +627,7 @@ local function createUI()
         petTab.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
     end
     
-    -- ==================== BUILD PLANTS TAB ====================
+    -- ==================== PLANTS TAB ====================
     local plantTab = Instance.new("ScrollingFrame")
     plantTab.Size = UDim2.new(1, 0, 1, 0)
     plantTab.BackgroundTransparency = 1
@@ -487,17 +636,24 @@ local function createUI()
     plantTab.Visible = false
     plantTab.Parent = contentFrame
     
+    local selectedPlant = nil
+    local selectedPlantRarity = "All"
+    
     local function buildPlantTab()
         for _, child in ipairs(plantTab:GetChildren()) do
             if child:IsA("Frame") or child:IsA("TextButton") then child:Destroy() end
         end
         
         local yPos = 0
-        local selectedRarity = "Common"
-        local selectedItem = nil
         local rarityListVisible = false
         
-        -- RARITY DROPDOWN
+        local allPlants = {}
+        for rarity, list in pairs(PLANTS) do
+            for _, plant in ipairs(list) do
+                table.insert(allPlants, {name = plant, rarity = rarity})
+            end
+        end
+        
         local rarityFrame = Instance.new("Frame")
         rarityFrame.Size = UDim2.new(1, 0, 0, 40)
         rarityFrame.Position = UDim2.new(0, 0, 0, yPos)
@@ -509,7 +665,7 @@ local function createUI()
         local rarityLabel = Instance.new("TextLabel")
         rarityLabel.Size = UDim2.new(0.7, 0, 1, 0)
         rarityLabel.BackgroundTransparency = 1
-        rarityLabel.Text = "📊 Rarity: Common"
+        rarityLabel.Text = "📊 All Plants"
         rarityLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
         rarityLabel.TextSize = 14
         rarityLabel.Font = Enum.Font.GothamBold
@@ -531,7 +687,7 @@ local function createUI()
         Instance.new("UICorner", rarityBtn).CornerRadius = UDim.new(0, 4)
         
         local rarityList = Instance.new("Frame")
-        rarityList.Size = UDim2.new(1, 0, 0, 210)
+        rarityList.Size = UDim2.new(1, 0, 0, 250)
         rarityList.Position = UDim2.new(0, 0, 0, 45)
         rarityList.BackgroundColor3 = Color3.fromRGB(15, 15, 35)
         rarityList.BackgroundTransparency = 0
@@ -540,8 +696,9 @@ local function createUI()
         rarityList.Parent = plantTab
         Instance.new("UICorner", rarityList).CornerRadius = UDim.new(0, 6)
         
-        local rarities = {"Common", "Uncommon", "Rare", "Legendary", "Mythical", "Divine", "Prismatic"}
+        local rarities = {"All", "Common", "Uncommon", "Rare", "Legendary", "Mythical", "Divine", "Prismatic"}
         local rarityColors = {
+            All = Color3.fromRGB(255, 255, 255),
             Common = Color3.fromRGB(200, 200, 200),
             Uncommon = Color3.fromRGB(100, 200, 100),
             Rare = Color3.fromRGB(100, 150, 255),
@@ -566,8 +723,8 @@ local function createUI()
             item.Parent = rarityList
             Instance.new("UICorner", item).CornerRadius = UDim.new(0, 4)
             item.MouseButton1Click:Connect(function()
-                selectedRarity = rarityName
-                rarityLabel.Text = "📊 Rarity: " .. rarityName
+                selectedPlantRarity = rarityName
+                rarityLabel.Text = "📊 " .. rarityName
                 rarityList.Visible = false
                 rarityListVisible = false
                 buildPlantTab()
@@ -581,42 +738,58 @@ local function createUI()
         
         yPos = yPos + 50
         
-        local itemList = PLANTS[selectedRarity] or {}
-        for i, itemName in ipairs(itemList) do
-            local itemBtn = Instance.new("TextButton")
-            itemBtn.Size = UDim2.new(1, -10, 0, 35)
-            itemBtn.Position = UDim2.new(0, 5, 0, yPos)
-            itemBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-            itemBtn.BackgroundTransparency = 0
-            itemBtn.BorderSizePixel = 0
-            itemBtn.Text = itemName
-            itemBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
-            itemBtn.TextSize = 14
-            itemBtn.Font = Enum.Font.GothamMedium
-            itemBtn.TextXAlignment = Enum.TextXAlignment.Left
-            itemBtn.Parent = plantTab
-            Instance.new("UICorner", itemBtn).CornerRadius = UDim.new(0, 6)
+        local filteredPlants = {}
+        if selectedPlantRarity == "All" then
+            for rarity, list in pairs(PLANTS) do
+                for _, plant in ipairs(list) do
+                    table.insert(filteredPlants, {name = plant, rarity = rarity})
+                end
+            end
+        else
+            for _, plant in ipairs(PLANTS[selectedPlantRarity] or {}) do
+                table.insert(filteredPlants, {name = plant, rarity = selectedPlantRarity})
+            end
+        end
+        
+        for i, plantData in ipairs(filteredPlants) do
+            local plantBtn = Instance.new("TextButton")
+            plantBtn.Size = UDim2.new(1, -10, 0, 35)
+            plantBtn.Position = UDim2.new(0, 5, 0, yPos)
+            plantBtn.BackgroundColor3 = (selectedPlant == plantData.name) and Color3.fromRGB(45, 45, 75) or Color3.fromRGB(30, 30, 55)
+            plantBtn.BackgroundTransparency = 0
+            plantBtn.BorderSizePixel = 0
+            plantBtn.Text = plantData.name
+            plantBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+            plantBtn.TextSize = 14
+            plantBtn.Font = Enum.Font.GothamMedium
+            plantBtn.TextXAlignment = Enum.TextXAlignment.Left
+            plantBtn.Parent = plantTab
+            Instance.new("UICorner", plantBtn).CornerRadius = UDim.new(0, 6)
             
             local selector = Instance.new("Frame")
             selector.Size = UDim2.new(0, 4, 0.6, 0)
             selector.Position = UDim2.new(0, 0, 0.2, 0)
             selector.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
-            selector.BackgroundTransparency = 1
+            selector.BackgroundTransparency = (selectedPlant == plantData.name) and 0 or 1
             selector.BorderSizePixel = 0
-            selector.Parent = itemBtn
+            selector.Parent = plantBtn
             Instance.new("UICorner", selector).CornerRadius = UDim.new(0, 2)
             
-            itemBtn.MouseButton1Click:Connect(function()
-                selectedItem = itemName
-                for _, child in ipairs(plantTab:GetChildren()) do
-                    if child:IsA("TextButton") and child:FindFirstChild("Selector") then
-                        child.Selector.BackgroundTransparency = 1
-                        child.BackgroundColor3 = Color3.fromRGB(30, 30, 55)
-                    end
-                end
-                selector.BackgroundTransparency = 0
-                itemBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 75)
-                notify("🖱️ Selected: " .. itemName, 2)
+            local rarityTag = Instance.new("TextLabel")
+            rarityTag.Size = UDim2.new(0, 80, 1, 0)
+            rarityTag.Position = UDim2.new(1, -85, 0, 0)
+            rarityTag.BackgroundTransparency = 1
+            rarityTag.Text = plantData.rarity
+            rarityTag.TextColor3 = rarityColors[plantData.rarity] or Color3.fromRGB(200, 200, 200)
+            rarityTag.TextSize = 11
+            rarityTag.Font = Enum.Font.GothamMedium
+            rarityTag.TextXAlignment = Enum.TextXAlignment.Right
+            rarityTag.Parent = plantBtn
+            
+            plantBtn.MouseButton1Click:Connect(function()
+                selectedPlant = plantData.name
+                buildPlantTab()
+                notify("🖱️ Selected: " .. plantData.name, 2)
             end)
             yPos = yPos + 40
         end
@@ -629,7 +802,7 @@ local function createUI()
         spawnBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
         spawnBtn.BackgroundTransparency = 0
         spawnBtn.BorderSizePixel = 0
-        spawnBtn.Text = "👁️ SPAWN VISUAL"
+        spawnBtn.Text = "🌱 SPAWN PLANT"
         spawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         spawnBtn.TextSize = 18
         spawnBtn.Font = Enum.Font.GothamBold
@@ -637,8 +810,8 @@ local function createUI()
         Instance.new("UICorner", spawnBtn).CornerRadius = UDim.new(0, 8)
         
         spawnBtn.MouseButton1Click:Connect(function()
-            if selectedItem then
-                spawnVisual(selectedItem, "Plant")
+            if selectedPlant then
+                spawnRealPet(selectedPlant, "Plant")
             else
                 notify("⚠️ Select a plant first!", 2)
             end
@@ -669,7 +842,7 @@ local function createUI()
         infoLabel.Position = UDim2.new(0, 5, 0, yPos)
         infoLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
         infoLabel.BackgroundTransparency = 0.5
-        infoLabel.Text = "🌱 GARDEN SPAWNER v9.0\nLYNZKA STYLE - VISUAL ONLY"
+        infoLabel.Text = "🌱 GARDEN SPAWNER v10.0\nREAL PET MOVEMENT - 60s DURATION"
         infoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
         infoLabel.TextSize = 14
         infoLabel.Font = Enum.Font.GothamMedium
@@ -688,7 +861,7 @@ local function createUI()
         stats.Position = UDim2.new(0, 5, 0, yPos)
         stats.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
         stats.BackgroundTransparency = 0.5
-        stats.Text = "📊 Total Pets: " .. totalPets .. "\n🌱 Total Plants: " .. totalPlants .. "\n👁️ Visual Only - 30s duration"
+        stats.Text = "📊 Total Pets: " .. totalPets .. "\n🌱 Total Plants: " .. totalPlants .. "\n🐾 Real Movement - 60s Duration"
         stats.TextColor3 = Color3.fromRGB(200, 200, 220)
         stats.TextSize = 13
         stats.Font = Enum.Font.GothamMedium
@@ -714,7 +887,11 @@ local function createUI()
             for _, obj in ipairs(spawnedObjects) do
                 pcall(function() obj:Destroy() end)
             end
+            for _, info in ipairs(petMovements) do
+                pcall(function() info.object:Destroy() end)
+            end
             spawnedObjects = {}
+            petMovements = {}
             notify("🗑️ All visuals cleared!", 2)
         end)
         yPos = yPos + 55
@@ -918,7 +1095,7 @@ local function createUI()
         end
     end)
     
-    -- KEYBIND - (Minus)
+    -- KEYBIND
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.Minus then
@@ -926,7 +1103,6 @@ local function createUI()
         end
     end)
     
-    -- KEYBIND + (Plus)
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.Equals then
@@ -934,8 +1110,8 @@ local function createUI()
         end
     end)
     
-    notify("🌱 GARDEN SPAWNER v9.0 LOADED!", 3)
-    notify("💡 Press '-' or '+' to toggle menu", 3)
+    notify("🌱 GARDEN SPAWNER v10.0 LOADED!", 3)
+    notify("🐾 REAL PET MOVEMENT - 60s DURATION", 3)
 end
 
 -- ==================== START ====================
@@ -943,6 +1119,5 @@ task.spawn(function()
     createUI()
 end)
 
-print("[GARDEN SPAWNER] ✅ LOADED!")
-print("💡 Press '-' or '+' to toggle menu")
-print("👁️ KHUSUS Grow a Garden Roblox!")
+print("[GARDEN SPAWNER] ✅ v10.0 LOADED!")
+print("🐾 REAL PET MOVEMENT - 60s DURATION!")
